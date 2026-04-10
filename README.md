@@ -15,6 +15,11 @@
 
 ## 项目结构
 ```
+ElainaWeb/
+├── backend/    # 后端项目目录
+├── frontend/   # 前端项目目录
+├── docker-compose.yml  # Docker Compose 配置文件
+├── README.md
 ```
 
 ## 待实现的功能
