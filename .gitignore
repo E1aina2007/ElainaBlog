@@ -3,3 +3,6 @@ backend/config.yaml
 
 # 日志文件
 backend/log/
+
+# air 热重载临时目录
+backend/cmd/tmp/
