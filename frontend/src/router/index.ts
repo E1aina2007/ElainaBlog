@@ -1,0 +1,1 @@
+// index.ts 定义 Vue Router 路由表和导航守卫
