@@ -1,0 +1,5 @@
+# 包含真实密码的配置文件（仅保留 config.example.yaml）
+backend/config.yaml
+
+# 日志文件
+backend/log/
