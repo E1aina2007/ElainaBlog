@@ -5,7 +5,6 @@
 
 ### 后端
 - **Web 框架**: [Gin](https://github.com/gin-gonic/gin) v1.12
-- **ORM**: [GORM](https://gorm.io) v1.31
 - **数据库**: MySQL (驱动 gorm.io/driver/mysql v1.6)
 - **日志**: [Zap](https://github.com/uber-go/zap) v1.27
 - **配置管理**: [yaml](https://gopkg.in/yaml.v3) (YAML 文件读取/写入)
