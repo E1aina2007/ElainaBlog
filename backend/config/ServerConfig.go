@@ -2,7 +2,7 @@ package config
 
 import "fmt"
 
-type SystemConfig struct {
+type ServerConfig struct {
 	Host          string `yaml:"host" json:"host"`                     // 主机地址
 	Port          int    `yaml:"port" json:"port"`                     // 端口号
 	Env           string `yaml:"env" json:"env"`                       // 运行环境
@@ -12,6 +12,6 @@ type SystemConfig struct {
 	OssType       string `yaml:"oss_type" json:"oss_type"`             // 对象存储类型
 }
 
-func (s SystemConfig) Addr() string {
+func (s ServerConfig) GetAddress() string {
 	return fmt.Sprintf("%s:%d", s.Host, s.Port)
 }

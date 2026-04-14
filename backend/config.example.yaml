@@ -6,14 +6,15 @@ email:
   nickname: your-nickname
   is_ssl: true
   
-jwt:
+auth:
   access_token_secret: "your-access-secret"
   refresh_token_secret: "your-refresh-secret"
   access_token_expiry_time: 2h
   refresh_token_expiry_time: 7d
   issuer: ElainaWeb
 
-mysql:
+db:
+  sqlname: mysql
   host: 127.0.0.1
   port: 3306
   config: charset=utf8mb4&parseTime=True&loc=Local
