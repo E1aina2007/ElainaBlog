@@ -1,7 +1,7 @@
 package zaplogger
 
 import (
-	"ElainaWeb/global"
+	"ElainaWeb/config"
 	"log"
 	"os"
 
@@ -10,9 +10,12 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// Logger 全局 Zap 日志实例
+var Logger *zap.Logger
+
 // InitLogger 初始化 Zap 日志实例，根据配置设置日志输出、编码格式和日志级别
 func InitLogger() *zap.Logger {
-	zapCfg := global.Config.Zap
+	zapCfg := config.GlobalConfig.Zap
 
 	// 创建日志文件写入器（基于 lumberjack 实现日志轮转）
 	writeSyncer := getLogWriter(zapCfg.FileName, zapCfg.MaxSize, zapCfg.MaxBackups, zapCfg.MaxAge)
