@@ -1,7 +1,7 @@
 package zaplogger
 
 import (
-	"ElainaWeb/config"
+	"ElainaBlog/config"
 	"log"
 	"os"
 

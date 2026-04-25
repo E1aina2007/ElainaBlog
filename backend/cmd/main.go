@@ -2,19 +2,18 @@
 package main
 
 import (
-	"ElainaWeb/config"
-	"ElainaWeb/config/db"
-	"ElainaWeb/internal/server"
-	"ElainaWeb/pkg/zaplogger"
+	"ElainaBlog/config"
+	"ElainaBlog/config/db"
+	"ElainaBlog/internal/common"
+	"ElainaBlog/pkg/zaplogger"
 	"log"
-
-	"go.uber.org/zap"
+	"os"
 )
 
 func init() {
 	// 1. 加载配置文件
-	cfgPath := "../config.yaml"
-	err := config.LoadConfigFromYml(cfgPath)
+	path := config.CheckMode()
+	err := config.LoadConfigFromYml(path)
 	if err != nil {
 		log.Fatalf("配置文件加载失败: %v", err)
 	}
@@ -27,11 +26,26 @@ func init() {
 	if err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
+
+	// 4. 初始化 JWT 服务
+	common.InitJwtAuth()
 }
 
 func main() {
-	err := server.RunServer()
-	if err != nil {
-		zaplogger.Logger.Fatal("服务器启动失败: ", zap.Error(err))
+	if len(os.Args) < 2 {
+		log.Fatalf("请输入命令")
+	}
+	switch os.Args[1] {
+	case "initSystem":
+		initSystem()
+		return
+	case "runServer":
+		err := runServer()
+		if err != nil {
+			log.Fatalf("服务器启动失败：%v", err)
+		}
+		return
+	default:
+		log.Fatalf("未知的命令")
 	}
 }

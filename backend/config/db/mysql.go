@@ -2,8 +2,10 @@
 package db
 
 import (
-	"ElainaWeb/config"
+	"ElainaBlog/config"
 	"database/sql"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var DBPool *sql.DB // DBPool 全局数据库连接池

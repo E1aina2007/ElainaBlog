@@ -1,15 +1,19 @@
-# ElainaWeb 基于 Gin 和 Vue3 + TypeScript 的个人小窝(网站)
-遇见风的小窝 - 边学边搭建，搭到哪学到哪
+# ElainaBlog
+
+基于 Gin + Vue3 + TypeScript 的个人博客系统。
+
+> 遇见风的小窝 —— 边学边搭建，搭到哪学到哪。
 
 ## 技术栈
 
 ### 后端
-- **Web 框架**: [Gin](https://github.com/gin-gonic/gin) v1.12
-- **数据库**: MySQL (驱动 gorm.io/driver/mysql v1.6)
-- **日志**: [Zap](https://github.com/uber-go/zap) v1.27
-- **配置管理**: [yaml](https://gopkg.in/yaml.v3) (YAML 文件读取/写入)
-- **认证**: JWT (访问令牌 + 刷新令牌)
 - **语言**: Go 1.25
+- **Web 框架**: [Gin](https://github.com/gin-gonic/gin) v1.12
+- **数据库**: MySQL（database/sql + go-sql-driver/mysql）
+- **日志**: [Zap](https://github.com/uber-go/zap) v1.27
+- **配置管理**: [yaml.v3](https://gopkg.in/yaml.v3)
+- **认证**: JWT（双 token：access + refresh）
+- **密码**: bcrypt
 
 ### 前端
 - **框架**: [Vue 3](https://vuejs.org/) + TypeScript
@@ -17,55 +21,99 @@
 - **路由**: [Vue Router](https://router.vuejs.org/)
 - **构建工具**: [Vite](https://vitejs.dev/)
 
-### 部署 & 运维
+### 部署
+- **平台**: Linux
 - **反向代理**: Nginx
 - **容器化**: Docker + Docker Compose
-- **日志管理**: Zap
 
 ## 项目结构
+
 ```
-ElainaWeb/
-├── backend/                  # 后端项目目录
-│   ├── cmd/                  # 应用入口 
-│   ├── config/               # 配置定义与加载
-│   ├── global/               # 全局变量 
-│   ├── internal/             # 业务逻辑
-│   │   ├── handler/          # 请求处理器
-│   │   ├── middleware/       # 中间件
-│   │   ├── model/            # 数据模型
-│   │   ├── repository/       # 数据访问层
-│   │   ├── router/           # 路由注册
-│   │   └── service/          # 业务服务层
-│   ├── pkg/                  # 公共工具包
-│   │   ├── db/               # 数据库初始化
-│   │   ├── response/         # 统一响应封装
-│   │   ├── util/             # 通用工具
-│   │   └── zaplogger/        # Zap 日志初始化
-│   ├── config.example.yaml   # 配置文件示例
-│   ├── Dockerfile
-│   ├── go.mod
-│   └── go.sum
-├── frontend/                 # 前端项目目录
-│   ├── src/
-│   │   ├── api/              # 接口请求
-│   │   ├── components/       # 公共组件
-│   │   ├── layouts/          # 布局组件
-│   │   ├── router/           # 路由配置
-│   │   ├── stores/           # Pinia 状态管理
-│   │   ├── styles/           # 全局样式
-│   │   ├── utils/            # 工具函数
-│   │   └── views/            # 页面视图
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── package.json
-├── docker-compose.yml        # Docker 
+ElainaBlog/
+├── backend/
+│   ├── cmd/                        # 应用入口（main、initSystem、runServer）
+│   ├── config/                     # 配置定义与加载
+│   │   └── db/                     # 数据库连接池 & SQL 初始化脚本
+│   ├── internal/
+│   │   ├── common/                 # JWT 服务、公共 helper、模型（AppError、ApiResponse）
+│   │   ├── middleware/             # JWT 鉴权中间件
+│   │   ├── user/                   # 用户模块（Controller / Service / Repository）
+│   │   ├── article/                # 文章模块（Controller / Service / Repository）
+│   │   ├── category/               # 分类模块（Controller / Service / Repository）
+│   │   ├── comment/                # 评论模块（Controller / Service / Repository）
+│   │   ├── uploads/                # 文件上传（待实现）
+│   │   └── router.go               # 路由注册
+│   └── pkg/                        # 工具包（zaplogger、util）
+├── frontend/                       # 前端项目（待实现）
+├── docker-compose.yml
 └── README.md
 ```
 
-## 待实现的功能
-- [ ] 前端页面
-- [ ] 后端基础框架
-- [ ] 登录注册
-- [ ] 用户信息管理/个人页面
-- [ ] 文章管理
-- [ ] 评论管理
+## API 路由
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|------|------|------|------|
+| GET | `/health` | - | 健康检查 |
+| POST | `/api/ui/login` | - | 用户登录 |
+| POST | `/api/ui/refresh` | - | 刷新 access token |
+| GET | `/api/ui/user/profile` | ✅ | 获取当前用户信息 |
+| GET | `/api/ui/user/list` | ✅ 管理员 | 用户列表 |
+| POST | `/api/ui/user/profile` | ✅ | 修改个人资料 |
+| POST | `/api/ui/user/password` | ✅ | 修改密码 |
+| POST | `/api/ui/user/delete` | ✅ 管理员 | 删除用户 |
+| GET | `/api/ui/category/list` | - | 分类列表 |
+| POST | `/api/ui/category/create` | ✅ 管理员 | 创建分类 |
+| POST | `/api/ui/category/update` | ✅ 管理员 | 更新分类 |
+| POST | `/api/ui/category/delete` | ✅ 管理员 | 删除分类 |
+| GET | `/api/ui/article/list` | - | 文章列表 |
+| GET | `/api/ui/article/:id` | - | 文章详情 |
+| POST | `/api/ui/article/create` | ✅ 管理员 | 创建文章 |
+| POST | `/api/ui/article/update` | ✅ 管理员 | 更新文章 |
+| POST | `/api/ui/article/delete` | ✅ 管理员 | 删除文章 |
+| GET | `/api/ui/comment/:article_id` | - | 评论列表 |
+| POST | `/api/ui/comment/create` | ✅ | 创建评论 |
+| POST | `/api/ui/comment/delete` | ✅ | 删除评论（本人或管理员） |
+
+## 快速启动
+
+### 1. 配置
+
+复制 `backend/config/config.example.yaml` 为 `backend/config/config.dev.yaml`，填写数据库连接、JWT 密钥等配置。
+
+确保 `backend/config/.env` 中设置了运行模式：
+
+```
+MODE=dev
+```
+
+### 2. 初始化数据库
+
+使用 `backend/config/db/initsql/0001_init_sql.sql` 在 MySQL 中创建数据库和表：
+
+```bash
+mysql -u root -p < backend/config/db/initsql/0001_init_sql.sql
+```
+
+### 3. 初始化管理员
+
+```bash
+cd backend
+go run ./cmd initSystem <password>
+```
+
+> 必须提供管理员密码作为命令行参数，默认用户名为 `admin`。
+
+### 4. 启动服务
+
+```bash
+cd backend
+go run ./cmd runServer
+```
+
+### 5. 前端（待实现）
+
+```bash
+cd frontend
+npm install
+npm run dev
+```

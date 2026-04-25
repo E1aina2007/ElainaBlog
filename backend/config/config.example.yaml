@@ -1,0 +1,54 @@
+email:
+  host: smtp.qq.com
+  port: 587
+  from: xxx@qq.com
+  password: yourpassword
+  nickname: your-nickname
+  is_ssl: true
+  
+auth:
+  access_token_secret: "your-access-secret"
+  refresh_token_secret: "your-refresh-secret"
+  access_token_expiry_time: 2h
+  refresh_token_expiry_time: 7d
+  issuer: ElainaWeb
+
+db:
+  sqlname: mysql
+  host: 127.0.0.1
+  port: 3306
+  config: charset=utf8mb4&parseTime=True&loc=Local
+  db_name: ElainaBlog
+  username: root
+  password: root
+  max_idle_conns: 10
+  max_open_conns: 100
+  log_mode: info
+
+redis:
+  address: 127.0.0.1:6379
+  password: ""
+  db: 0
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  env: debug
+  router_prefix: api
+  use_multipoint: true
+  sessions_key: your-sessions-key
+  oss_type: local
+
+upload:
+  size: 20
+  path: uploads
+
+zap:
+  level: info
+  filename: log/go_blog.log
+  max_size: 200
+  max_backups: 5
+  max_age: 30
+  is_console_print: true
+
+dev: true
