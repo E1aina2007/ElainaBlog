@@ -1,11 +1,3 @@
-email:
-  host: smtp.qq.com
-  port: 587
-  from: xxx@qq.com
-  password: yourpassword
-  nickname: your-nickname
-  is_ssl: true
-  
 auth:
   access_token_secret: "your-access-secret"
   refresh_token_secret: "your-refresh-secret"
@@ -29,7 +21,6 @@ smtp:
   host: "smtp.qq.com"  # SMTP服务器地址
   port: 587             # 端口（587或465）
   from: "your_email@qq.com"      # 发件人
-  to: "your_email@qq.com"  # 发件邮箱
   verification: "your_authorization_code"  # 授权码
   ssl: true             # 是否启用SSL
   timeout: 300           # 超时时间

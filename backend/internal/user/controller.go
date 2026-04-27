@@ -305,7 +305,7 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 func (ctl *Controller) SendCode(c *gin.Context) {
 	var req SendCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err)
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
