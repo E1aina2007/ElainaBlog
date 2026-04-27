@@ -57,6 +57,8 @@ func (e *AppError) HTTPStatus() int {
 		return http.StatusNotFound
 	case e.Code >= 409000 && e.Code < 410000:
 		return http.StatusConflict
+	case e.Code >= 429000 && e.Code < 430000:
+		return http.StatusTooManyRequests
 	default:
 		return http.StatusInternalServerError
 	}
@@ -91,4 +93,5 @@ var (
 	ErrNotFound      = &AppError{Code: 404001, Type: "NOT_FOUND", Message: "resource not found", I18nKey: "error.not_found"}              // 资源不存在
 	ErrConflict      = &AppError{Code: 409001, Type: "CONFLICT", Message: "resource conflict", I18nKey: "error.conflict"}                 // 资源冲突（如重复创建）
 	ErrInternal      = &AppError{Code: 500001, Type: "INTERNAL_ERROR", Message: "internal server error", I18nKey: "error.internal"}       // 服务器内部错误
+	ErrTooManyRequests = &AppError{Code: 429001, Type: "TOO_MANY_REQUESTS", Message: "too many requests", I18nKey: "error.too_many_requests"} // 请求过于频繁
 )

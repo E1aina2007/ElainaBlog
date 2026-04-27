@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	Db     DbConfig     `yaml:"db" json:"db"`         // 数据库配置
-	Auth   AuthConfig   `yaml:"auth" json:"auth"`     // 认证配置
-	Zap    ZapConfig    `yaml:"zap" json:"zap"`       // 日志配置
-	Server ServerConfig `yaml:"server" json:"server"` // 系统配置
-	Redis  RedisConfig  `yaml:"redis" json:"redis"`   // Redis 配置
-	Email  EmailConfig  `yaml:"email" json:"email"`   // 邮箱配置
-	Upload UploadConfig `yaml:"upload" json:"upload"` // 上传配置
+	Db           DbConfig           `yaml:"db" json:"db"`                     // 数据库配置
+	Auth         AuthConfig         `yaml:"auth" json:"auth"`                 // 认证配置
+	Zap          ZapConfig          `yaml:"zap" json:"zap"`                   // 日志配置
+	Server       ServerConfig       `yaml:"server" json:"server"`             // 系统配置
+	Redis        RedisConfig        `yaml:"redis" json:"redis"`               // Redis 配置
+	Upload       UploadConfig       `yaml:"upload" json:"upload"`             // 上传配置
+	Smtp         SmtpConfig         `yaml:"smtp" json:"smtp"`                 // SMTP 配置
+	Verification VerificationConfig `yaml:"verification" json:"verification"` //验证码配置
 
 	Dev bool `yaml:"dev"` // 区分开发和生产环境
 }

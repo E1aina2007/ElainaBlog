@@ -1,10 +1,15 @@
 package user
 
 import (
+	"ElainaBlog/config"
 	"ElainaBlog/internal/common"
+	"ElainaBlog/pkg/mail"
+	"ElainaBlog/pkg/rdb"
+	"ElainaBlog/pkg/util"
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -23,6 +28,7 @@ type CreateUserParams struct {
 	Email    string
 	Avatar   string
 	IsAdmin  bool
+	Code     string
 }
 
 type UpdateProfileParams struct {
@@ -54,18 +60,37 @@ var (
 	ErrSamePassword       = errors.New("新密码不能与旧密码相同")
 	ErrForbidden          = errors.New("无权限执行此操作")
 	ErrDBNotInitialized   = errors.New("数据库未初始化")
+	ErrResendTooFrequent  = errors.New("发送过于频繁，请稍后再试")
+	ErrCodeExpired        = errors.New("验证码已过期或不存在")
+	ErrCodeMismatch       = errors.New("验证码错误")
 )
 
 func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, ErrDBNotInitialized
 	}
-	
+
 	username := strings.TrimSpace(params.Username)
 	password := strings.TrimSpace(params.Password)
 	email := strings.TrimSpace(params.Email)
 	if username == "" || password == "" || email == "" {
 		return 0, ErrInvalidParams
+	}
+
+	// 非管理员创建（即普通注册）需要校验验证码
+	if !params.IsAdmin {
+		code := strings.TrimSpace(params.Code)
+		if code == "" {
+			return 0, ErrInvalidParams
+		}
+		storedCode, err := rdb.GetVerificationCode(email)
+		if err != nil {
+			return 0, ErrCodeExpired
+		}
+		if storedCode != code {
+			return 0, ErrCodeMismatch
+		}
+		_ = rdb.DeleteVerificationCode(email)
 	}
 
 	// 检查用户名是否已存在
@@ -298,4 +323,30 @@ func (s *Service) CheckIsAdmin(userID int64) (bool, error) {
 		return false, err
 	}
 	return u.IsAdmin, nil
+}
+
+func (s *Service) SendVerificationCode(email string) error {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return ErrInvalidParams
+	}
+
+	limited, err := rdb.IsDuringInterval(email)
+	if err != nil {
+		return err
+	}
+	if limited {
+		return ErrResendTooFrequent
+	}
+
+	cfg := config.GlobalConfig.Verification
+	code := util.GenerateCode(cfg.CodeLength)
+
+	expiry := time.Duration(cfg.ExpireTime) * time.Second
+	interval := time.Duration(cfg.ResendInterval) * time.Second
+	if err := rdb.SetVerificationCode(email, code, expiry, interval); err != nil {
+		return err
+	}
+
+	return mail.SendVerificationCode(email, code)
 }

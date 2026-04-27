@@ -25,10 +25,26 @@ db:
   max_open_conns: 100
   log_mode: info
 
+smtp:
+  smtp:
+  host: "smtp.qq.com"  # SMTP服务器地址
+  port: 587             # 端口（587或465）
+  username: "your_email@qq.com"  # 发件邮箱
+  password: "your_authorization_code"  # 授权码
+  from: "your_email@qq.com"      # 发件人
+  ssl: true             # 是否启用SSL
+  timeout: 300           # 超时时间
+
 redis:
   address: 127.0.0.1:6379
   password: ""
   db: 0
+  pool_size: 100
+
+verification:
+  code_length: 6      #长度
+  expire_time: 300    #过期
+  resend_interval: 60 #重发间隔
 
 server:
   host: 127.0.0.1

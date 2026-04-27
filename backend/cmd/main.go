@@ -5,6 +5,7 @@ import (
 	"ElainaBlog/config"
 	"ElainaBlog/config/db"
 	"ElainaBlog/internal/common"
+	"ElainaBlog/pkg/rdb"
 	"ElainaBlog/pkg/zaplogger"
 	"log"
 	"os"
@@ -25,6 +26,11 @@ func init() {
 	err = db.InitDB(&config.GlobalConfig.Db)
 	if err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
+	}
+
+	err = rdb.InitRedis(&config.GlobalConfig.Redis)
+	if err != nil {
+		log.Fatalf("Redis初始化失败：%v", err)
 	}
 
 	// 4. 初始化 JWT 服务

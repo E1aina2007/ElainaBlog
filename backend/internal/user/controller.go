@@ -36,8 +36,60 @@ type DeleteUserRequest struct {
 	UserID int64 `json:"user_id"`
 }
 
+type RegisterRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Code     string `json:"code"`
+}
+
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token"`
+}
+
+type SendCodeRequest struct {
+	Email string `json:"email"`
+}
+
+// Register 注册接口：创建新用户。
+func (ctl *Controller) Register(c *gin.Context) {
+	if ctl == nil || ctl.service == nil {
+		appErr := model.ErrInternal.WithDetail("user controller not initialized")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	userID, err := ctl.service.CreateUser(CreateUserParams{
+		Username: req.Username,
+		Password: req.Password,
+		Email:    req.Email,
+		Code:     req.Code,
+	})
+	if err != nil {
+		switch err {
+		case ErrInvalidParams, ErrCodeExpired, ErrCodeMismatch:
+			appErr := model.ErrInvalidParams.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case ErrUsernameExists, ErrEmailExists:
+			appErr := model.ErrConflict.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			appErr := model.ErrInternal.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{
+		"user_id": userID,
+	}))
 }
 
 // Login 登录接口：校验账号密码并签发 JWT（access/refresh）。
@@ -248,4 +300,31 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{
 		"access_token": accessToken,
 	}))
+}
+
+func (ctl *Controller) SendCode(c *gin.Context) {
+	var req SendCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err)
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	err := ctl.service.SendVerificationCode(req.Email)
+	if err != nil {
+		switch err {
+		case ErrInvalidParams:
+			appErr := model.ErrInvalidParams.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case ErrResendTooFrequent:
+			appErr := model.ErrTooManyRequests.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			appErr := model.ErrInternal.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
 }

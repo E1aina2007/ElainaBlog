@@ -40,7 +40,9 @@ func RouterInit(r *gin.Engine) {
 	apiGroup := r.Group("/api/ui")
 	{
 		apiGroup.POST("/login", userController.Login)
+		apiGroup.POST("/register", userController.Register)
 		apiGroup.POST("/refresh", userController.RefreshToken)
+		apiGroup.POST("/send-code", userController.SendCode)
 
 		// 站点配置（公开读取，管理员更新）
 		apiGroup.GET("/site", siteController.GetList)
