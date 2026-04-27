@@ -1,7 +1,7 @@
 # 包含真实密码的配置文件（仅保留 config.example.yaml）
-backend/config.yaml
-backend/config.dev.yaml
-backend/config.prod.yaml
+backend/config/config.yaml
+backend/config/config.dev.yaml
+backend/config/config.prod.yaml
 
 # 日志文件
 backend/log/
@@ -9,4 +9,4 @@ backend/log/
 # air 热重载临时目录
 backend/cmd/tmp/
 
-backend/config/db/foreign
+backend/config/db/foreign/

@@ -2,16 +2,15 @@
 
 基于 Gin + Vue3 + TypeScript 的个人博客系统。
 
-> 遇见风的小窝 —— 边学边搭建，搭到哪学到哪。
+> 遇见风的小窝 —— 边学边搭版
 
 ## 技术栈
 
 ### 后端
 - **语言**: Go 1.25
 - **Web 框架**: [Gin](https://github.com/gin-gonic/gin) v1.12
-- **数据库**: MySQL（database/sql + go-sql-driver/mysql）
+- **数据库**: MySQL
 - **日志**: [Zap](https://github.com/uber-go/zap) v1.27
-- **配置管理**: [yaml.v3](https://gopkg.in/yaml.v3)
 - **认证**: JWT（双 token：access + refresh）
 - **密码**: bcrypt
 
