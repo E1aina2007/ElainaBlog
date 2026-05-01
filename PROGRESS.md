@@ -21,6 +21,7 @@
 - [x] SMTP 邮件发送封装（pkg/mail）
 - [x] 验证码生成工具（pkg/util）
 - [x] ErrTooManyRequests 错误码（HTTP 429）
+- [x] 正则表达式限制输入
 
 ### 用户模块（user）
 - [x] Repository：GetUserByUsername / GetUserByEmail / GetUserByID / GetUserList / CreateUser / UpdateProfile / UpdatePassword / DeleteUser
