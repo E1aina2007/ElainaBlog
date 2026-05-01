@@ -74,7 +74,9 @@ func (ctl *Controller) Register(c *gin.Context) {
 	})
 	if err != nil {
 		switch err {
-		case ErrInvalidParams, ErrCodeExpired, ErrCodeMismatch:
+		case ErrInvalidParams, ErrCodeExpired, ErrCodeMismatch,
+			ErrEmailFormat, ErrEmailTooLong, ErrUsernameFormat,
+			ErrPasswordLength, ErrPasswordChars, ErrPasswordNeedLetter, ErrPasswordNeedDigit:
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrUsernameExists, ErrEmailExists:
@@ -114,7 +116,7 @@ func (ctl *Controller) Login(c *gin.Context) {
 
 	if err != nil {
 		switch err {
-		case ErrInvalidLoginParams:
+		case ErrInvalidLoginParams, ErrEmailFormat, ErrEmailTooLong:
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 			return
@@ -197,7 +199,8 @@ func (ctl *Controller) UpdateProfile(c *gin.Context) {
 	})
 	if err != nil {
 		switch err {
-		case ErrUsernameExists, ErrEmailExists, ErrInvalidParams:
+		case ErrUsernameExists, ErrEmailExists, ErrInvalidParams,
+			ErrUsernameFormat, ErrEmailFormat, ErrEmailTooLong:
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrUserNotFound:
@@ -229,7 +232,8 @@ func (ctl *Controller) UpdatePassword(c *gin.Context) {
 		case ErrPasswordMismatch:
 			appErr := model.ErrUnauthorized.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
-		case ErrSamePassword, ErrInvalidParams:
+		case ErrSamePassword, ErrInvalidParams,
+			ErrPasswordLength, ErrPasswordChars, ErrPasswordNeedLetter, ErrPasswordNeedDigit:
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
@@ -313,7 +317,7 @@ func (ctl *Controller) SendCode(c *gin.Context) {
 	err := ctl.service.SendVerificationCode(req.Email)
 	if err != nil {
 		switch err {
-		case ErrInvalidParams:
+		case ErrInvalidParams, ErrEmailFormat, ErrEmailTooLong:
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrResendTooFrequent:

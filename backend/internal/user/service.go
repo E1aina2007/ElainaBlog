@@ -77,6 +77,17 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 		return 0, ErrInvalidParams
 	}
 
+	// 正则校验邮箱、用户名、密码格式
+	if err := ValidateEmail(email); err != nil {
+		return 0, err
+	}
+	if err := ValidateUsername(username); err != nil {
+		return 0, err
+	}
+	if err := ValidatePassword(password); err != nil {
+		return 0, err
+	}
+
 	// 非管理员创建（即普通注册）需要校验验证码
 	if !params.IsAdmin {
 		code := strings.TrimSpace(params.Code)
@@ -136,6 +147,11 @@ func (s *Service) Login(params LoginParams) (*LoginResult, error) {
 
 	if email == "" || password == "" {
 		return nil, ErrInvalidLoginParams
+	}
+
+	// 校验邮箱格式
+	if err := ValidateEmail(email); err != nil {
+		return nil, err
 	}
 
 	// 通过邮箱查询用户
@@ -210,6 +226,14 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 		return ErrInvalidParams
 	}
 
+	// 正则校验用户名、邮箱格式
+	if err := ValidateUsername(username); err != nil {
+		return err
+	}
+	if err := ValidateEmail(email); err != nil {
+		return err
+	}
+
 	// 检查用户是否存在
 	_, err := s.repo.GetUserByID(params.UserID)
 	if err != nil {
@@ -249,6 +273,11 @@ func (s *Service) UpdatePassword(userID int64, oldPassword, newPassword string) 
 	newPassword = strings.TrimSpace(newPassword)
 	if userID <= 0 || oldPassword == "" || newPassword == "" {
 		return ErrInvalidParams
+	}
+
+	// 校验新密码格式
+	if err := ValidatePassword(newPassword); err != nil {
+		return err
 	}
 
 	// 查询用户
@@ -329,6 +358,11 @@ func (s *Service) SendVerificationCode(email string) error {
 	email = strings.TrimSpace(email)
 	if email == "" {
 		return ErrInvalidParams
+	}
+
+	// 校验邮箱格式
+	if err := ValidateEmail(email); err != nil {
+		return err
 	}
 
 	limited, err := rdb.IsDuringInterval(email)
