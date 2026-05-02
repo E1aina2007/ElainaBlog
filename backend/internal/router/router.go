@@ -48,6 +48,13 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.GET("/site", siteController.GetList)
 		apiGroup.POST("/site", auth.RequireAuth(), siteController.Update)
 
+		// 作者页公开接口
+		apiGroup.GET("/author/info", siteController.GetAuthorInfo)
+		apiGroup.GET("/author/stats", siteController.GetAuthorStats)
+
+		// 仪表盘统计（管理员）
+		apiGroup.GET("/dashboard/stats", auth.RequireAuth(), siteController.GetDashboardStats)
+
 		// 分类（列表公开）
 		apiGroup.GET("/category/list", categoryController.GetList)
 

@@ -17,8 +17,63 @@
 | Markdown 编辑器 | md-editor-v3（文章编写） |
 
 ---
+## 二、设计风格 — 清新治愈系
 
-## 二、目录结构
+### 2.1 设计理念
+
+以「春日清晨」为灵感，营造温暖、宁静、舒适的阅读氛围。通过柔和的色调、圆润的造型和细腻的动效，让每一位访客感受到如沐春风的治愈体验。
+
+### 2.2 色彩系统
+
+| 色彩角色 | 色值 | 用途 |
+|----------|------|------|
+| **主色调** | `#7ED7C1` | 按钮、链接、高亮、图标 |
+| **主色调浅** | `#A8E6CF` | 悬停状态、渐变起点 |
+| **主色调淡** | `#DCEDC8` | 背景装饰、标签底色 |
+| **辅助色** | `#FFB7B2` | 次要按钮、爱心/点赞 |
+| **强调色** | `#FFDAC1` | 提示信息、暖色点缀 |
+| **背景主色** | `#FAFDF9` | 页面主背景（米白偏绿） |
+| **背景次色** | `#F0F7F4` | 卡片、模块背景 |
+| **文字主色** | `#2C3E50` | 标题、正文 |
+| **文字次色** | `#5D6D7E` | 次要信息、描述 |
+| **文字辅助** | `#95A5A6` | 时间、元信息 |
+| **边框色** | `#E8F0ED` | 分割线、边框 |
+
+### 2.3 字体规范
+
+| 层级 | 字体 | 大小 | 字重 | 行高 |
+|------|------|------|------|------|
+| 页面标题 | Inter / 思源黑体 | 2.5rem (40px) | 600 | 1.3 |
+| 文章标题 | Inter / 思源黑体 | 1.5rem (24px) | 600 | 1.4 |
+| 正文 | Inter / 思源黑体 | 1rem (16px) | 400 | 1.8 |
+| 小字说明 | Inter / 思源黑体 | 0.875rem (14px) | 400 | 1.6 |
+| 标签/时间 | Inter / 思源黑体 | 0.75rem (12px) | 400 | 1.5 |
+
+### 2.4 圆角与阴影
+
+- **卡片圆角**：`16px`（大卡片）、`12px`（小卡片）、`8px`（按钮/标签）
+- **柔和阴影**：`0 4px 20px rgba(126, 215, 193, 0.15)`（主色调投影）
+- **悬浮阴影**：`0 8px 30px rgba(126, 215, 193, 0.25)`
+- **内阴影**：`inset 0 2px 4px rgba(0,0,0,0.02)`（输入框）
+
+### 2.5 动效规范
+
+| 场景 | 时长 | 缓动函数 | 效果 |
+|------|------|----------|------|
+| 页面进入 | 400ms | `cubic-bezier(0.4, 0, 0.2, 1)` | opacity 0→1, translateY 20px→0 |
+| 悬浮悬停 | 200ms | `ease-out` | scale 1→1.02, 阴影加深 |
+| 按钮点击 | 100ms | `ease-in-out` | scale 1→0.98 |
+| 卡片加载 | 300ms | `cubic-bezier(0.34, 1.56, 0.64, 1)` | stagger 50ms 依次出现 |
+| 路由切换 | 300ms | `ease` | fade + slide |
+
+### 2.6 装饰元素
+
+- **自然插画**：角落的叶子、云朵、星星点缀（SVG 装饰，opacity 0.1-0.3）
+- **渐变背景**：`linear-gradient(135deg, #FAFDF9 0%, #F0F7F4 100%)`
+- **玻璃拟态**：关键卡片使用 `backdrop-filter: blur(10px)` + 半透明背景
+
+---
+## 三、目录结构
 
 ```
 frontend/src/
@@ -67,13 +122,14 @@ frontend/src/
 
 ---
 
-## 三、路由设计
+## 四、路由设计
 
 | 路径 | 页面 | 布局 | 鉴权 |
 |------|------|------|------|
 | `/` | Home.vue | DefaultLayout | - |
 | `/article/:id` | ArticleDetail.vue | DefaultLayout | - |
 | `/about` | About.vue | DefaultLayout | - |
+| `/author` | Author.vue | DefaultLayout | - |
 | `/login` | Login.vue | 无布局（全屏居中） | - |
 | `/register` | Register.vue | 无布局（全屏居中） | - |
 | `/admin` | Dashboard.vue | AdminLayout | ✅ 管理员 |
@@ -94,7 +150,7 @@ router.beforeEach(to):
 
 ---
 
-## 四、布局设计
+## 五、布局设计
 
 ### DefaultLayout — 公开页面
 
@@ -106,7 +162,7 @@ router.beforeEach(to):
 │              <router-view />             │
 │                                          │
 ├──────────────────────────────────────────┤
-│  Footer (备案号 / 版权 / 社交链接)         │
+│  Footer (备案号 / 版权)         │
 └──────────────────────────────────────────┘
 ```
 
@@ -132,7 +188,7 @@ router.beforeEach(to):
 
 ---
 
-## 五、状态管理
+## 六、状态管理
 
 ### stores/user.ts
 
@@ -169,7 +225,7 @@ state:
 
 ---
 
-## 六、API 层设计
+## 七、API 层设计
 
 ### api/request.ts — Axios 实例
 
@@ -208,6 +264,8 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 | `updatePassword` | POST | `/user/password` | `{ old_password, new_password }` |
 | `getUserList` | GET | `/user/list` | - |
 | `deleteUser` | POST | `/user/delete` | `{ user_id }` |
+| `getAuthorInfo` | GET | `/author/info` | - | 获取作者公开信息 |
+| `getAuthorStats` | GET | `/author/stats` | - | 获取作者统计数据 |
 
 #### api/article.ts
 
@@ -229,9 +287,9 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 
 ---
 
-## 七、页面详细设计
+## 八、页面详细设计
 
-### 7.1 Login.vue — 登录
+### 8.1 Login.vue — 登录
 
 ```
 ┌─────────────────────────┐
@@ -251,7 +309,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 - 提交 → `userStore.login()` → 成功跳 `/` 或来源页
 - 后端 401 → 显示"邮箱或密码错误"
 
-### 7.2 Register.vue — 注册
+### 8.2 Register.vue — 注册
 
 ```
 ┌──────────────────────────────┐
@@ -276,7 +334,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 - 提交前统一校验全部字段，任一不通过则阻止
 - 成功 → `ElMessage.success('注册成功')` → 跳 `/login`
 
-### 7.3 Home.vue — 首页
+### 8.3 Home.vue — 首页
 
 ```
 ┌──────────────────────────────────────────┐
@@ -295,7 +353,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 - 分类切换 / 翻页 → 重新请求
 - 置顶文章标记角标
 
-### 7.4 ArticleDetail.vue — 文章详情
+### 8.4 ArticleDetail.vue — 文章详情
 
 ```
 ┌──────────────────────────────────────────┐
@@ -315,11 +373,89 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 - `onMounted` → `getArticleDetail(id)` + `getComments(id)`
 - 评论删除按钮仅对本人或管理员可见
 
-### 7.5 About.vue — 关于页
+### 8.5 About.vue — 关于页
 
-静态个人介绍页。可从 `site_config` 读取（昵称、工作、地址、社交链接），也可硬编码。
+静态个人介绍页。展示博客的创建初衷、发展历程、技术栈说明等。
 
-### 7.6 admin/Dashboard.vue — 仪表盘
+布局：
+- 顶部装饰插图（治愈系插画）
+- 博客故事区域（图文混排）
+- 技术栈标签云
+- 底部感谢语
+
+---
+
+### 8.5 Author.vue — 作者页
+
+展示博主的个人信息，设计风格温馨治愈。
+
+```
+┌──────────────────────────────────────────┐
+│                                          │
+│   ╭──────────────────────────╮            │
+│   │                          │            │
+│   │     [头像 - 圆形大图]     │            │
+│   │                          │            │
+│   │      博主昵称             │            │
+│   │   ✨ 一句话签名 ✨        │            │
+│   │                          │            │
+│   ╰──────────────────────────╯            │
+│                                          │
+│   ┌──────────┬──────────┬──────────┐     │
+│   │  文章数   │  评论数   │  建站天数 │     │
+│   │   128   │   256   │  365天   │     │
+│   └──────────┴──────────┴──────────┘     │
+│                                          │
+│   ╭──────────────────────────────────╮   │
+│   │  📍 位置    中国 · 杭州             │   │
+│   │  💼 职业    前端开发者              │   │
+│   │  🎯 爱好    摄影 · 旅行 · 阅读      │   │
+│   │  📧 邮箱    hello@example.com       │   │
+│   ╰──────────────────────────────────╯   │
+│                                          │
+│   个人简介                                │
+│   ─────────────────────────────────────   │
+│   这里是一段关于博主的温馨介绍文字，        │
+│   讲述创作的初衷和对生活的热爱...          │
+│                                          │
+│   社交链接                                │
+│   🐙 GitHub  📝 博客园  📺 Bilibili      │
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+**设计细节**：
+- 头像：`160px` 圆形，带 `4px` 白色边框 + 主色调阴影
+- 统计卡片：玻璃拟态效果，数字使用主色调
+- 信息项：每项带 emoji 图标，柔和分隔线
+- 社交链接：圆形图标按钮，悬停时轻微上浮 + 变色
+
+**数据结构**：
+```ts
+interface AuthorInfo {
+  nickname: string
+  avatar: string
+  signature: string
+  location: string
+  occupation: string
+  hobbies: string[]
+  email: string
+  bio: string
+  social: {
+    github?: string
+    blog?: string
+    bilibili?: string
+    weibo?: string
+  }
+  stats: {
+    articleCount: number
+    commentCount: number
+    daysSinceCreated: number
+  }
+}
+```
+
+### 8.6 admin/Dashboard.vue — 仪表盘
 
 ```
 ┌────────┬────────┬────────┐
@@ -329,7 +465,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 
 统计卡片，MVP 阶段可先放占位，后续加统计 API。
 
-### 7.7 admin/ArticleList.vue — 文章管理
+### 8.7 admin/ArticleList.vue — 文章管理
 
 ```
 [+ 新建文章]
@@ -342,7 +478,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 
 - 删除 → `ElMessageBox.confirm` 二次确认 → `deleteArticle()`
 
-### 7.8 admin/ArticleEdit.vue — 文章编辑
+### 8.8 admin/ArticleEdit.vue — 文章编辑
 
 ```
 标题    [____________________]
@@ -359,7 +495,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 - 路由 `/admin/article/create` → 新建模式
 - 路由 `/admin/article/edit/:id` → 编辑模式，`onMounted` 拉取数据填充表单
 
-### 7.9 admin/Profile.vue — 个人资料
+### 8.9 admin/Profile.vue — 个人资料
 
 ```
 头像      [上传]
@@ -379,7 +515,7 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 
 ---
 
-## 八、公共组件
+## 九、公共组件
 
 | 组件 | 职责 |
 |------|------|
@@ -390,10 +526,11 @@ baseURL: import.meta.env.VITE_API_BASE_URL  (默认 '/api/ui')
 | `MarkdownRenderer.vue` | 接收 `content` prop，用 markdown-it 渲染为 HTML，highlight.js 高亮代码块 |
 | `CommentForm.vue` | textarea + 提交按钮，未登录时显示提示文字并禁用 |
 | `CommentList.vue` | 评论列表，每条显示头像、用户名、时间、内容，本人或管理员可见删除按钮 |
+| `AuthorCard.vue` | 作者信息卡片（用于首页侧边栏或独立页面） |
 
 ---
 
-## 九、认证流程
+## 十、认证流程
 
 ```
 用户登录
@@ -422,7 +559,7 @@ refreshToken 也过期 → 清空状态 → 跳转 /login
 
 ---
 
-## 十、输入校验规则
+## 十一、输入校验规则
 
 已在 `frontend/src/utils/validate.ts` 和 `backend/internal/user/validate.go` 中实现，前后端保持一致。
 
@@ -444,17 +581,132 @@ refreshToken 也过期 → 清空状态 → 跳转 /login
 
 ---
 
-## 十一、样式方案
+## 十二、样式方案
 
+### 12.1 技术选型
 - **Element Plus** 作为核心 UI 组件库（表单、表格、消息提示、弹窗、菜单）
-- `global.css` 定义 CSS 变量（主色、背景色、字体大小）
+- 通过 `ConfigProvider` 覆盖 Element Plus 主题色为清新治愈系
 - 各 `.vue` 组件使用 `<style scoped>` 隔离样式
 - 删除脚手架默认样式（`main.css` / `base.css` / `HelloWorld.vue` / `TheWelcome.vue` 等）
-- 响应式：移动端 Navbar 折叠为汉堡菜单，文章列表单列，Admin 侧栏可折叠
+
+### 12.2 全局 CSS 变量 (`global.css`)
+
+```css
+:root {
+  /* 主色调 */
+  --primary: #7ED7C1;
+  --primary-light: #A8E6CF;
+  --primary-lighter: #DCEDC8;
+  --primary-dark: #5BC4AD;
+  
+  /* 辅助色 */
+  --accent: #FFB7B2;
+  --accent-warm: #FFDAC1;
+  --highlight: #FF9AA2;
+  
+  /* 背景色 */
+  --bg-primary: #FAFDF9;
+  --bg-secondary: #F0F7F4;
+  --bg-card: #FFFFFF;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  
+  /* 文字色 */
+  --text-primary: #2C3E50;
+  --text-secondary: #5D6D7E;
+  --text-muted: #95A5A6;
+  
+  /* 边框与分割线 */
+  --border: #E8F0ED;
+  --divider: rgba(126, 215, 193, 0.2);
+  
+  /* 阴影 */
+  --shadow-soft: 0 4px 20px rgba(126, 215, 193, 0.15);
+  --shadow-hover: 0 8px 30px rgba(126, 215, 193, 0.25);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
+  
+  /* 圆角 */
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-full: 9999px;
+  
+  /* 字体 */
+  --font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  
+  /* 过渡 */
+  --transition-fast: 150ms ease;
+  --transition-base: 300ms ease;
+  --transition-slow: 500ms ease;
+}
+```
+
+### 12.3 Element Plus 主题覆盖
+
+```ts
+// main.ts
+import { ElConfigProvider } from 'element-plus'
+
+const themeConfig = {
+  button: {
+    color: '#7ED7C1',
+    hoverColor: '#5BC4AD',
+    activeColor: '#4BA898',
+    borderRadius: '8px',
+  },
+  menu: {
+    activeColor: '#7ED7C1',
+    hoverBgColor: '#F0F7F4',
+  },
+  card: {
+    borderRadius: '16px',
+  },
+  input: {
+    borderRadius: '8px',
+    focusBorderColor: '#7ED7C1',
+  },
+  tag: {
+    borderRadius: '6px',
+  },
+}
+```
+
+### 12.4 响应式断点
+
+| 断点 | 宽度 | 布局调整 |
+|------|------|----------|
+| `xs` | < 576px | 单列布局，Navbar 折叠为汉堡菜单 |
+| `sm` | ≥ 576px | 保留基础边距 |
+| `md` | ≥ 768px | 文章列表双列 |
+| `lg` | ≥ 992px | 完整布局，侧边栏显示 |
+| `xl` | ≥ 1200px | 最大内容宽度 `1200px` 居中 |
+
+### 12.5 动画工具类
+
+```css
+/* 页面进入动画 */
+.fade-up-enter {
+  animation: fadeUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 卡片依次出现 */
+.stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-enter > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-enter > *:nth-child(3) { animation-delay: 100ms; }
+/* ... */
+
+/* 悬浮效果 */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+```
 
 ---
 
-## 十二、环境变量
+## 十三、环境变量
 
 `.env` 文件：
 
@@ -477,7 +729,7 @@ server: {
 
 ---
 
-## 十三、建议开发顺序
+## 十四、建议开发顺序
 
 | 阶段 | 内容 | 预计产出 |
 |------|------|----------|

@@ -1,1 +1,218 @@
 /* global.css 全局样式，包含重置样式和通用变量 */
+
+/* ========== CSS 变量定义 ========== */
+:root {
+    /* 主色调 - 清新薄荷绿 */
+    --primary: #7ED7C1;
+    --primary-light: #A8E6CF;
+    --primary-lighter: #DCEDC8;
+    --primary-dark: #5BC4AD;
+
+    /* 辅助色 - 柔和粉色系 */
+    --accent: #FFB7B2;
+    --accent-warm: #FFDAC1;
+    --highlight: #FF9AA2;
+
+    /* 背景色 - 清新自然 */
+    --bg-primary: #FAFDF9;
+    --bg-secondary: #F0F7F4;
+    --bg-card: #FFFFFF;
+    --bg-glass: rgba(255, 255, 255, 0.85);
+
+    /* 文字色 */
+    --text-primary: #2C3E50;
+    --text-secondary: #5D6D7E;
+    --text-muted: #95A5A6;
+
+    /* 边框与分割线 */
+    --border: #E8F0ED;
+    --divider: rgba(126, 215, 193, 0.2);
+
+    /* 阴影 */
+    --shadow-soft: 0 4px 20px rgba(126, 215, 193, 0.15);
+    --shadow-hover: 0 8px 30px rgba(126, 215, 193, 0.25);
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+    /* 圆角 */
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --radius-full: 9999px;
+
+    /* 字体 */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+    /* 过渡动画 */
+    --transition-fast: 150ms ease;
+    --transition-base: 300ms ease;
+    --transition-slow: 500ms ease;
+}
+
+/* ========== 基础重置 ========== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-family);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    color: var(--text-primary);
+    line-height: 1.8;
+    min-height: 100vh;
+}
+
+/* ========== 通用工具类 ========== */
+
+/* 页面容器 */
+.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+/* 卡片基础样式 */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+}
+
+/* 玻璃拟态效果 */
+.glass {
+    background: var(--bg-glass);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* 渐变文字 */
+.gradient-text {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* 动画 */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-fade-up {
+    animation: fadeUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease forwards;
+}
+
+/* 依次出现动画延迟 */
+.stagger-1 {
+    animation-delay: 0ms;
+}
+
+.stagger-2 {
+    animation-delay: 100ms;
+}
+
+.stagger-3 {
+    animation-delay: 200ms;
+}
+
+.stagger-4 {
+    animation-delay: 300ms;
+}
+
+.stagger-5 {
+    animation-delay: 400ms;
+}
+
+/* 按钮基础样式 */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-soft);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.btn-primary:active {
+    transform: scale(0.98);
+}
+
+/* 标签样式 */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    background: var(--primary-lighter);
+    color: var(--primary-dark);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* 分割线 */
+.divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--divider) 50%, transparent 100%);
+    margin: 24px 0;
+}
+
+/* 响应式隐藏 */
+@media (max-width: 768px) {
+    .hide-mobile {
+        display: none !important;
+    }
+}
+
+@media (min-width: 769px) {
+    .hide-desktop {
+        display: none !important;
+    }
+}

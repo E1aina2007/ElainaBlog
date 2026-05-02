@@ -1,18 +1,18 @@
 <script setup lang="ts">
-// 关于页面
+// 作者页面
 </script>
 
 <template>
-  <div class="about-page">
+  <div class="author-page">
     <div class="page-container">
-      <h1>关于页面</h1>
+      <h1>作者页面</h1>
       <p>正在建设中...</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.about-page {
+.author-page {
   padding: 40px 24px;
   min-height: 60vh;
 }

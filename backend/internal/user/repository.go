@@ -37,6 +37,31 @@ func (u *User) ToVO() *UserVO {
 	}
 }
 
+// AuthorInfoVO 作者公开信息（用于作者页展示）
+type AuthorInfoVO struct {
+	Nickname  string   `json:"nickname"`
+	Avatar    string   `json:"avatar"`
+	Signature string   `json:"signature"`
+	Location  string   `json:"location"`
+	Occupation string  `json:"occupation"`
+	Hobbies   []string `json:"hobbies"`
+	Email     string   `json:"email"`
+	Bio       string   `json:"bio"`
+	Social    struct {
+		Github   string `json:"github,omitempty"`
+		Blog     string `json:"blog,omitempty"`
+		Bilibili string `json:"bilibili,omitempty"`
+		Weibo    string `json:"weibo,omitempty"`
+	} `json:"social"`
+}
+
+// AuthorStatsVO 作者统计数据
+type AuthorStatsVO struct {
+	ArticleCount     int `json:"article_count"`
+	CommentCount     int `json:"comment_count"`
+	DaysSinceCreated int `json:"days_since_created"`
+}
+
 type Repository struct {
 	db *sql.DB
 }
@@ -121,4 +146,34 @@ func (r *Repository) UpdatePassword(id int64, newPassword string) error {
 func (r *Repository) DeleteUser(id int64) error {
 	_, err := r.db.Exec("UPDATE `user` SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
+}
+
+// GetAuthorStats 获取作者统计数据（文章数、评论数、建站天数）
+func (r *Repository) GetAuthorStats(userID int64) (*AuthorStatsVO, error) {
+	var stats AuthorStatsVO
+
+	// 文章数
+	err := r.db.QueryRow("SELECT COUNT(*) FROM article WHERE user_id = ? AND is_deleted = 0 AND is_draft = 0", userID).Scan(&stats.ArticleCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// 评论数（该作者文章收到的评论）
+	err = r.db.QueryRow(`
+		SELECT COUNT(*) FROM comment c
+		JOIN article a ON c.article_id = a.id
+		WHERE a.user_id = ? AND c.is_deleted = 0`, userID).Scan(&stats.CommentCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// 建站天数（从用户创建时间算起）
+	var createdAt time.Time
+	err = r.db.QueryRow("SELECT created_at FROM `user` WHERE id = ? AND is_deleted = 0", userID).Scan(&createdAt)
+	if err != nil {
+		return nil, err
+	}
+	stats.DaysSinceCreated = int(time.Since(createdAt).Hours() / 24)
+
+	return &stats, nil
 }

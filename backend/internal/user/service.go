@@ -384,3 +384,35 @@ func (s *Service) SendVerificationCode(email string) error {
 
 	return mail.SendVerificationCode(email, code)
 }
+
+// GetAuthorInfo 获取管理员作者信息（从 site_config 读取）
+func (s *Service) GetAuthorInfo() (*AuthorInfoVO, error) {
+	// 从 site_config 表读取作者信息配置
+	// 这里通过 site 模块获取，但 service 层不直接依赖其他模块的 repository
+	// 暂时返回一个占位实现，实际应与 site 模块协作
+	return nil, errors.New("请通过 site 模块获取作者信息")
+}
+
+// GetAuthorStats 获取作者统计数据
+func (s *Service) GetAuthorStats(userID int64) (*AuthorStatsVO, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrDBNotInitialized
+	}
+	if userID <= 0 {
+		return nil, ErrInvalidParams
+	}
+
+	// 校验用户是否存在且为管理员（只有管理员才是作者）
+	u, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	if !u.IsAdmin {
+		return nil, ErrForbidden
+	}
+
+	return s.repo.GetAuthorStats(userID)
+}

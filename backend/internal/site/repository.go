@@ -50,3 +50,35 @@ func (r *Repository) Update(configs map[string]string) error {
 
 	return tx.Commit()
 }
+
+// DashboardStats 仪表盘统计数据
+type DashboardStats struct {
+	ArticleCount int64 `json:"article_count"`
+	CommentCount int64 `json:"comment_count"`
+	UserCount    int64 `json:"user_count"`
+}
+
+// GetDashboardStats 获取仪表盘统计数据
+func (r *Repository) GetDashboardStats() (*DashboardStats, error) {
+	var stats DashboardStats
+
+	// 文章数（不包含草稿和已删除）
+	err := r.db.QueryRow("SELECT COUNT(*) FROM article WHERE is_deleted = 0 AND is_draft = 0").Scan(&stats.ArticleCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// 评论数（不包含已删除）
+	err = r.db.QueryRow("SELECT COUNT(*) FROM comment WHERE is_deleted = 0").Scan(&stats.CommentCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// 用户数（不包含已删除）
+	err = r.db.QueryRow("SELECT COUNT(*) FROM `user` WHERE is_deleted = 0").Scan(&stats.UserCount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &stats, nil
+}
