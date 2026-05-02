@@ -68,41 +68,71 @@ func (r *Repository) GetArticleByID(id int64) (*ArticleVO, error) {
 	return &vo, nil
 }
 
-// GetArticleList 公开文章列表，过滤草稿
-func (r *Repository) GetArticleList() ([]*ArticleVO, error) {
-	rows, err := r.db.Query(`
+// GetArticleList 公开文章列表，过滤草稿，支持分页和分类筛选
+func (r *Repository) GetArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error) {
+	// 构建基础查询条件
+	whereClause := "WHERE a.is_deleted = 0 AND a.is_draft = 0"
+	args := []interface{}{}
+
+	if categoryID != nil && *categoryID > 0 {
+		whereClause += " AND a.category_id = ?"
+		args = append(args, *categoryID)
+	}
+
+	// 先查询总数
+	var total int
+	countQuery := "SELECT COUNT(*) FROM article a " + whereClause
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 分页查询数据
+	query := `
 		SELECT a.id, a.user_id, u.username, a.category_id, COALESCE(c.name,''),
 		       a.title, a.summary, a.content, a.cover, a.is_top, a.is_draft, a.view_count, a.created_at
 		FROM article a
 		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
-		WHERE a.is_deleted = 0 AND a.is_draft = 0
-		ORDER BY a.is_top DESC, a.created_at DESC`)
+		` + whereClause + `
+		ORDER BY a.is_top DESC, a.created_at DESC
+		LIMIT ? OFFSET ?`
+
+	offset := (page - 1) * pageSize
+	args = append(args, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
 	var articles []*ArticleVO
 	for rows.Next() {
 		var vo ArticleVO
-		var categoryID sql.NullInt64
+		var catID sql.NullInt64
 		var categoryName string
-		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &categoryID, &categoryName,
+		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &catID, &categoryName,
 			&vo.Title, &vo.Summary, &vo.Content, &vo.Cover, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CreatedAt)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		if categoryID.Valid {
-			vo.CategoryID = &categoryID.Int64
+		if catID.Valid {
+			vo.CategoryID = &catID.Int64
 			vo.CategoryName = categoryName
 		}
 		articles = append(articles, &vo)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return articles, nil
+	return articles, total, nil
+}
+
+// IncrementViewCount 增加文章浏览量
+func (r *Repository) IncrementViewCount(id int64) error {
+	_, err := r.db.Exec("UPDATE article SET view_count = view_count + 1 WHERE id = ? AND is_deleted = 0", id)
+	return err
 }
 
 func (r *Repository) GetArticleByUserID(userID int64) ([]*ArticleVO, error) {

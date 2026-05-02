@@ -156,16 +156,38 @@ func (ctl *Controller) DeleteArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
 }
 
-// GetList 文章列表（公开）
+// GetList 文章列表（公开），支持分页和分类筛选
 func (ctl *Controller) GetList(c *gin.Context) {
-	list, err := ctl.service.GetArticleList()
+	// 解析分页参数
+	page := 1
+	pageSize := 10
+	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
+		page = p
+	}
+	if ps, err := strconv.Atoi(c.Query("pageSize")); err == nil && ps > 0 {
+		pageSize = ps
+	}
+
+	// 解析分类筛选参数
+	var categoryID *int64
+	if catIDStr := c.Query("categoryId"); catIDStr != "" {
+		if catID, err := strconv.ParseInt(catIDStr, 10, 64); err == nil && catID > 0 {
+			categoryID = &catID
+		}
+	}
+
+	result, err := ctl.service.GetArticleList(&ArticleListParams{
+		CategoryID: categoryID,
+		Page:       page,
+		PageSize:   pageSize,
+	})
 	if err != nil {
 		appErr := model.ErrInternal.WithDetail(err.Error())
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(list))
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(result))
 }
 
 // GetByID 文章详情（公开）
@@ -190,6 +212,9 @@ func (ctl *Controller) GetByID(c *gin.Context) {
 		}
 		return
 	}
+
+	// 异步增加浏览量（不阻塞响应）
+	go ctl.service.IncrementViewCount(id)
 
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
 }
