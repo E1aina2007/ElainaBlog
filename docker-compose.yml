@@ -1,0 +1,78 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: elainablog-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    volumes:
+      - ./frontend/public/author:/usr/share/nginx/html/author # 作者头像与背景图
+    depends_on:
+      - backend
+    networks:
+      - elainablog
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: elainablog-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - MIGRATION_DIR=/app/migrations
+      - CONFIG_DIR=/app/config
+    volumes:
+      - ./config/backend:/app/config # 配置文件（含 .env 和 yaml）
+      - ./backend/uploads:/app/uploads # 上传文件（头像等）持久化
+      - logs:/app/log # 日志持久化
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - elainablog
+
+  mysql:
+    image: mysql:8.0
+    container_name: elainablog-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ElainaBlog}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - elainablog
+
+  redis:
+    image: redis:7-alpine
+    container_name: elainablog-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - elainablog
+
+volumes:
+  mysql_data:
+  redis_data:
+  logs:
+
+networks:
+  elainablog:
+    driver: bridge

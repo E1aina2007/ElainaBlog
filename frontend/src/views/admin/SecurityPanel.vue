@@ -1,0 +1,423 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import request from '@/api/request'
+import toast from '@/utils/toast'
+
+const backupLoading = ref(false)
+const bannedIPs = ref<string[]>([])
+const loginAttempts = ref<Record<string, number>>({})
+
+// 一键备份
+const handleBackup = async () => {
+  if (!confirm('确定要备份全站数据吗？备份文件将包含所有数据库内容。')) return
+  backupLoading.value = true
+  try {
+    const response = await request.get('/backup/export', { responseType: 'blob' }) as Blob
+    // 创建下载链接
+    const blob = new Blob([response], { type: 'application/sql' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `backup_${new Date().toISOString().split('T')[0]}.sql`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    toast.success('备份成功！文件已下载')
+  } catch (error) {
+    console.error('备份失败:', error)
+    toast.error('备份功能需要后端支持，请先实现备份接口')
+  } finally {
+    backupLoading.value = false
+  }
+}
+
+// 获取被封禁的IP列表
+const fetchBannedIPs = async () => {
+  try {
+    const data = await request.get('/security/banned-ips') as string[]
+    bannedIPs.value = data || []
+  } catch (error) {
+    console.log('封禁功能需要后端支持')
+    bannedIPs.value = []
+  }
+}
+
+// 解封IP
+const handleUnban = async (ip: string) => {
+  if (!confirm(`确定要解封 IP ${ip} 吗？`)) return
+  try {
+    await request.post('/security/unban', { ip })
+    bannedIPs.value = bannedIPs.value.filter(i => i !== ip)
+    toast.success('解封成功')
+  } catch (error) {
+    toast.error('解封失败')
+  }
+}
+
+onMounted(() => {
+  fetchBannedIPs()
+})
+</script>
+
+<template>
+  <div class="security-panel">
+    <div class="page-header">
+      <h2>安全与备份</h2>
+    </div>
+
+    <div class="security-grid">
+      <!-- 一键备份 -->
+      <div class="security-card backup-card">
+        <div class="card-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <polyline points="8 12 12 16 16 12"></polyline>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+          </svg>
+        </div>
+        <h3>一键备份</h3>
+        <p class="card-desc">
+          导出全站数据库备份，包含所有文章、评论、用户和配置数据。
+          <br><strong style="color: #ef4444;">这是底线功能！定期备份以防数据丢失。</strong>
+        </p>
+        <button class="btn-primary large" @click="handleBackup" :disabled="backupLoading">
+          <svg v-if="!backupLoading" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span v-else class="loading-spinner"></span>
+          {{ backupLoading ? '备份中...' : '立即备份数据库' }}
+        </button>
+      </div>
+
+      <!-- 登录防护 -->
+      <div class="security-card">
+        <div class="card-icon warning">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h3>登录防爆破</h3>
+        <p class="card-desc">
+          系统会自动封禁多次登录失败的IP地址。
+          <br>默认规则：<strong>5次失败后封禁24小时</strong>
+        </p>
+        <div class="stats-row">
+          <div class="stat">
+            <span class="stat-value">{{ bannedIPs.length }}</span>
+            <span class="stat-label">当前封禁IP</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 封禁IP列表 -->
+      <div class="security-card full-width">
+        <h3>封禁IP列表</h3>
+        <div v-if="bannedIPs.length === 0" class="empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <p>当前没有被封禁的IP</p>
+          <span class="hint">系统会自动封禁多次登录失败的IP</span>
+        </div>
+        <table v-else class="ip-table">
+          <thead>
+            <tr>
+              <th>IP地址</th>
+              <th>封禁时间</th>
+              <th>剩余时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="ip in bannedIPs" :key="ip">
+              <td class="ip-address">{{ ip }}</td>
+              <td>--</td>
+              <td>--</td>
+              <td>
+                <button class="btn-text" @click="handleUnban(ip)">解封</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 安全建议 -->
+      <div class="security-card full-width tips-card">
+        <h3>安全建议</h3>
+        <ul class="tips-list">
+          <li>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>定期更换管理员密码，使用强密码（包含大小写字母、数字和特殊字符）</span>
+          </li>
+          <li>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>开启登录防爆破功能，防止暴力破解攻击</span>
+          </li>
+          <li>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>每周至少进行一次数据库备份</span>
+          </li>
+          <li>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>不要在公共网络环境下登录管理后台</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.security-panel {
+  max-width: 1200px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #1f2937;
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.security-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.security-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.security-card.backup-card {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: #fff;
+}
+
+.card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: #6366f115;
+  color: #6366f1;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.card-icon.warning {
+  background: #f59e0b15;
+  color: #f59e0b;
+}
+
+.security-card.backup-card .card-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.security-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.card-desc {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+.security-card.backup-card .card-desc {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary.large {
+  padding: 16px 32px;
+  font-size: 16px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.security-card.backup-card .btn-primary {
+  background: #fff;
+  color: #6366f1;
+}
+
+.security-card.backup-card .btn-primary:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.stats-row {
+  display: flex;
+  gap: 24px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  color: #9ca3af;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.empty-state .hint {
+  font-size: 13px;
+  color: #d1d5db;
+}
+
+.ip-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ip-table th,
+.ip-table td {
+  padding: 12px;
+  text-align: left;
+  font-size: 14px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ip-table th {
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+}
+
+.ip-table td {
+  color: #6b7280;
+}
+
+.ip-address {
+  font-family: monospace;
+  color: #374151;
+}
+
+.btn-text {
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-text:hover {
+  text-decoration: underline;
+}
+
+.tips-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.tips-card h3 {
+  color: #166534;
+}
+
+.tips-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tips-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: #166534;
+}
+</style>

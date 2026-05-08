@@ -1,0 +1,41 @@
+# ===== 配置文件（敏感信息，不提交到仓库）=====
+config/.env
+config/backend/.env
+config/backend/config.dev.yaml
+config/backend/config.prod.yaml
+.env
+
+# ===== 日志文件 =====
+backend/log/
+*.log
+
+# ===== air 热重载临时目录 =====
+backend/cmd/tmp/
+
+# ===== 数据库外部脚本 =====
+backend/config/db/foreign/
+
+# ===== 文档示例 =====
+docs/
+.claude/
+
+# ===== 构建产物 =====
+frontend/dist/
+backend/tmp/
+
+# ===== 数据库文件 =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+Desktop.ini

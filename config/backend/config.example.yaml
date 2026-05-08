@@ -1,0 +1,67 @@
+# 配置文件示例 — 复制为 config.dev.yaml（开发）或 config.prod.yaml（生产）后修改
+# 开发与生产环境的关键差异已在注释中标出
+
+auth:
+  access_token_secret: "your-access-secret"    # 替换为随机密钥
+  refresh_token_secret: "your-refresh-secret"  # 替换为随机密钥
+  access_token_expiry_time: 2h
+  refresh_token_expiry_time: 7d
+  issuer: ElainaWeb
+
+db:
+  sqlname: mysql
+  host: 127.0.0.1     # 生产环境改为 mysql（Docker 服务名）
+  port: 3306
+  config: charset=utf8mb4&parseTime=True&loc=Local
+  db_name: ElainaBlog
+  username: root
+  password: your-mysql-password  # 生产环境需与 docker-compose 中 MYSQL_ROOT_PASSWORD 一致
+  max_idle_conns: 10
+  max_open_conns: 100
+
+smtp:
+  host: "smtp.qq.com"
+  port: 587
+  from: "your_email@qq.com"
+  verification: "your_authorization_code"
+  ssl: true
+  timeout: 300
+
+redis:
+  address: 127.0.0.1:6379  # 生产环境改为 redis:6379（Docker 服务名）
+  password: ""
+  db: 0
+  pool_size: 100
+
+verification:
+  code_length: 6
+  expire_time: 300
+  resend_interval: 60
+
+server:
+  host: 0.0.0.0       # 开发环境可改为 127.0.0.1
+  port: 8080
+  env: debug           # 生产环境改为 production
+  cors_origins:        # 允许的跨域来源，生产环境改为实际域名
+    - "http://localhost:5173"
+
+upload:
+  size: 20
+  path: uploads
+  avatar_path: uploads/avatars
+  avatar_size: 5
+
+zap:
+  level: info
+  filename: log/go_blog.log
+  max_size: 200
+  max_backups: 5
+  max_age: 30
+  is_console_print: true  # 生产环境改为 false
+
+admin:
+  username: admin
+  email: admin@admin.com
+  password: ""            # 可选，留空则必须通过命令行参数传入
+
+dev: true                # 生产环境改为 false
