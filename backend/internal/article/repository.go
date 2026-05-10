@@ -96,7 +96,7 @@ func (r *Repository) GetArticleList(categoryID *int64, page, pageSize int) ([]*A
 	}
 	defer rows.Close()
 
-	var articles []*ArticleVO
+	articles := make([]*ArticleVO, 0)
 	for rows.Next() {
 		var vo ArticleVO
 		var catID sql.NullInt64

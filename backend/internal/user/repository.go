@@ -85,7 +85,7 @@ func (r *Repository) GetUserList() ([]*User, error) {
 	}
 	defer rows.Close()
 
-	var users []*User
+	users := make([]*User, 0)
 	for rows.Next() {
 		var user User
 		err := rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Avatar, &user.IsAdmin, &user.CreatedAt, &user.UpdatedAt)

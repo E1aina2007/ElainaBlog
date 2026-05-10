@@ -25,7 +25,7 @@ func (r *Repository) GetAll() ([]*SiteConfig, error) {
 	}
 	defer rows.Close()
 
-	var configs []*SiteConfig
+	configs := make([]*SiteConfig, 0)
 	for rows.Next() {
 		var c SiteConfig
 		if err := rows.Scan(&c.ID, &c.KeyName, &c.Value); err != nil {

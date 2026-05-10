@@ -54,7 +54,7 @@ func (r *Repository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, e
 	}
 	defer rows.Close()
 
-	var comments []*CommentVO
+	comments := make([]*CommentVO, 0)
 	for rows.Next() {
 		var vo CommentVO
 		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.Content, &vo.CreatedAt)
@@ -83,7 +83,7 @@ func (r *Repository) GetAllCommentList() ([]*CommentVO, error) {
 	}
 	defer rows.Close()
 
-	var comments []*CommentVO
+	comments := make([]*CommentVO, 0)
 	for rows.Next() {
 		var vo CommentVO
 		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.Content, &vo.CreatedAt)

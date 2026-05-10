@@ -44,7 +44,7 @@ func (r *Repository) GetCategoryList() ([]*CategoryVO, error) {
 	}
 	defer rows.Close()
 
-	var categories []*CategoryVO
+	categories := make([]*CategoryVO, 0)
 	for rows.Next() {
 		var category CategoryVO
 		err := rows.Scan(&category.ID, &category.Name)
