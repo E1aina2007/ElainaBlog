@@ -58,6 +58,7 @@ func RouterInit(r *gin.Engine) {
 		// 分类（列表公开）
 		apiGroup.GET("/category/list", categoryController.GetList)
 
+		// 上传接口（需鉴权，登录用户）
 		apiGroup.POST("/upload", auth.RequireAuth(), uploadController.Upload)
 		apiGroup.POST("/upload/avatar", auth.RequireAuth(), uploadController.UploadAvatar)
 
