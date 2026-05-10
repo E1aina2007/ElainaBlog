@@ -3,11 +3,9 @@ package upload
 import (
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
-	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -133,9 +131,8 @@ func (ctl *Controller) UploadAvatar(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 构造自定义文件名：邮箱-日期
-	dateStr := time.Now().Format("20060102150405")
-	customName := fmt.Sprintf("%s-%s", email, dateStr)
+	// 构造自定义文件名：邮箱（新头像会覆盖旧头像）
+	customName := email
 
 	// 保存到头像专用目录
 	url, err := ctl.avatarStorage.SaveAs(file, fileHeader.Filename, customName)

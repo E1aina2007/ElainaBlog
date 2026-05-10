@@ -58,13 +58,11 @@ func (l *LocalStorage) SaveAs(file multipart.File, filename string, customName s
 	ext := filepath.Ext(filename)
 	newName := customName + ext
 
-	dateDir := time.Now().Format("2006-01-02")
-	dir := filepath.Join(l.BasePath, dateDir)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(l.BasePath, 0755); err != nil {
 		return "", fmt.Errorf("创建目录失败：%v", err)
 	}
 
-	dstPath := filepath.Join(dir, newName)
+	dstPath := filepath.Join(l.BasePath, newName)
 	dst, err := os.Create(dstPath)
 	if err != nil {
 		return "", fmt.Errorf("创建文件失败：%v", err)
@@ -75,7 +73,7 @@ func (l *LocalStorage) SaveAs(file multipart.File, filename string, customName s
 		return "", fmt.Errorf("保存文件失败：%v", err)
 	}
 
-	url := "/" + l.BasePath + "/" + dateDir + "/" + newName
+	url := "/" + l.BasePath + "/" + newName
 	return url, nil
 }
 
