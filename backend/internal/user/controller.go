@@ -86,7 +86,7 @@ func (ctl *Controller) Register(c *gin.Context) {
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, err.Error(), appErr))
 		case ErrUsernameExists, ErrEmailExists:
 			appErr := model.ErrConflict.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, err.Error(), appErr))
 		default:
 			appErr := model.ErrInternal.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
