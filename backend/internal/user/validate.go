@@ -10,7 +10,7 @@ import (
 // ========================
 
 // 邮箱：标准格式 local@domain.tld，长度不超过 100（数据库 VARCHAR(100)）
-var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-_]+\.[a-zA-Z]{2,}$`)
 
 // 用户名：2-20 个字符，允许中文、英文字母、数字、下划线
 var usernameRegex = regexp.MustCompile(`^[\p{Han}a-zA-Z0-9_]{2,20}$`)
