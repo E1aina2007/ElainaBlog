@@ -26,6 +26,7 @@ func RouterInit(r *gin.Engine) {
 	userService := user.NewService(user.NewRepository(db.DBPool))
 
 	auth := middleware.NewJwtAuthMiddleware(common.JwtAuth)
+	rateLimiter := middleware.NewRateLimitMiddleware()
 	userController := user.NewController(userService)
 	categoryController := category.NewController(userService)
 	articleController := article.NewController(userService)
@@ -42,15 +43,14 @@ func RouterInit(r *gin.Engine) {
 	r.GET("/health", health)
 
 	r.Static("/uploads", config.GlobalConfig.Upload.Path)
-	// 头像路径已经是 uploads/avatars，通过 /uploads 路径即可访问
 
 	// api路由组
 	apiGroup := r.Group("/api/ui")
 	{
-		apiGroup.POST("/login", userController.Login)
-		apiGroup.POST("/register", userController.Register)
-		apiGroup.POST("/refresh", userController.RefreshToken)
-		apiGroup.POST("/send-code", userController.SendCode)
+		apiGroup.POST("/login", rateLimiter.Limit("login", 10, time.Minute), userController.Login)
+		apiGroup.POST("/register", rateLimiter.Limit("register", 5, time.Minute), userController.Register)
+		apiGroup.POST("/refresh", rateLimiter.Limit("refresh", 30, time.Minute), userController.RefreshToken)
+		apiGroup.POST("/send-code", rateLimiter.Limit("send-code", 5, time.Minute), userController.SendCode)
 
 		// 仪表盘统计（管理员）
 		apiGroup.GET("/dashboard/stats", auth.RequireAuth(), siteController.GetDashboardStats)
@@ -58,6 +58,7 @@ func RouterInit(r *gin.Engine) {
 		// 分类（列表公开）
 		apiGroup.GET("/category/list", categoryController.GetList)
 
+		// 上传接口（需鉴权，登录用户）
 		apiGroup.POST("/upload", auth.RequireAuth(), uploadController.Upload)
 		apiGroup.POST("/upload/avatar", auth.RequireAuth(), uploadController.UploadAvatar)
 

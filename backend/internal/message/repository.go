@@ -42,7 +42,7 @@ func (r *Repository) GetList(limit int) ([]*MessageVO, error) {
 	}
 	defer rows.Close()
 
-	var messages []*MessageVO
+	messages := make([]*MessageVO, 0)
 	for rows.Next() {
 		var vo MessageVO
 		if err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.Content, &vo.CreatedAt); err != nil {

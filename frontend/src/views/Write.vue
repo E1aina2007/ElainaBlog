@@ -1,9 +1,29 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createArticle, updateArticle, getArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js'
 import toast from '@/utils/toast'
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true,
+  highlight(str: string, lang: string) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        const result = hljs.highlight(str, { language: lang, ignoreIllegals: true })
+        return `<pre class="hljs-code-block"><div class="code-lang">${lang}</div><code class="hljs language-${lang}">${result.value}</code></pre>`
+      } catch (_) {}
+    }
+    const escaped = md.utils.escapeHtml(str)
+    return `<pre class="hljs-code-block"><code class="hljs">${escaped}</code></pre>`
+  },
+})
+
+const renderedPreview = computed(() => md.render(form.value.content || ''))
 
 const route = useRoute()
 const router = useRouter()
@@ -170,7 +190,7 @@ onMounted(() => {
           ></textarea>
         </div>
         <div v-else class="preview-wrapper">
-          <div v-if="form.content" class="preview-content markdown-body" v-html="form.content"></div>
+          <div v-if="form.content" class="preview-content markdown-body" v-html="renderedPreview"></div>
           <div v-else class="preview-empty">暂无内容</div>
         </div>
       </div>

@@ -41,10 +41,10 @@ export const useSiteStore = defineStore('site', () => {
 
   function getQuotes(): string[] {
     try {
-      const raw = config.value.quotes || DEFAULT_CONFIG.quotes
+      const raw: string = config.value.quotes || DEFAULT_CONFIG.quotes || '[]'
       return JSON.parse(raw)
     } catch {
-      return JSON.parse(DEFAULT_CONFIG.quotes)
+      return JSON.parse(DEFAULT_CONFIG.quotes || '[]')
     }
   }
 

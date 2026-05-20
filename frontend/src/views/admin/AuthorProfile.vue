@@ -99,11 +99,11 @@ onMounted(fetchProfile)
           </div>
           <div class="form-item">
             <label>头像 URL</label>
-            <input v-model="profile.avatar" placeholder="/author/avatar.jpg" />
+            <input v-model="profile.avatar" placeholder="/dist/author/avatar.jpg" />
           </div>
           <div class="form-item">
             <label>背景图 URL</label>
-            <input v-model="profile.background" placeholder="/author/background.jpg" />
+            <input v-model="profile.background" placeholder="/dist/author/background.jpg" />
           </div>
         </div>
       </section>

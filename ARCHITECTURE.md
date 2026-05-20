@@ -108,15 +108,15 @@ ElainaBlog/
 
 ```
 用户 → 宿主机 Nginx (:80/:443)
-        ├── /api/, /uploads/, /health → backend 容器 (:8080)
+        ├── /api/, /uploads/, /health → backend 容器 (:9178)
         └── 其余请求 → frontend 容器 (:3000)
-                         └── 容器内 Nginx 反向代理 API → backend:8080
+                         └── 容器内 Nginx 反向代理 API → backend:9178
 ```
 
 | 容器 | 端口 | 说明 |
 |------|------|------|
 | `elainablog-frontend` | 127.0.0.1:3000:80 | Nginx 托管前端静态文件 |
-| `elainablog-backend` | 127.0.0.1:8080:8080 | Go API 服务 |
+| `elainablog-backend` | 127.0.0.1:9178:9178 | Go API 服务 |
 | `elainablog-mysql` | 内部 | MySQL 8.0 |
 | `elainablog-redis` | 内部 | Redis 7 |
 

@@ -53,7 +53,7 @@ const fetchStats = async () => {
 const fetchSystemStatus = async () => {
   try {
     const data = await request.get('/system/status')
-    sysStatus.value = data
+    sysStatus.value = data as unknown as SystemStatus
   } catch (error) {
     console.error('获取系统状态失败:', error)
   }

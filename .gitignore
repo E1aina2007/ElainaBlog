@@ -18,6 +18,7 @@ backend/config/db/foreign/
 # ===== 文档示例 =====
 docs/
 .claude/
+TODO.md
 
 # ===== 构建产物 =====
 frontend/dist/
