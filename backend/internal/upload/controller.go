@@ -3,6 +3,7 @@ package upload
 import (
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,8 @@ type Controller struct {
 	maxSize       int64 // 字节
 	avatarStorage Storage
 	avatarMaxSize int64           // 字节
-	allowExts     map[string]bool // 白名单
+	allowExts     map[string]bool // 扩展名白名单
+	allowMIMEs    map[string]bool // MIME 类型白名单
 	userService   UserService
 }
 
@@ -33,11 +35,34 @@ func NewController(storage Storage, maxSizeMB int, avatarStorage Storage, avatar
 			".jpg":  true,
 			".jpeg": true,
 			".png":  true,
-			".gif":  true,
 			".webp": true,
+		},
+		allowMIMEs: map[string]bool{
+			"image/jpeg": true,
+			"image/png":  true,
+			"image/webp": true,
 		},
 		userService: userService,
 	}
+}
+
+// validateMIME 读取文件头部字节检测真实 MIME 类型，校验后重置读取位置。
+func (ctl *Controller) validateMIME(file io.ReadSeeker) (string, error) {
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+	// 重置读取位置，确保后续存储能读到完整文件
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	mimeType := http.DetectContentType(buf[:n])
+	// 去除参数部分，如 "image/jpeg; charset=utf-8" -> "image/jpeg"
+	if idx := strings.Index(mimeType, ";"); idx != -1 {
+		mimeType = strings.TrimSpace(mimeType[:idx])
+	}
+	return mimeType, nil
 }
 
 func (ctl *Controller) Upload(c *gin.Context) {
@@ -66,17 +91,23 @@ func (ctl *Controller) Upload(c *gin.Context) {
 	// 打开文件
 	file, err := fileHeader.Open()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	defer file.Close()
 
+	// 校验 MIME 类型（魔数检测）
+	mimeType, err := ctl.validateMIME(file)
+	if err != nil || !ctl.allowMIMEs[mimeType] {
+		appErr := model.ErrInvalidParams.WithDetail("不支持的文件内容类型")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
 	// 保存
 	url, err := ctl.storage.Save(file, fileHeader.Filename)
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 
@@ -125,11 +156,18 @@ func (ctl *Controller) UploadAvatar(c *gin.Context) {
 	// 打开文件
 	file, err := fileHeader.Open()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	defer file.Close()
+
+	// 校验 MIME 类型（魔数检测）
+	mimeType, err := ctl.validateMIME(file)
+	if err != nil || !ctl.allowMIMEs[mimeType] {
+		appErr := model.ErrInvalidParams.WithDetail("不支持的文件内容类型")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
 
 	// 构造自定义文件名：邮箱（新头像会覆盖旧头像）
 	customName := email
@@ -137,8 +175,7 @@ func (ctl *Controller) UploadAvatar(c *gin.Context) {
 	// 保存到头像专用目录
 	url, err := ctl.avatarStorage.SaveAs(file, fileHeader.Filename, customName)
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 

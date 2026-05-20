@@ -2,7 +2,11 @@ package common
 
 import (
 	"ElainaBlog/config"
+	"ElainaBlog/pkg/rdb"
 	"ElainaBlog/pkg/util"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"strings"
@@ -22,6 +26,7 @@ type JwtAuthService struct {
 type TokenClaims struct {
 	UserID    int64  `json:"user_id"`
 	TokenType string `json:"token_type"`
+	JTI       string `json:"jti,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -30,6 +35,32 @@ var (
 	ErrInvalidConfig    = errors.New("jwt 配置无效")
 	ErrInvalidTokenType = errors.New("无效的 token 类型")
 )
+
+// generateJTI 生成随机 JWT ID。
+func generateJTI() (string, error) {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+// BlacklistToken 将 token 的 JTI 加入 Redis 黑名单，TTL 等于 token 剩余有效期。
+func BlacklistToken(jti string, ttl time.Duration) error {
+	if rdb.RedisClient == nil || jti == "" {
+		return nil
+	}
+	return rdb.RedisClient.Set(context.Background(), "token_blacklist:"+jti, "1", ttl).Err()
+}
+
+// IsTokenBlacklisted 检查 token 的 JTI 是否在黑名单中。
+func IsTokenBlacklisted(jti string) bool {
+	if rdb.RedisClient == nil || jti == "" {
+		return false
+	}
+	val, err := rdb.RedisClient.Exists(context.Background(), "token_blacklist:"+jti).Result()
+	return err == nil && val > 0
+}
 
 var JwtAuth *JwtAuthService
 
@@ -79,10 +110,16 @@ func (s *JwtAuthService) GenerateAccessToken(userID int64) (string, error) {
 		return "", err
 	}
 
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
+
 	now := time.Now()
 	claims := TokenClaims{
 		UserID:    userID,
 		TokenType: "access",
+		JTI:       jti,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    s.Issuer,
 			Subject:   "user",
@@ -101,10 +138,16 @@ func (s *JwtAuthService) GenerateRefreshToken(userID int64) (string, error) {
 		return "", err
 	}
 
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
+
 	now := time.Now()
 	claims := TokenClaims{
 		UserID:    userID,
 		TokenType: "refresh",
+		JTI:       jti,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    s.Issuer,
 			Subject:   "user",
@@ -156,6 +199,11 @@ func (s *JwtAuthService) ParseAndVerifyToken(tokenString string) (*TokenClaims, 
 	}
 
 	if claims.Issuer != s.Issuer {
+		return nil, ErrInvalidToken
+	}
+
+	// 检查 token 是否已被吊销（加入黑名单）
+	if IsTokenBlacklisted(claims.JTI) {
 		return nil, ErrInvalidToken
 	}
 

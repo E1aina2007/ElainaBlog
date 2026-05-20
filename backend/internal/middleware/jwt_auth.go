@@ -24,32 +24,28 @@ func NewJwtAuthMiddleware(jwtAuthService *common.JwtAuthService) *JwtAuthMiddlew
 func (m *JwtAuthMiddleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m == nil || m.JwtAuthService == nil {
-			appErr := model.ErrInternal.WithDetail("jwt service not initialized")
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 			c.Abort()
 			return
 		}
 
 		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 		if authHeader == "" {
-			appErr := model.ErrUnauthorized.WithDetail("missing Authorization header")
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrUnauthorized.HTTPStatus(), model.ApiErrorResponse(model.ErrUnauthorized.Code, model.ErrUnauthorized.Message, nil))
 			c.Abort()
 			return
 		}
 
 		tokenString := extractBearerToken(authHeader)
 		if tokenString == "" {
-			appErr := model.ErrUnauthorized.WithDetail("invalid Authorization header format")
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrUnauthorized.HTTPStatus(), model.ApiErrorResponse(model.ErrUnauthorized.Code, model.ErrUnauthorized.Message, nil))
 			c.Abort()
 			return
 		}
 
 		claims, err := m.JwtAuthService.ParseAndVerifyAccessToken(tokenString)
 		if err != nil {
-			appErr := model.ErrUnauthorized.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrTokenInvalid.HTTPStatus(), model.ApiErrorResponse(model.ErrTokenInvalid.Code, model.ErrTokenInvalid.Message, model.ErrTokenInvalid))
 			c.Abort()
 			return
 		}
