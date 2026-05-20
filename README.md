@@ -84,7 +84,6 @@
 |------|------|
 | 框架 | [Vue 3](https://vuejs.org/) + TypeScript |
 | UI 组件库 | [Element Plus](https://element-plus.org/) |
-| Markdown 渲染 | [markdown-it](https://github.com/markdown-it/markdown-it) + [highlight.js](https://highlightjs.org/) |
 | 状态管理 | [Pinia](https://pinia.vuejs.org/) |
 | 路由 | [Vue Router](https://router.vuejs.org/) |
 | HTTP 客户端 | [Axios](https://axios-http.com/) |
@@ -101,7 +100,7 @@
 
 ## 快速开始
 
-详见 [DEPLOY.md](DEPLOY.md)，涵盖本地开发与生产部署。
+详见 【快速开始】[DEPLOY.md](DEPLOY.md)与【项目架构】[ARCHITECTURE.md](ARCHITECTURE.md)，涵盖本地开发与生产部署。
 
 ## 开源协议
 
