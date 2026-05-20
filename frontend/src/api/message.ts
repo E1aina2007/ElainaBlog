@@ -6,6 +6,7 @@ export interface Message {
     user_id: number
     username: string
     avatar: string
+    is_admin: boolean
     content: string
     created_at: string
 }

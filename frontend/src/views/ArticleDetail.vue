@@ -185,6 +185,7 @@ onMounted(() => {
                 <img v-if="article.author_avatar" :src="article.author_avatar" class="avatar-img" alt="" />
                 <span v-else class="avatar">{{ (article.author_name || '作者').charAt(0) }}</span>
                 <span>{{ article.author_name || '作者' }}</span>
+                <span v-if="article.author_is_admin" class="admin-badge">管理员</span>
               </span>
               <span class="meta-separator">·</span>
               <time class="meta-item">{{ formatDate(article.created_at) }}</time>
@@ -426,6 +427,18 @@ onMounted(() => {
 
 .meta-item.author {
   font-weight: 500;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  line-height: 1.6;
 }
 
 .avatar {

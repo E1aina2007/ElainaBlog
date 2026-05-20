@@ -23,6 +23,10 @@ TODO.md
 # ===== 构建产物 =====
 frontend/dist/
 backend/tmp/
+backend/elainablog
+
+# ===== 作者静态资源（通过 scp/rsync 手动上传到服务器）=====
+frontend/public/author/
 
 # ===== 数据库文件 =====
 *.db

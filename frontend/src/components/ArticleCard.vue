@@ -7,6 +7,7 @@ interface Article {
   category_name?: string
   author_name?: string
   author_avatar?: string
+  author_is_admin?: boolean
   created_at?: string
   view_count?: number
   comment_count?: number
@@ -46,6 +47,7 @@ const formatDate = (date?: string) => {
             <img v-if="article.author_avatar" :src="article.author_avatar" class="author-avatar-img" alt="" />
             <span v-else class="author-avatar">👤</span>
             <span class="author-name">{{ article.author_name }}</span>
+            <span v-if="article.author_is_admin" class="admin-badge">管理员</span>
           </div>
           <time class="publish-time">{{ formatDate(article.created_at) }}</time>
         </div>
@@ -176,6 +178,18 @@ const formatDate = (date?: string) => {
   font-size: 13px;
   color: var(--text-secondary);
   font-weight: 500;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+  line-height: 1.6;
 }
 
 .publish-time {

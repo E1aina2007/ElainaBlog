@@ -17,6 +17,7 @@ type MessageVO struct {
 	UserID    int64     `json:"user_id"`
 	Username  string    `json:"username"`
 	Avatar    string    `json:"avatar"`
+	IsAdmin   bool      `json:"is_admin"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -31,7 +32,7 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) GetList(limit int) ([]*MessageVO, error) {
 	rows, err := r.db.Query(`
-		SELECT m.id, m.user_id, u.username, COALESCE(u.avatar,''), m.content, m.created_at
+		SELECT m.id, m.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, m.content, m.created_at
 		FROM message m
 		LEFT JOIN `+"`user`"+` u ON m.user_id = u.id
 		WHERE m.is_deleted = 0
@@ -45,7 +46,7 @@ func (r *Repository) GetList(limit int) ([]*MessageVO, error) {
 	messages := make([]*MessageVO, 0)
 	for rows.Next() {
 		var vo MessageVO
-		if err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.Content, &vo.CreatedAt); err != nil {
+		if err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt); err != nil {
 			return nil, err
 		}
 		messages = append(messages, &vo)

@@ -19,6 +19,7 @@ type CommentVO struct {
 	UserID    int64     `json:"user_id"`
 	Username  string    `json:"username"`
 	Avatar    string    `json:"avatar"`
+	IsAdmin   bool      `json:"is_admin"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -44,7 +45,7 @@ func (r *Repository) GetCommentByID(id int64) (*Comment, error) {
 
 func (r *Repository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, error) {
 	rows, err := r.db.Query(`
-    SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, c.content, c.created_at
+    SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, u.is_admin, c.content, c.created_at
     FROM comment c
     LEFT JOIN `+"`user`"+` u ON c.user_id = u.id
     WHERE c.article_id = ? AND c.is_deleted = 0
@@ -57,7 +58,7 @@ func (r *Repository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, e
 	comments := make([]*CommentVO, 0)
 	for rows.Next() {
 		var vo CommentVO
-		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.Content, &vo.CreatedAt)
+		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +73,7 @@ func (r *Repository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, e
 
 func (r *Repository) GetAllCommentList() ([]*CommentVO, error) {
 	rows, err := r.db.Query(`
-    SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, c.content, c.created_at
+    SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, u.is_admin, c.content, c.created_at
     FROM comment c
     LEFT JOIN ` + "`user`" + ` u ON c.user_id = u.id
     LEFT JOIN article a ON c.article_id = a.id
@@ -86,7 +87,7 @@ func (r *Repository) GetAllCommentList() ([]*CommentVO, error) {
 	comments := make([]*CommentVO, 0)
 	for rows.Next() {
 		var vo CommentVO
-		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.Content, &vo.CreatedAt)
+		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
