@@ -33,8 +33,7 @@ type DeleteConfigRequest struct {
 func (ctl *Controller) GetPublicConfigs(c *gin.Context) {
 	configs, err := ctl.service.GetAllMap()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(configs))
@@ -44,8 +43,7 @@ func (ctl *Controller) GetPublicConfigs(c *gin.Context) {
 func (ctl *Controller) GetQuotes(c *gin.Context) {
 	quotes, err := ctl.service.GetQuotes()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(quotes))
@@ -62,8 +60,7 @@ func (ctl *Controller) GetAll(c *gin.Context) {
 
 	configs, err := ctl.service.GetAllMap()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(configs))
@@ -80,14 +77,12 @@ func (ctl *Controller) Upsert(c *gin.Context) {
 
 	var req UpsertConfigsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInvalidParams.HTTPStatus(), model.ApiErrorResponse(model.ErrInvalidParams.Code, model.ErrInvalidParams.Message, nil))
 		return
 	}
 
 	if err := ctl.service.Upsert(req.Configs); err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 
@@ -105,14 +100,12 @@ func (ctl *Controller) Delete(c *gin.Context) {
 
 	var req DeleteConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInvalidParams.HTTPStatus(), model.ApiErrorResponse(model.ErrInvalidParams.Code, model.ErrInvalidParams.Message, nil))
 		return
 	}
 
 	if err := ctl.service.Delete(req.Key); err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 

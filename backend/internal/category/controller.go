@@ -38,8 +38,7 @@ type DeleteCategoryRequest struct {
 func (ctl *Controller) GetList(c *gin.Context) {
 	list, err := ctl.service.GetCategoryList()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 
@@ -54,7 +53,7 @@ func (ctl *Controller) Create(c *gin.Context) {
 
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
@@ -66,11 +65,10 @@ func (ctl *Controller) Create(c *gin.Context) {
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrCategoryExists:
-			appErr := model.ErrConflict.WithDetail(err.Error())
+			appErr := model.ErrConflict.WithDetail("资源已存在")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}
@@ -86,7 +84,7 @@ func (ctl *Controller) Update(c *gin.Context) {
 
 	var req UpdateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
@@ -98,14 +96,13 @@ func (ctl *Controller) Update(c *gin.Context) {
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrCategoryNotFound:
-			appErr := model.ErrNotFound.WithDetail(err.Error())
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrCategoryExists:
-			appErr := model.ErrConflict.WithDetail(err.Error())
+			appErr := model.ErrConflict.WithDetail("资源已存在")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}
@@ -121,7 +118,7 @@ func (ctl *Controller) Delete(c *gin.Context) {
 
 	var req DeleteCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
@@ -133,11 +130,10 @@ func (ctl *Controller) Delete(c *gin.Context) {
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		case ErrCategoryNotFound:
-			appErr := model.ErrNotFound.WithDetail(err.Error())
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}

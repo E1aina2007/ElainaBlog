@@ -12,8 +12,7 @@ func RequireAdmin(c *gin.Context, checkAdmin func(int64) (bool, error)) bool {
 	userID := c.GetInt64(CtxUserIDKey)
 	isAdmin, err := checkAdmin(userID)
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return false
 	}
 	if !isAdmin {

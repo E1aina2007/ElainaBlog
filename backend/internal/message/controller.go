@@ -32,8 +32,7 @@ type DeleteMessageRequest struct {
 func (ctl *Controller) GetList(c *gin.Context) {
 	list, err := ctl.service.GetList(50)
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(list))
@@ -42,8 +41,7 @@ func (ctl *Controller) GetList(c *gin.Context) {
 func (ctl *Controller) Create(c *gin.Context) {
 	var req CreateMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInvalidParams.HTTPStatus(), model.ApiErrorResponse(model.ErrInvalidParams.Code, model.ErrInvalidParams.Message, nil))
 		return
 	}
 
@@ -55,8 +53,7 @@ func (ctl *Controller) Create(c *gin.Context) {
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}
@@ -67,8 +64,7 @@ func (ctl *Controller) Create(c *gin.Context) {
 func (ctl *Controller) Delete(c *gin.Context) {
 	var req DeleteMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInvalidParams.HTTPStatus(), model.ApiErrorResponse(model.ErrInvalidParams.Code, model.ErrInvalidParams.Message, nil))
 		return
 	}
 
@@ -81,8 +77,7 @@ func (ctl *Controller) Delete(c *gin.Context) {
 			appErr := model.ErrNotFound.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}
@@ -97,8 +92,7 @@ func (ctl *Controller) Delete(c *gin.Context) {
 	}
 
 	if err := ctl.service.Delete(req.ID); err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 

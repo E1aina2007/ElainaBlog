@@ -42,8 +42,7 @@ func (ctl *Controller) GetList(c *gin.Context) {
 
 	list, err := ctl.service.GetCommentList(articleID)
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 
@@ -59,8 +58,7 @@ func (ctl *Controller) GetAllList(c *gin.Context) {
 
 	list, err := ctl.service.GetAllCommentList()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 
@@ -70,7 +68,7 @@ func (ctl *Controller) GetAllList(c *gin.Context) {
 func (ctl *Controller) CreateComment(c *gin.Context) {
 	var req CreateCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
@@ -87,8 +85,7 @@ func (ctl *Controller) CreateComment(c *gin.Context) {
 			appErr := model.ErrInvalidParams.WithDetail(err.Error())
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}
@@ -99,7 +96,7 @@ func (ctl *Controller) CreateComment(c *gin.Context) {
 func (ctl *Controller) DeleteComment(c *gin.Context) {
 	var req DeleteCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
@@ -111,11 +108,10 @@ func (ctl *Controller) DeleteComment(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case ErrCommentNotFound:
-			appErr := model.ErrNotFound.WithDetail(err.Error())
+			appErr := model.ErrNotFound.WithDetail("评论不存在")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
-			appErr := model.ErrInternal.WithDetail(err.Error())
-			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
 		return
 	}
@@ -130,8 +126,7 @@ func (ctl *Controller) DeleteComment(c *gin.Context) {
 	}
 
 	if err := ctl.service.DeleteComment(&DeleteCommentParams{ID: req.ID}); err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 

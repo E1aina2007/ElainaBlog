@@ -36,8 +36,7 @@ func (ctl *Controller) GetDashboardStats(c *gin.Context) {
 	}
 	stats, err := ctl.service.GetDashboardStats()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(stats))
@@ -47,8 +46,7 @@ func (ctl *Controller) GetDashboardStats(c *gin.Context) {
 func (ctl *Controller) GetAuthorStats(c *gin.Context) {
 	stats, err := ctl.service.GetAuthorStats()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(stats))
@@ -247,8 +245,7 @@ func (ctl *Controller) ExportBackup(c *gin.Context) {
 	// 简单实现：查询所有表数据并返回
 	backup, err := ctl.service.ExportDatabaseBackup()
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 
@@ -284,8 +281,7 @@ func (ctl *Controller) UnbanIP(c *gin.Context) {
 	}
 
 	if err := ctl.service.UnbanIP(req.IP); err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"message": "IP已解封"}))
