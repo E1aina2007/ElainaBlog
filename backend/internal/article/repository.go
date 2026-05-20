@@ -11,6 +11,7 @@ type ArticleVO struct {
 	UserID       int64     `json:"user_id"`
 	Username     string    `json:"author_name"`   // 关联查询作者名
 	Avatar       string    `json:"author_avatar"` // 关联查询作者头像
+	IsAdmin      bool      `json:"author_is_admin"` // 关联查询作者是否管理员
 	CategoryID   *int64    `json:"category_id"`   // nil 表示未分类
 	CategoryName string    `json:"category_name"` // 关联查询分类名
 	Title        string    `json:"title"`
@@ -37,13 +38,13 @@ func (r *Repository) GetArticleByID(id int64) (*ArticleVO, error) {
 	var categoryID sql.NullInt64
 	var categoryName string
 	err := r.db.QueryRow(`
-		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), a.category_id, COALESCE(c.name,''),
+		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
 		       a.title, a.summary, a.content, a.cover, a.is_top, a.is_draft, a.view_count, a.created_at
 		FROM article a
 		LEFT JOIN `+"`user`"+` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
 		WHERE a.id = ? AND a.is_deleted = 0`, id).Scan(
-		&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &categoryID, &categoryName,
+		&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &categoryID, &categoryName,
 		&vo.Title, &vo.Summary, &vo.Content, &vo.Cover, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -76,7 +77,7 @@ func (r *Repository) GetArticleList(categoryID *int64, page, pageSize int) ([]*A
 
 	// 分页查询数据
 	query := `
-		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), a.category_id, COALESCE(c.name,''),
+		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
 		       a.title, a.summary, a.content, a.cover, a.is_top, a.is_draft, a.view_count,
 		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
 		       a.created_at
@@ -101,7 +102,7 @@ func (r *Repository) GetArticleList(categoryID *int64, page, pageSize int) ([]*A
 		var vo ArticleVO
 		var catID sql.NullInt64
 		var categoryName string
-		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &catID, &categoryName,
+		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
 			&vo.Title, &vo.Summary, &vo.Content, &vo.Cover, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
 		if err != nil {
 			return nil, 0, err

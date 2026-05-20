@@ -12,6 +12,7 @@ export interface Article {
     user_id?: number
     author_name?: string
     author_avatar?: string
+    author_is_admin?: boolean
     view_count?: number
     comment_count?: number
     is_top?: boolean

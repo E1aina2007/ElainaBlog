@@ -65,6 +65,7 @@ function handleDelete(id: number) {
             <img v-if="comment.avatar" :src="comment.avatar" class="user-avatar-img" alt="头像" />
             <span v-else class="user-avatar">{{ comment.username.charAt(0).toUpperCase() }}</span>
             <span class="username">{{ comment.username }}</span>
+            <span v-if="comment.is_admin" class="admin-badge">管理员</span>
           </div>
           <time class="comment-time">{{ formatDate(comment.created_at) }}</time>
         </div>
@@ -164,6 +165,18 @@ function handleDelete(id: number) {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  line-height: 1.6;
 }
 
 .comment-time {

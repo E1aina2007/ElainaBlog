@@ -382,6 +382,7 @@ onUnmounted(() => {
                 <img v-if="msg.avatar" :src="msg.avatar" class="message-avatar" alt="" />
                 <span v-else class="message-avatar-placeholder">{{ msg.username.charAt(0) }}</span>
                 <span class="message-username">{{ msg.username }}</span>
+                <span v-if="msg.is_admin" class="admin-badge">管理员</span>
               </div>
               <div class="message-meta">
                 <span class="message-time">{{ formatDate(msg.created_at) }}</span>
@@ -887,6 +888,18 @@ onUnmounted(() => {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  line-height: 1.6;
 }
 
 .message-meta {
