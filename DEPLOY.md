@@ -491,9 +491,10 @@ docker compose up -d
 ### 4. 启动数据库
 
 ```bash
+# 仅启动 MySQL，等待就绪后再启动其他服务
 docker compose up -d mysql
 
-# 观察日志，出现 "ready for connections" 后继续
+# 观察日志，出现 "ready for connections" 后 Ctrl+C 退出
 docker compose logs -f mysql
 ```
 
@@ -502,28 +503,53 @@ docker compose logs -f mysql
 ### 5. 启动所有服务
 
 ```bash
-# 构建并启动
-docker compose up -d
+# 构建镜像并启动全部 4 个容器（frontend、backend、mysql、redis）
+docker compose up -d --build
 
-# 确认 4 个容器均为 running
+# 确认所有容器均为 running 状态
 docker compose ps
+```
+
+预期输出应包含 4 个容器，状态均为 `running`：
+
+```
+NAME                STATUS
+elainablog-frontend running
+elainablog-backend  running
+elainablog-mysql    running (healthy)
+elainablog-redis    running (healthy)
+```
+
+```bash
+# 查看后端启动日志，确认无报错
+docker compose logs backend
+
+# 测试后端健康检查
+curl http://127.0.0.1:9178/health
 ```
 
 ### 6. 创建管理员账号
 
+等待所有容器启动完成后，执行以下命令初始化管理员账号：
+
 ```bash
-# 方式一：命令行传入密码
+# 方式一：命令行传入密码（推荐）
 docker exec elainablog-backend ./elainablog initSystem <管理员密码>
 
 # 方式二：密码已在 config.prod.yaml 的 admin.password 中配置
 docker exec elainablog-backend ./elainablog initSystem
 ```
 
+执行成功后会输出管理员邮箱和初始化结果。之后可通过前端登录页 `/login` 使用该账号登录。
+
 ### 7. 配置宿主机 Nginx
 
-创建 `/etc/nginx/conf.d/elainablog.conf`：
+宿主机 Nginx 作为入口，将请求反向代理到 Docker 容器。
 
-```nginx
+#### 7.1 创建配置文件
+
+```bash
+sudo tee /etc/nginx/conf.d/elainablog.conf > /dev/null << 'EOF'
 server {
     listen 80;
     server_name your-domain.com;  # 替换为你的域名
@@ -560,13 +586,43 @@ server {
         proxy_pass http://127.0.0.1:3000;
     }
 }
+EOF
 ```
 
-检查配置并重载：
+> 将 `your-domain.com` 替换为你的实际域名。如果暂时没有域名，可先填 `_`（下划线）匹配所有域名。
+
+#### 7.2 检查并重载配置
 
 ```bash
+# 检查 Nginx 配置语法是否正确
 sudo nginx -t
+
+# 语法检查通过后重载配置
 sudo nginx -s reload
+```
+
+预期输出：
+
+```
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+```
+
+#### 7.3 如果 80 端口被占用
+
+如果 `nginx -t` 报错端口冲突，检查占用 80 端口的进程：
+
+```bash
+sudo lsof -i :80
+# 或
+sudo ss -tlnp | grep :80
+```
+
+常见情况是 Nginx 默认配置占用了 80 端口，可移除默认配置：
+
+```bash
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t && sudo nginx -s reload
 ```
 
 ### 8. 验证服务
@@ -578,9 +634,12 @@ curl http://127.0.0.1:9178/health
 # 测试前端
 curl -I http://127.0.0.1:3000
 
+# 通过宿主机 Nginx 访问（端口 80）
+curl -I http://localhost
+
 # 测试域名访问（DNS 解析生效后）
 curl -I http://your-domain.com
-curl http://your-domain.com/api/ui/
+curl http://your-domain.com/api/ui/health
 ```
 
 ---
