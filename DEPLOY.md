@@ -17,11 +17,13 @@
   - [3.2 安装 Docker 与 Nginx](#32-安装-docker-与-nginx)
   - [3.3 防火墙配置](#33-防火墙配置)
 - [四、生产环境部署](#四生产环境部署)
+  - [4.1 Docker 挂载目录说明](#41-docker-挂载目录说明)
 - [五、HTTPS 配置](#五https-配置)
-- [六、更新部署](#六更新部署)
-- [七、运维命令速查](#七运维命令速查)
-- [八、常见问题](#八常见问题)
-- [九、上线检查清单](#九上线检查清单)
+- [六、Cloudflare 配置](#六cloudflare-配置)
+- [七、更新部署](#七更新部署)
+- [八、运维命令速查](#八运维命令速查)
+- [九、常见问题](#九常见问题)
+- [十、上线检查清单](#十上线检查清单)
 
 ---
 
@@ -180,14 +182,35 @@ npm run dev
 
 ### 2.3 域名解析
 
-在域名注册商的 DNS 管理面板中添加以下记录：
+在域名注册商的 DNS 管理面板中添加 A 记录，将域名指向服务器公网 IP：
 
 | 记录类型 | 主机记录 | 记录值 | TTL |
 |---------|---------|-------|-----|
 | A | `@` | 服务器公网 IP | 600 |
 | A | `www` | 服务器公网 IP | 600 |
 
-**验证 DNS 解析：**
+#### 各平台操作步骤
+
+**阿里云：**
+
+1. 登录 [阿里云控制台](https://dns.console.aliyun.com)
+2. 进入「域名解析 DNS」→「解析设置」
+3. 点击「添加记录」，填写主机记录和记录值
+
+**腾讯云：**
+
+1. 登录 [DNSPod 控制台](https://console.dnspod.cn)
+2. 选择域名 →「添加记录」
+3. 填写主机记录、记录类型和记录值
+
+**Cloudflare（推荐海外服务器）：**
+
+1. 登录 [Cloudflare](https://dash.cloudflare.com)
+2. 添加站点并按提示修改域名的 NS 服务器
+3. 在「DNS」→「Records」中添加 A 记录
+4. 代理状态选择「已代理」（橙色云朵）可启用 CDN 和防护
+
+#### 验证 DNS 解析
 
 ```bash
 nslookup your-domain.com
@@ -287,6 +310,18 @@ MODE=prod
 
 编辑 `config/backend/config.prod.yaml`，以下为 **必须修改** 的配置项：
 
+> 生成随机密钥（用于 `access_token_secret`、`refresh_token_secret`、`sessions_key`）：
+>
+> ```bash
+> # Linux / macOS
+> openssl rand -hex 32
+>
+> # PowerShell
+> -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
+> ```
+>
+> 三个密钥应分别生成，不要相同。
+
 ```yaml
 auth:
   access_token_secret: "替换为随机密钥"   # openssl rand -hex 32
@@ -314,7 +349,104 @@ zap:
 dev: false
 ```
 
-### 3. 启动数据库
+### 3. Docker 挂载目录说明
+
+项目使用两种挂载方式：**绑定挂载**（Bind Mount）将宿主机目录直接映射到容器，**命名卷**（Named Volume）由 Docker 自动管理。
+
+#### 挂载目录一览
+
+| 宿主机路径 | 容器内路径 | 服务 | 用途 |
+|-----------|-----------|------|------|
+| `config/backend` | `/app/config` | backend | 后端配置文件（`.env` 和 `yaml`） |
+| `backend/uploads` | `/app/uploads` | backend | 用户上传文件（头像、文章封面等） |
+| `frontend/public/author` | `/usr/share/nginx/html/author` | frontend | 作者头像与背景图 |
+| `logs` (Volume) | `/app/log` | backend | 后端运行日志 |
+| `mysql_data` (Volume) | `/var/lib/mysql` | mysql | MySQL 数据库数据 |
+| `redis_data` (Volume) | `/data` | redis | Redis 缓存数据 |
+
+#### 目录初始化
+
+首次部署时，需确保绑定挂载的宿主机目录存在：
+
+```bash
+# 创建配置目录（如尚未创建）
+mkdir -p config/backend
+
+# 创建上传文件目录
+mkdir -p backend/uploads
+
+# 创建前端作者资源目录
+mkdir -p frontend/public/author
+```
+
+> Docker 命名卷（`logs`、`mysql_data`、`redis_data`）会在首次 `docker compose up` 时自动创建，无需手动处理。
+
+#### 配置文件挂载
+
+后端配置文件通过 `config/backend` 目录挂载到容器内 `/app/config`，修改宿主机上的配置文件后重启后端容器即可生效：
+
+```bash
+# 编辑配置
+vim config/backend/config.prod.yaml
+
+# 重启后端使配置生效
+docker compose restart backend
+```
+
+#### 上传文件管理
+
+用户上传的头像、文章封面等文件存储在 `backend/uploads` 目录，挂载到容器内 `/app/uploads`。备份时可直接复制该目录：
+
+```bash
+# 备份上传文件
+cp -r backend/uploads backend/uploads_backup_$(date +%Y%m%d)
+```
+
+#### 日志查看
+
+后端日志通过命名卷 `logs` 持久化，可使用以下方式查看：
+
+```bash
+# 查看实时日志
+docker compose logs -f backend
+
+# 进入容器查看日志文件
+docker exec -it elainablog-backend ls /app/log
+```
+
+#### 数据备份与恢复
+
+**备份 MySQL：**
+
+```bash
+docker exec elainablog-mysql mysqldump -u root -p ElainaBlog > backup_$(date +%Y%m%d).sql
+```
+
+**恢复 MySQL：**
+
+```bash
+docker exec -i elainablog-mysql mysql -u root -p ElainaBlog < backup.sql
+```
+
+**备份 Redis（如需要）：**
+
+```bash
+docker exec elainablog-redis redis-cli BGSAVE
+docker cp elainablog-redis:/data/dump.rdb ./redis_backup_$(date +%Y%m%d).rdb
+```
+
+#### 危险操作提醒
+
+```bash
+# ⚠️ 以下命令会删除所有数据卷（数据库、日志、Redis 缓存将全部丢失）
+docker compose down -v
+
+# 如仅需重启服务而不丢失数据，使用：
+docker compose down
+docker compose up -d
+```
+
+### 4. 启动数据库
 
 ```bash
 docker compose up -d mysql
@@ -325,7 +457,7 @@ docker compose logs -f mysql
 
 > 数据库表会在后端首次启动时自动迁移创建，无需手动执行 SQL 脚本。
 
-### 4. 启动所有服务
+### 5. 启动所有服务
 
 ```bash
 # 构建并启动
@@ -335,7 +467,7 @@ docker compose up -d
 docker compose ps
 ```
 
-### 5. 创建管理员账号
+### 6. 创建管理员账号
 
 ```bash
 # 方式一：命令行传入密码
@@ -345,7 +477,7 @@ docker exec elainablog-backend ./elainablog initSystem <管理员密码>
 docker exec elainablog-backend ./elainablog initSystem
 ```
 
-### 6. 配置宿主机 Nginx
+### 7. 配置宿主机 Nginx
 
 创建 `/etc/nginx/conf.d/elainablog.conf`：
 
@@ -395,7 +527,7 @@ sudo nginx -t
 sudo nginx -s reload
 ```
 
-### 7. 验证服务
+### 8. 验证服务
 
 ```bash
 # 测试后端健康检查
@@ -445,7 +577,104 @@ curl -I https://your-domain.com
 
 ---
 
-## 六、更新部署
+## 六、Cloudflare 配置
+
+Cloudflare 提供免费 CDN、DDoS 防护和 WAF 防火墙，推荐海外服务器使用。
+
+### 1. 添加站点
+
+1. 注册并登录 [Cloudflare](https://dash.cloudflare.com)
+2. 点击「Add a site」，输入你的域名
+3. 选择免费套餐（Free plan）
+4. Cloudflare 会扫描现有 DNS 记录，确认无误后继续
+
+### 2. 修改域名 NS 服务器
+
+Cloudflare 会分配两个 NS 服务器，例如：
+
+```
+ns1.cloudflare.com
+ns2.cloudflare.com
+```
+
+前往你的域名注册商控制台，将域名的 NS 服务器修改为 Cloudflare 提供的地址。NS 生效通常需要几分钟到 24 小时。
+
+### 3. 配置 DNS 记录
+
+在 Cloudflare「DNS」→「Records」中确认以下记录：
+
+| 类型 | 名称 | 内容 | 代理状态 |
+|------|------|------|---------|
+| A | `@` | 服务器公网 IP | 已代理（橙色云朵） |
+| A | `www` | 服务器公网 IP | 已代理（橙色云朵） |
+
+> 代理状态为「已代理」时，流量经过 Cloudflare 隐藏源站 IP；「仅 DNS」则直接暴露 IP。
+
+### 4. 配置 SSL/TLS
+
+进入「SSL/TLS」→「Overview」：
+
+- 加密模式选择 **Full (Strict)**（需要源站已配置 HTTPS 证书）
+- 开启「Always Use HTTPS」（强制 HTTPS 重定向）
+- 开启「Automatic HTTPS Rewrites」
+
+### 5. 配置安全防护
+
+进入「Security」→「Settings」：
+
+| 设置项 | 推荐值 | 说明 |
+|--------|--------|------|
+| Security Level | Medium | 对可疑 IP 发起质询 |
+| Browser Integrity Check | 开启 | 检测恶意请求头 |
+| Challenge Passage | 30 minutes | 质询通过后的有效期 |
+
+### 6. 配置缓存
+
+进入「Caching」→「Configuration」：
+
+- Browser Cache TTL：选择「Respect Existing Headers」
+- 开发调试时可使用「Purge Cache」清除缓存
+
+### 7. 验证 Cloudflare 生效
+
+```bash
+# 检查响应头是否包含 Cloudflare 标识
+curl -I https://your-domain.com
+
+# 应看到类似以下 header
+# server: cloudflare
+# cf-ray: xxxxxxxxx
+```
+
+### 8. 获取真实客户端 IP
+
+由于流量经过 Cloudflare 代理，后端获取的客户端 IP 为 Cloudflare IP。如需获取真实 IP，需配置 Nginx 使用 `CF-Connecting-IP` 头：
+
+```nginx
+# 在 http 块中添加 Cloudflare IP 段
+set_real_ip_from 173.245.48.0/20;
+set_real_ip_from 103.21.244.0/22;
+set_real_ip_from 103.22.200.0/22;
+set_real_ip_from 103.31.4.0/22;
+set_real_ip_from 141.101.64.0/18;
+set_real_ip_from 108.162.192.0/18;
+set_real_ip_from 190.93.240.0/20;
+set_real_ip_from 188.114.96.0/20;
+set_real_ip_from 197.234.240.0/22;
+set_real_ip_from 198.41.128.0/17;
+set_real_ip_from 162.158.0.0/15;
+set_real_ip_from 104.16.0.0/13;
+set_real_ip_from 104.24.0.0/14;
+set_real_ip_from 172.64.0.0/13;
+set_real_ip_from 131.0.72.0/22;
+real_ip_header CF-Connecting-IP;
+```
+
+> Cloudflare IP 段可能会更新，完整列表见 https://www.cloudflare.com/ips/
+
+---
+
+## 七、更新部署
 
 ```bash
 cd /opt/ElainaBlog
@@ -462,7 +691,7 @@ docker compose build backend && docker compose up -d backend
 
 ---
 
-## 七、运维命令速查
+## 八、运维命令速查
 
 ```bash
 # 查看所有容器状态
@@ -501,7 +730,7 @@ docker stats --no-stream
 
 ---
 
-## 八、常见问题
+## 九、常见问题
 
 ### 后端启动失败，提示数据库连接超时
 
@@ -543,7 +772,7 @@ sudo systemctl status certbot.timer
 
 ---
 
-## 九、上线检查清单
+## 十、上线检查清单
 
 ### 配置
 
@@ -572,3 +801,4 @@ sudo systemctl status certbot.timer
 
 - [ ] 防火墙已启用（仅开放 22/80/443）
 - [ ] 数据库端口未暴露到公网
+- [ ] Cloudflare 已配置并生效（如使用）

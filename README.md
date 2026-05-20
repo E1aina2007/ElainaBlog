@@ -98,6 +98,21 @@
 | 反向代理 | Nginx |
 | 容器化 | Docker Compose |
 
+### Docker 挂载目录
+
+项目通过 Docker Compose 部署时，以下目录会挂载到宿主机以实现数据持久化：
+
+| 宿主机路径 | 容器内路径 | 用途 | 类型 |
+|-----------|-----------|------|------|
+| `config/backend` | `/app/config` | 后端配置文件（`.env` 和 `yaml`） | 绑定挂载 |
+| `backend/uploads` | `/app/uploads` | 用户上传文件（头像、文章封面等） | 绑定挂载 |
+| `frontend/public/author` | `/usr/share/nginx/html/author` | 作者头像与背景图 | 绑定挂载 |
+| `logs` (Docker Volume) | `/app/log` | 后端日志 | 命名卷 |
+| `mysql_data` (Docker Volume) | `/var/lib/mysql` | MySQL 数据 | 命名卷 |
+| `redis_data` (Docker Volume) | `/data` | Redis 数据 | 命名卷 |
+
+> 绑定挂载的目录直接映射到宿主机项目路径下，方便直接编辑配置或备份上传文件。命名卷由 Docker 自动管理。
+
 ## 快速开始
 
 详见 【快速开始】[DEPLOY.md](DEPLOY.md)与【项目架构】[ARCHITECTURE.md](ARCHITECTURE.md)，涵盖本地开发与生产部署。
