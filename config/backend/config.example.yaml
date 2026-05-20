@@ -40,7 +40,7 @@ verification:
 
 server:
   host: 0.0.0.0       # 开发环境可改为 127.0.0.1
-  port: 8080
+  port: 9178
   env: debug           # 生产环境改为 production
   cors_origins:        # 允许的跨域来源，生产环境改为实际域名
     - "http://localhost:5173"

@@ -21,7 +21,7 @@ services:
     container_name: elainablog-backend
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9178:9178"
     environment:
       - MIGRATION_DIR=/app/migrations
       - CONFIG_DIR=/app/config
