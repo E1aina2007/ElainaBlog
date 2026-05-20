@@ -278,9 +278,9 @@ sudo ufw status verbose
 ### 1. 克隆项目
 
 ```bash
-cd /opt
-sudo git clone <repository-url> ElainaBlog
-sudo chown -R $USER:$USER ElainaBlog
+# 选择一个目录存放项目，如 /root、/opt、/home/user 等
+cd ~
+git clone <repository-url> ElainaBlog
 cd ElainaBlog
 ```
 
@@ -392,6 +392,48 @@ vim config/backend/config.prod.yaml
 # 重启后端使配置生效
 docker compose restart backend
 ```
+
+#### 作者资源管理
+
+作者头像和背景图存放在 `frontend/public/author/` 目录，挂载到前端容器内 `/usr/share/nginx/html/author`，通过 Nginx 直接提供静态访问。
+
+**目录结构：**
+
+```
+frontend/public/author/
+├── avatar.jpg      # 作者头像
+└── background.jpg  # 作者页顶部背景图
+```
+
+**上传到服务器的方式：**
+
+文件必须放到宿主机的挂载目录 `frontend/public/author/`（项目根目录下），Docker 会自动将其映射到容器内供 Nginx 访问。
+
+方式一：SCP 从本地传输（推荐，适合首次部署或少量文件更新）
+
+```bash
+# 从本地上传整个 author 目录到服务器的挂载目录
+# 将 <项目路径> 替换为服务器上的实际路径，如 /root/ElainaBlog、/opt/ElainaBlog
+scp -r frontend/public/author/* root@your-server:<项目路径>/frontend/public/author/
+```
+
+方式二：rsync 增量同步（推荐，适合频繁更新或大量文件）
+
+```bash
+# 增量同步，仅传输有变化的文件到服务器的挂载目录
+rsync -avz --progress frontend/public/author/ root@your-server:<项目路径>/frontend/public/author/
+```
+
+方式三：通过 Git 同步（适合已纳入版本管理的资源）
+
+```bash
+# 在服务器上拉取最新代码（author 目录已在 public 下）
+cd ElainaBlog  # 进入项目根目录
+git pull
+# 无需重启容器，Nginx 会直接读取挂载目录中的新文件
+```
+
+> 修改 `frontend/public/author/` 下的文件后**无需重启容器**，因为该目录通过绑定挂载映射到容器内，Nginx 会直接读取最新文件。
 
 #### 上传文件管理
 
@@ -677,7 +719,7 @@ real_ip_header CF-Connecting-IP;
 ## 七、更新部署
 
 ```bash
-cd /opt/ElainaBlog
+cd ElainaBlog  # 进入项目根目录
 git pull
 
 # 重新构建并重启所有服务
