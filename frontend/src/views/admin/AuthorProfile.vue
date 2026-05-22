@@ -122,7 +122,7 @@ onMounted(fetchProfile)
           </div>
           <div class="form-item">
             <label>院校</label>
-            <input v-model="profile.school" placeholder="例如：广西大学" />
+            <input v-model="profile.school" placeholder="例如：xx大学" />
           </div>
           <div class="form-item">
             <label>专业</label>
@@ -142,7 +142,7 @@ onMounted(fetchProfile)
       <!-- 个人简介 -->
       <section class="form-section">
         <h3 class="section-title">个人简介</h3>
-        <textarea v-model="profile.bio" class="bio-textarea" rows="5" placeholder="请输入个人简介"></textarea>
+        <textarea v-model="profile.bio" class="bio-textarea" rows="5" placeholder="请输入个人简介" v-tab-indent></textarea>
       </section>
 
       <!-- 技术栈 -->
@@ -151,15 +151,15 @@ onMounted(fetchProfile)
         <div class="form-grid">
           <div class="form-item full-width">
             <label>前端技术栈</label>
-            <textarea v-model="profile.tech_stack_frontend" class="json-textarea" rows="2" placeholder='["HTML5","CSS 3","JavaScript"]'></textarea>
+            <textarea v-model="profile.tech_stack_frontend" class="json-textarea" rows="2" placeholder='["HTML5","CSS 3","JavaScript"]' v-tab-indent></textarea>
           </div>
           <div class="form-item full-width">
             <label>后端技术栈</label>
-            <textarea v-model="profile.tech_stack_backend" class="json-textarea" rows="2" placeholder='["Go","MySQL","Redis"]'></textarea>
+            <textarea v-model="profile.tech_stack_backend" class="json-textarea" rows="2" placeholder='["Go","MySQL","Redis"]' v-tab-indent></textarea>
           </div>
           <div class="form-item full-width">
             <label>工程化技术栈</label>
-            <textarea v-model="profile.tech_stack_engineering" class="json-textarea" rows="2" placeholder='["Docker","Git","Nginx"]'></textarea>
+            <textarea v-model="profile.tech_stack_engineering" class="json-textarea" rows="2" placeholder='["Docker","Git","Nginx"]' v-tab-indent></textarea>
           </div>
         </div>
       </section>

@@ -104,6 +104,7 @@ const handleSaveCode = async () => {
           rows="8"
           placeholder="<!-- 在这里粘贴你的代码 -->"
           class="code-textarea"
+          v-tab-indent
         ></textarea>
       </div>
 
@@ -130,6 +131,7 @@ const handleSaveCode = async () => {
           rows="8"
           placeholder="<!-- 在这里粘贴你的代码 -->"
           class="code-textarea"
+          v-tab-indent
         ></textarea>
       </div>
 

@@ -50,6 +50,7 @@ async function handleSubmit() {
         class="comment-input"
         placeholder="写下你的评论..."
         rows="4"
+        v-tab-indent
         :disabled="isSubmitting"
       />
       <div class="form-actions">
