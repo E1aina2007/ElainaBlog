@@ -20,6 +20,9 @@ docs/
 .claude/
 TODO.md
 
+# ===== 测试资源 =====
+backend/uploads/
+
 # ===== 构建产物 =====
 frontend/dist/
 backend/tmp/
