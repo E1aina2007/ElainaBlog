@@ -14,8 +14,8 @@ const siteName = computed(() => siteStore.get('site_name'))
 
 const navLinks = [
   { name: '首页', path: '/' },
-  { name: '关于作者', path: '/author' },
   { name: '工具', path: '/tools' },
+  { name: '关于作者', path: '/author' },
 ]
 
 const isActive = (path: string) => router.currentRoute.value.path === path
