@@ -1,7 +1,6 @@
 package siteconfig
 
 import (
-	"ElainaBlog/config/db"
 	"ElainaBlog/internal/common/model"
 	"net/http"
 
@@ -12,9 +11,7 @@ type Controller struct {
 	service *Service
 }
 
-func NewController() *Controller {
-	repo := NewRepository(db.DBPool)
-	service := NewService(repo)
+func NewController(service *Service) *Controller {
 	return &Controller{service: service}
 }
 

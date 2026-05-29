@@ -1,7 +1,7 @@
 package category
 
 import (
-	"database/sql"
+	"ElainaBlog/config/db"
 )
 
 type CategoryVO struct {
@@ -10,15 +10,17 @@ type CategoryVO struct {
 	ArticleCount int    `json:"article_count"`
 }
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 category.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建分类仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
-func (r *Repository) GetCategoryByID(id int64) (*CategoryVO, error) {
+func (r *MySQLRepository) GetCategoryByID(id int64) (*CategoryVO, error) {
 	row := r.db.QueryRow("SELECT id, name FROM category WHERE id = ? AND is_deleted = 0", id)
 	var category CategoryVO
 	err := row.Scan(&category.ID, &category.Name)
@@ -28,7 +30,7 @@ func (r *Repository) GetCategoryByID(id int64) (*CategoryVO, error) {
 	return &category, nil
 }
 
-func (r *Repository) GetCategoryByName(name string) (*CategoryVO, error) {
+func (r *MySQLRepository) GetCategoryByName(name string) (*CategoryVO, error) {
 	row := r.db.QueryRow("SELECT id, name FROM category WHERE name = ? AND is_deleted = 0", name)
 	var category CategoryVO
 	err := row.Scan(&category.ID, &category.Name)
@@ -38,7 +40,7 @@ func (r *Repository) GetCategoryByName(name string) (*CategoryVO, error) {
 	return &category, nil
 }
 
-func (r *Repository) GetCategoryList() ([]*CategoryVO, error) {
+func (r *MySQLRepository) GetCategoryList() ([]*CategoryVO, error) {
 	rows, err := r.db.Query(`
 		SELECT c.id, c.name, COUNT(a.id) AS article_count
 		FROM category c
@@ -65,7 +67,7 @@ func (r *Repository) GetCategoryList() ([]*CategoryVO, error) {
 	return categories, nil
 }
 
-func (r *Repository) CreateCategory(name string) (*CategoryVO, error) {
+func (r *MySQLRepository) CreateCategory(name string) (*CategoryVO, error) {
 	result, err := r.db.Exec("INSERT INTO category (name) VALUES (?)", name)
 	if err != nil {
 		return nil, err
@@ -77,7 +79,7 @@ func (r *Repository) CreateCategory(name string) (*CategoryVO, error) {
 	return r.GetCategoryByID(id)
 }
 
-func (r *Repository) UpdateCategory(id int64, name string) (*CategoryVO, error) {
+func (r *MySQLRepository) UpdateCategory(id int64, name string) (*CategoryVO, error) {
 	_, err := r.db.Exec("UPDATE category SET name = ? WHERE id = ? AND is_deleted = 0", name, id)
 	if err != nil {
 		return nil, err
@@ -85,7 +87,7 @@ func (r *Repository) UpdateCategory(id int64, name string) (*CategoryVO, error) 
 	return r.GetCategoryByID(id)
 }
 
-func (r *Repository) DeleteCategory(id int64) error {
+func (r *MySQLRepository) DeleteCategory(id int64) error {
 	_, err := r.db.Exec("UPDATE category SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
 }

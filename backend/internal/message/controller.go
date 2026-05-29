@@ -1,24 +1,25 @@
 package message
 
 import (
-	"ElainaBlog/config/db"
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
-	"ElainaBlog/internal/user"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-type Controller struct {
-	service     *Service
-	userService *user.Service
+// AdminChecker 管理员权限检查接口。
+type AdminChecker interface {
+	CheckIsAdmin(userID int64) (bool, error)
 }
 
-func NewController(userService *user.Service) *Controller {
-	repo := NewRepository(db.DBPool)
-	service := NewService(repo)
-	return &Controller{service: service, userService: userService}
+type Controller struct {
+	service      *Service
+	adminChecker AdminChecker
+}
+
+func NewController(service *Service, adminChecker AdminChecker) *Controller {
+	return &Controller{service: service, adminChecker: adminChecker}
 }
 
 type CreateMessageRequest struct {
@@ -83,7 +84,7 @@ func (ctl *Controller) Delete(c *gin.Context) {
 	}
 
 	if msg.UserID != userID {
-		isAdmin, err := ctl.userService.CheckIsAdmin(userID)
+		isAdmin, err := ctl.adminChecker.CheckIsAdmin(userID)
 		if err != nil {
 			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 			return

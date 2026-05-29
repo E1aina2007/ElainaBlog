@@ -1,7 +1,7 @@
 package authorprofile
 
 import (
-	"database/sql"
+	"ElainaBlog/config/db"
 )
 
 type AuthorProfile struct {
@@ -24,15 +24,17 @@ type AuthorProfile struct {
 	SocialBilibili       string `json:"social_bilibili"`
 }
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 authorprofile.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建作者信息仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
-func (r *Repository) Get() (*AuthorProfile, error) {
+func (r *MySQLRepository) Get() (*AuthorProfile, error) {
 	var p AuthorProfile
 	err := r.db.QueryRow(`
 		SELECT id, nickname, avatar, background, signature, location, occupation, school, major,
@@ -50,7 +52,7 @@ func (r *Repository) Get() (*AuthorProfile, error) {
 	return &p, nil
 }
 
-func (r *Repository) Create(p *AuthorProfile) (int64, error) {
+func (r *MySQLRepository) Create(p *AuthorProfile) (int64, error) {
 	result, err := r.db.Exec(`
 		INSERT INTO author_profile (nickname, avatar, background, signature, location, occupation,
 			school, major, email, wechat, bio, tech_stack_frontend, tech_stack_backend,
@@ -65,7 +67,7 @@ func (r *Repository) Create(p *AuthorProfile) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (r *Repository) Update(p *AuthorProfile) error {
+func (r *MySQLRepository) Update(p *AuthorProfile) error {
 	_, err := r.db.Exec(`
 		UPDATE author_profile SET
 			nickname = ?, avatar = ?, background = ?, signature = ?, location = ?,

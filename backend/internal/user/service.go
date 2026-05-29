@@ -15,11 +15,13 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo     Repository
+	rdb      rdb.RedisClient     // 可选，用于验证码存储
+	tokenMgr common.TokenManager // 可选，用于 JWT 签发
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, redis rdb.RedisClient, tokenMgr common.TokenManager) *Service {
+	return &Service{repo: repo, rdb: redis, tokenMgr: tokenMgr}
 }
 
 type CreateUserParams struct {
@@ -94,14 +96,14 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 		if code == "" {
 			return 0, ErrInvalidParams
 		}
-		storedCode, err := rdb.GetVerificationCode(email)
+		storedCode, err := rdb.GetVerificationCode(s.rdb, email)
 		if err != nil {
 			return 0, ErrCodeExpired
 		}
 		if storedCode != code {
 			return 0, ErrCodeMismatch
 		}
-		_ = rdb.DeleteVerificationCode(email)
+		_ = rdb.DeleteVerificationCode(s.rdb, email)
 	}
 
 	// 检查用户名是否已存在
@@ -169,13 +171,13 @@ func (s *Service) Login(params LoginParams) (*LoginResult, error) {
 	}
 
 	// 签发 access token
-	accessToken, err := common.JwtAuth.GenerateAccessToken(u.ID)
+	accessToken, err := s.tokenMgr.GenerateAccessToken(u.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	// 签发 refresh token
-	refreshToken, err := common.JwtAuth.GenerateRefreshToken(u.ID)
+	refreshToken, err := s.tokenMgr.GenerateRefreshToken(u.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +381,7 @@ func (s *Service) SendVerificationCode(email string) error {
 		return err
 	}
 
-	limited, err := rdb.IsDuringInterval(email)
+	limited, err := rdb.IsDuringInterval(s.rdb, email)
 	if err != nil {
 		return err
 	}
@@ -392,10 +394,10 @@ func (s *Service) SendVerificationCode(email string) error {
 
 	expiry := time.Duration(cfg.ExpireTime) * time.Second
 	interval := time.Duration(cfg.ResendInterval) * time.Second
-	if err := rdb.SetVerificationCode(email, code, expiry, interval); err != nil {
+	if err := rdb.SetVerificationCode(s.rdb, email, code, expiry, interval); err != nil {
 		return err
 	}
 
-	return mail.SendVerificationCode(email, code)
+	return mail.SendVerificationCode(config.GlobalConfig.Smtp, cfg.ExpireTime, email, code)
 }
 

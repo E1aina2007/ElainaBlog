@@ -4,6 +4,7 @@ import (
 	"ElainaBlog/config"
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
+	"ElainaBlog/pkg/rdb"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,10 +14,11 @@ import (
 
 type Controller struct {
 	service *Service
+	rdb     rdb.RedisClient // 可选，用于 token 黑名单
 }
 
-func NewController(service *Service) *Controller {
-	return &Controller{service: service}
+func NewController(service *Service, redis rdb.RedisClient) *Controller {
+	return &Controller{service: service, rdb: redis}
 }
 
 type LoginRequest struct {
@@ -353,7 +355,7 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 	if claims.JTI != "" {
 		ttl := time.Until(claims.ExpiresAt.Time)
 		if ttl > 0 {
-			common.BlacklistToken(claims.JTI, ttl)
+			common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 		}
 	}
 
@@ -379,7 +381,7 @@ func (ctl *Controller) Logout(c *gin.Context) {
 		if claims, err := common.JwtAuth.ParseAndVerifyAccessToken(tokenStr); err == nil && claims.JTI != "" {
 			ttl := time.Until(claims.ExpiresAt.Time)
 			if ttl > 0 {
-				common.BlacklistToken(claims.JTI, ttl)
+				common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 			}
 		}
 	}
@@ -389,7 +391,7 @@ func (ctl *Controller) Logout(c *gin.Context) {
 		if claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(tokenStr); err == nil && claims.JTI != "" {
 			ttl := time.Until(claims.ExpiresAt.Time)
 			if ttl > 0 {
-				common.BlacklistToken(claims.JTI, ttl)
+				common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 			}
 		}
 	}

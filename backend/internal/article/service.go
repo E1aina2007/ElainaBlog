@@ -1,13 +1,9 @@
 package article
 
 import (
-	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
-
-	"ElainaBlog/pkg/rdb"
 )
 
 type CommentDeleter interface {
@@ -15,7 +11,7 @@ type CommentDeleter interface {
 }
 
 type Service struct {
-	repo           *Repository
+	repo           Repository
 	commentDeleter CommentDeleter
 }
 
@@ -65,7 +61,7 @@ var (
 	ErrNoPermission     = errors.New("没有权限操作此文章")
 )
 
-func NewService(repo *Repository, commentDeleter CommentDeleter) *Service {
+func NewService(repo Repository, commentDeleter CommentDeleter) *Service {
 	return &Service{repo: repo, commentDeleter: commentDeleter}
 }
 
@@ -118,18 +114,7 @@ func (s *Service) IncrementViewCount(id int64) error {
 		return ErrInvalidParams
 	}
 
-	ctx := context.Background()
-	key := fmt.Sprintf("article:view_count:%d", id)
-
-	// Redis 可用时写入 Redis
-	if rdb.RedisClient != nil {
-		err := rdb.RedisClient.Incr(ctx, key).Err()
-		if err == nil {
-			return nil
-		}
-		// Redis 故障时 fallback 到直接写 MySQL
-	}
-
+	// 直接调用仓储层方法（内部处理 Redis 缓冲和 MySQL fallback）
 	return s.repo.IncrementViewCount(id)
 }
 

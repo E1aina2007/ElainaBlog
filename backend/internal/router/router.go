@@ -15,6 +15,7 @@ import (
 	"ElainaBlog/internal/siteconfig"
 	"ElainaBlog/internal/upload"
 	"ElainaBlog/internal/user"
+	"ElainaBlog/pkg/rdb"
 	"net/http"
 	"time"
 
@@ -22,23 +23,44 @@ import (
 )
 
 func RouterInit(r *gin.Engine) {
-	// 统一创建 user.Service 实例
-	userService := user.NewService(user.NewRepository(db.DBPool))
+	// 获取依赖实例
+	dbPool := db.DBPool
+	redis := rdb.DefaultClient
+	tokenMgr := common.JwtAuth
 
-	auth := middleware.NewJwtAuthMiddleware(common.JwtAuth)
+	// 创建仓储层
+	userRepo := user.NewRepository(dbPool)
+	categoryRepo := category.NewRepository(dbPool)
+	commentRepo := comment.NewRepository(dbPool)
+	articleRepo := article.NewRepository(dbPool, redis)
+	messageRepo := message.NewRepository(dbPool)
+	siteRepo := site.NewRepository(dbPool)
+
+	// 创建服务层
+	userService := user.NewService(userRepo, redis, tokenMgr)
+	categoryService := category.NewService(categoryRepo)
+	commentService := comment.NewService(commentRepo)
+	articleService := article.NewService(articleRepo, commentRepo)
+	messageService := message.NewService(messageRepo)
+	siteService := site.NewService(siteRepo, redis)
+
+	// 创建中间件
+	auth := middleware.NewJwtAuthMiddleware(tokenMgr)
 	adminAuth := middleware.NewAdminAuthMiddleware(userService)
-	rateLimiter := middleware.NewRateLimitMiddleware()
-	userController := user.NewController(userService)
-	categoryController := category.NewController()
-	articleController := article.NewController(userService)
-	commentController := comment.NewController(userService)
+	rateLimiter := middleware.NewRateLimitMiddleware(redis)
+
+	// 创建控制器
+	userController := user.NewController(userService, redis)
+	categoryController := category.NewController(categoryService)
+	articleController := article.NewController(articleService, userService)
+	commentController := comment.NewController(commentService, userService)
 	uploadStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.Path)
 	avatarStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.AvatarPath)
 	uploadController := upload.NewController(uploadStorage, config.GlobalConfig.Upload.Size, avatarStorage, config.GlobalConfig.Upload.AvatarSize, userService)
-	siteController := site.NewController(site.NewService(site.NewRepository(db.DBPool)))
-	messageController := message.NewController(userService)
-	siteConfigController := siteconfig.NewController()
-	authorProfileController := authorprofile.NewController()
+	siteController := site.NewController(siteService, dbPool, redis)
+	messageController := message.NewController(messageService, userService)
+	siteConfigController := siteconfig.NewController(siteconfig.NewService(siteconfig.NewRepository(dbPool)))
+	authorProfileController := authorprofile.NewController(authorprofile.NewService(authorprofile.NewRepository(dbPool)))
 
 	// 无需鉴权
 	r.GET("/health", health)

@@ -1,7 +1,7 @@
 package comment
 
 import (
-	"database/sql"
+	"ElainaBlog/config/db"
 	"time"
 )
 
@@ -24,15 +24,17 @@ type CommentVO struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 comment.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建评论仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
-func (r *Repository) GetCommentByID(id int64) (*Comment, error) {
+func (r *MySQLRepository) GetCommentByID(id int64) (*Comment, error) {
 	var comment Comment
 	err := r.db.QueryRow(`SELECT id, article_id, user_id, content, created_at
     FROM comment WHERE id = ? AND is_deleted = 0`, id).Scan(&comment.ID, &comment.ArticleID, &comment.UserID, &comment.Content, &comment.CreatedAt)
@@ -43,7 +45,7 @@ func (r *Repository) GetCommentByID(id int64) (*Comment, error) {
 	return &comment, nil
 }
 
-func (r *Repository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, error) {
+func (r *MySQLRepository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, error) {
 	rows, err := r.db.Query(`
     SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, u.is_admin, c.content, c.created_at
     FROM comment c
@@ -71,7 +73,7 @@ func (r *Repository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, e
 	return comments, nil
 }
 
-func (r *Repository) GetAllCommentList() ([]*CommentVO, error) {
+func (r *MySQLRepository) GetAllCommentList() ([]*CommentVO, error) {
 	rows, err := r.db.Query(`
     SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, u.is_admin, c.content, c.created_at
     FROM comment c
@@ -100,7 +102,7 @@ func (r *Repository) GetAllCommentList() ([]*CommentVO, error) {
 	return comments, nil
 }
 
-func (r *Repository) CreateComment(comment *Comment) (int64, error) {
+func (r *MySQLRepository) CreateComment(comment *Comment) (int64, error) {
 	result, err := r.db.Exec(`INSERT INTO comment (article_id, user_id, content) VALUES (?, ?, ?)`, comment.ArticleID, comment.UserID, comment.Content)
 	if err != nil {
 		return 0, err
@@ -109,12 +111,12 @@ func (r *Repository) CreateComment(comment *Comment) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (r *Repository) DeleteComment(id int64) error {
+func (r *MySQLRepository) DeleteComment(id int64) error {
 	_, err := r.db.Exec(`UPDATE comment SET is_deleted = 1 WHERE id = ? AND is_deleted = 0`, id)
 	return err
 }
 
-func (r *Repository) DeleteCommentsByArticleID(articleID int64) error {
+func (r *MySQLRepository) DeleteCommentsByArticleID(articleID int64) error {
 	_, err := r.db.Exec(`UPDATE comment SET is_deleted = 1 WHERE article_id = ? AND is_deleted = 0`, articleID)
 	return err
 }

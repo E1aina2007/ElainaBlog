@@ -4,8 +4,10 @@ import (
 	"ElainaBlog/config"
 	"ElainaBlog/config/db"
 	"ElainaBlog/internal/article"
+	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/router"
 	"ElainaBlog/internal/user"
+	"ElainaBlog/pkg/rdb"
 	"ElainaBlog/pkg/zaplogger"
 	"context"
 	"log"
@@ -42,7 +44,7 @@ func initSystem() {
 		adminEmail = "admin@admin.com"
 	}
 
-	userService := user.NewService(user.NewRepository(db.DBPool))
+	userService := user.NewService(user.NewRepository(db.DBPool), rdb.DefaultClient, common.JwtAuth)
 	adminUserID, err := userService.CreateUser(user.CreateUserParams{
 		Username: adminUsername,
 		Password: adminPassword,
@@ -98,7 +100,7 @@ func runServer() error {
 	router.RouterInit(r)
 
 	// 启动浏览量定时同步（每 5 分钟将 Redis 缓冲写入 MySQL）
-	articleRepo := article.NewRepository(db.DBPool)
+	articleRepo := article.NewRepository(db.DBPool, rdb.DefaultClient)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
