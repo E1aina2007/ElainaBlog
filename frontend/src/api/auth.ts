@@ -33,3 +33,7 @@ export function sendCode(email: string): Promise<void> {
 export function logout(): Promise<void> {
     return request.post('/logout')
 }
+
+export function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    return request.post('/reset-password', { email, code, new_password: newPassword })
+}

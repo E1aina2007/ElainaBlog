@@ -401,3 +401,56 @@ func (s *Service) SendVerificationCode(email string) error {
 	return mail.SendVerificationCode(config.GlobalConfig.Smtp, cfg.ExpireTime, email, code)
 }
 
+func (s *Service) ResetPassword(email, code, newPassword string) error {
+	if s == nil || s.repo == nil {
+		return ErrDBNotInitialized
+	}
+
+	email = strings.TrimSpace(email)
+	code = strings.TrimSpace(code)
+	newPassword = strings.TrimSpace(newPassword)
+
+	if email == "" || code == "" || newPassword == "" {
+		return ErrInvalidParams
+	}
+
+	// 校验邮箱格式
+	if err := ValidateEmail(email); err != nil {
+		return err
+	}
+
+	// 校验新密码格式
+	if err := ValidatePassword(newPassword); err != nil {
+		return err
+	}
+
+	// 验证验证码
+	storedCode, err := rdb.GetVerificationCode(s.rdb, email)
+	if err != nil {
+		return ErrCodeExpired
+	}
+	if storedCode != code {
+		return ErrCodeMismatch
+	}
+
+	// 查询用户
+	u, err := s.repo.GetUserByEmail(email)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	// 哈希新密码并更新
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	// 删除已使用的验证码
+	_ = rdb.DeleteVerificationCode(s.rdb, email)
+
+	return s.repo.UpdatePassword(u.ID, string(hashedPassword))
+}
+

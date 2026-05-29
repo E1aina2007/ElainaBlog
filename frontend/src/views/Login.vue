@@ -110,6 +110,10 @@ async function handleLogin() {
           </button>
         </form>
 
+        <div class="login-links">
+          <router-link to="/forgot-password" class="link">忘记密码？</router-link>
+        </div>
+
         <p class="login-footer">
           还没有账号？
           <router-link to="/register" class="link">立即注册</router-link>
@@ -250,6 +254,11 @@ async function handleLogin() {
 .btn-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.login-links {
+  text-align: right;
+  margin-top: 12px;
 }
 
 .login-footer {

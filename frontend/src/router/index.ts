@@ -50,6 +50,12 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPassword.vue'),
+      meta: { guestOnly: true },
+    },
+    {
       path: '/register',
       name: 'register',
       component: () => import('../views/Register.vue'),

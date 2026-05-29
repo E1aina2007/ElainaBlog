@@ -74,6 +74,7 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.POST("/register", rateLimiter.Limit("register", 5, time.Minute), userController.Register)
 		apiGroup.POST("/refresh", rateLimiter.Limit("refresh", 30, time.Minute), userController.RefreshToken)
 		apiGroup.POST("/send-code", rateLimiter.Limit("send-code", 5, time.Minute), userController.SendCode)
+		apiGroup.POST("/reset-password", rateLimiter.Limit("reset-password", 5, time.Minute), userController.ResetPassword)
 		apiGroup.GET("/category/list", categoryController.GetList)
 		apiGroup.GET("/article/list", articleController.GetList)
 		apiGroup.GET("/article/:id", articleController.GetByID)
