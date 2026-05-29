@@ -124,7 +124,7 @@ onUnmounted(() => {
           {{ status.cpu_usage }}%
         </div>
         <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: status.cpu_usage + '%', background: status.cpu_usage > 80 ? '#ef4444' : '#6366f1' }"></div>
+          <div class="progress-fill" :style="{ width: status.cpu_usage + '%', background: status.cpu_usage > 80 ? 'var(--color-danger)' : 'var(--color-indigo)' }"></div>
         </div>
       </div>
 
@@ -146,7 +146,7 @@ onUnmounted(() => {
           已用 {{ formatBytes(status.memory_used) }} / 总计 {{ formatBytes(status.memory_total) }}
         </div>
         <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: status.memory_usage + '%', background: status.memory_usage > 80 ? '#ef4444' : '#10b981' }"></div>
+          <div class="progress-fill" :style="{ width: status.memory_usage + '%', background: status.memory_usage > 80 ? 'var(--color-danger)' : 'var(--color-success)' }"></div>
         </div>
       </div>
 
@@ -198,7 +198,7 @@ onUnmounted(() => {
           {{ (status.cache_hit_rate ?? -1) >= 0 ? status.cache_hit_rate + '%' : '未启用' }}
         </div>
         <div class="progress-bar" v-if="(status.cache_hit_rate ?? -1) >= 0">
-          <div class="progress-fill" :style="{ width: (status.cache_hit_rate ?? 0) + '%', background: (status.cache_hit_rate ?? 0) > 80 ? '#10b981' : '#f59e0b' }"></div>
+          <div class="progress-fill" :style="{ width: (status.cache_hit_rate ?? 0) + '%', background: (status.cache_hit_rate ?? 0) > 80 ? 'var(--color-success)' : 'var(--color-warning)' }"></div>
         </div>
       </div>
 
@@ -260,7 +260,7 @@ onUnmounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -274,14 +274,14 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .auto-refresh input {
   width: 16px;
   height: 16px;
-  accent-color: #6366f1;
+  accent-color: var(--color-indigo);
 }
 
 .refresh-btn {
@@ -289,18 +289,18 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
-  color: #6b7280;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: #f9fafb;
-  color: #374151;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .refresh-btn:disabled {
@@ -311,8 +311,8 @@ onUnmounted(() => {
 .loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #6366f1;
+  border: 2px solid var(--input-border);
+  border-top-color: var(--color-indigo);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -329,10 +329,10 @@ onUnmounted(() => {
 }
 
 .status-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .card-header {
@@ -345,7 +345,7 @@ onUnmounted(() => {
 .card-header h3 {
   margin: 0;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -359,58 +359,58 @@ onUnmounted(() => {
 }
 
 .status-icon.cpu {
-  background: #6366f115;
-  color: #6366f1;
+  background: color-mix(in srgb, var(--color-indigo) 10%, transparent);
+  color: var(--color-indigo);
 }
 
 .status-icon.memory {
-  background: #10b98115;
-  color: #10b981;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  color: var(--color-success);
 }
 
 .status-icon.db {
-  background: #f59e0b15;
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
 }
 
 .status-icon.cache {
-  background: #8b5cf615;
-  color: #8b5cf6;
+  background: color-mix(in srgb, var(--color-purple) 10%, transparent);
+  color: var(--color-purple);
 }
 
 .status-icon.uptime {
-  background: #ec489915;
-  color: #ec4899;
+  background: color-mix(in srgb, var(--color-pink) 10%, transparent);
+  color: var(--color-pink);
 }
 
 .metric-value {
   font-size: 32px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
 .metric-value.warning {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .metric-value.danger {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 .metric-value.success {
-  color: #10b981;
+  color: var(--color-success);
 }
 
 .metric-detail {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
   margin-bottom: 12px;
 }
 
 .progress-bar {
   height: 6px;
-  background: #f3f4f6;
+  background: var(--bg-secondary);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -436,36 +436,36 @@ onUnmounted(() => {
 }
 
 .status-indicator.connected {
-  color: #10b981;
+  color: var(--color-success);
 }
 
 .status-indicator.connected .status-dot {
-  background: #10b981;
+  background: var(--color-success);
   animation: pulse 2s infinite;
 }
 
 .status-indicator.error {
-  color: #ef4444;
+  color: var(--color-danger);
 }
 
 .status-indicator.error .status-dot {
-  background: #ef4444;
+  background: var(--color-danger);
 }
 
 .status-indicator.unknown {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .status-indicator.unknown .status-dot {
-  background: #9ca3af;
+  background: var(--text-muted);
 }
 
 .status-indicator.not_initialized {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .status-indicator.not_initialized .status-dot {
-  background: #f59e0b;
+  background: var(--color-warning);
 }
 
 @keyframes pulse {
@@ -478,16 +478,16 @@ onUnmounted(() => {
 }
 
 .info-section {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .info-card h3 {
   margin: 0 0 20px 0;
   font-size: 18px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .info-list {
@@ -504,12 +504,12 @@ onUnmounted(() => {
 
 .info-label {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .info-value {
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
   font-weight: 500;
 }
 

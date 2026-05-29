@@ -828,7 +828,7 @@ function fallbackCopy(text: string) {
 .error-msg {
   padding: 10px 14px;
   background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
+  color: var(--color-danger);
   border-radius: var(--radius-sm);
   font-size: 0.8125rem;
   margin-top: 12px;

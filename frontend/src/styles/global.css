@@ -33,6 +33,26 @@
     --shadow-hover: 0 8px 30px rgba(126, 215, 193, 0.25);
     --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
 
+    /* 功能色 */
+    --color-danger: #ef4444;
+    --color-danger-hover: #dc2626;
+    --color-warning: #f59e0b;
+    --color-warning-dark: #d97706;
+    --color-indigo: #6366f1;
+    --color-indigo-hover: #4f46e5;
+    --color-success: #10b981;
+    --color-purple: #8b5cf6;
+    --color-pink: #ec4899;
+    --color-cyan: #06b6d4;
+    --color-teal: #14b8a6;
+    --color-orange: #f97316;
+
+    /* 表单色 */
+    --input-bg: #fff;
+    --input-border: #e5e7eb;
+    --input-focus: #6366f1;
+    --toolbar-bg: #f9fafb;
+
     /* 圆角 */
     --radius-lg: 16px;
     --radius-md: 12px;
@@ -48,6 +68,52 @@
     --transition-slow: 500ms ease;
 }
 
+/* ========== 暗黑模式变量 ========== */
+html.dark {
+    --primary: #5BC4AD;
+    --primary-light: #3DAF96;
+    --primary-lighter: rgba(91, 196, 173, 0.15);
+    --primary-dark: #7ED7C1;
+
+    --accent: #e8918b;
+    --accent-warm: #e8b99a;
+    --highlight: #e87a82;
+
+    --bg-primary: #0f1117;
+    --bg-secondary: #161822;
+    --bg-card: #1c1e2b;
+    --bg-glass: rgba(28, 30, 43, 0.85);
+
+    --text-primary: #e4e6eb;
+    --text-secondary: #a0a4b0;
+    --text-muted: #6b7080;
+
+    --border: #2a2d3a;
+    --divider: rgba(91, 196, 173, 0.15);
+
+    --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.2);
+
+    --color-danger: #f87171;
+    --color-danger-hover: #ef4444;
+    --color-warning: #fbbf24;
+    --color-warning-dark: #f59e0b;
+    --color-indigo: #818cf8;
+    --color-indigo-hover: #6366f1;
+    --color-success: #34d399;
+    --color-purple: #a78bfa;
+    --color-pink: #f472b6;
+    --color-cyan: #22d3ee;
+    --color-teal: #2dd4bf;
+    --color-orange: #fb923c;
+
+    --input-bg: #1c1e2b;
+    --input-border: #2a2d3a;
+    --input-focus: #818cf8;
+    --toolbar-bg: #161822;
+}
+
 /* ========== 基础重置 ========== */
 *,
 *::before,
@@ -59,6 +125,14 @@
 
 html {
     scroll-behavior: smooth;
+    color-scheme: light dark;
+}
+
+html.transitioning,
+html.transitioning *,
+html.transitioning *::before,
+html.transitioning *::after {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }
 
 body {

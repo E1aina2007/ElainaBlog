@@ -421,7 +421,7 @@ onUnmounted(() => {
   font-size: 1.125rem;
   font-family: 'Microsoft YaHei', sans-serif;
   font-weight: 500;
-  color: #666;
+  color: var(--text-muted);
   margin-bottom: 32px;
   line-height: 1.8;
 }

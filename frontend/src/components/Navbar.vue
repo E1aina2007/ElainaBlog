@@ -3,10 +3,20 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useSiteStore } from '@/stores/site'
+import { useTheme } from '@/composables/useTheme'
 
 const router = useRouter()
 const userStore = useUserStore()
 const siteStore = useSiteStore()
+const { isDark, toggleDark } = useTheme()
+
+function handleToggleDark() {
+  document.documentElement.classList.add('transitioning')
+  toggleDark()
+  setTimeout(() => {
+    document.documentElement.classList.remove('transitioning')
+  }, 350)
+}
 const mobileMenuOpen = ref(false)
 const userDropdownOpen = ref(false)
 
@@ -77,6 +87,24 @@ onMounted(() => {
 
       <!-- Right Actions -->
       <div class="nav-actions">
+        <!-- 主题切换 -->
+        <button class="theme-toggle" :title="isDark ? '切换到浅色模式' : '切换到深色模式'" @click="handleToggleDark()">
+          <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+
         <!-- 未登录：显示登录按钮 -->
         <router-link v-if="!isLoggedIn" to="/login" class="login-btn">
           <span>登录</span>
@@ -151,6 +179,25 @@ onMounted(() => {
         >
           管理面板
         </router-link>
+        <div class="mobile-nav-link theme-row">
+          <span>{{ isDark ? '深色模式' : '浅色模式' }}</span>
+          <button class="theme-toggle-mobile" @click="handleToggleDark()">
+            <svg v-if="isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+        </div>
         <div v-if="isLoggedIn" class="mobile-menu-divider"></div>
         <button v-if="isLoggedIn" class="mobile-nav-link logout" @click="handleLogout(); mobileMenuOpen = false">
           退出登录 ({{ username }})
@@ -264,6 +311,26 @@ onMounted(() => {
   gap: 12px;
 }
 
+/* Theme Toggle */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+  color: var(--primary);
+  background: var(--bg-secondary);
+}
+
 /* User Dropdown */
 .user-dropdown-wrapper {
   position: relative;
@@ -367,12 +434,12 @@ onMounted(() => {
 }
 
 .dropdown-item.logout {
-  color: #e74c3c;
+  color: var(--color-danger);
 }
 
 .dropdown-item.logout:hover {
-  background: rgba(231, 76, 60, 0.08);
-  color: #c0392b;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--color-danger-hover);
 }
 
 /* Admin link */
@@ -400,7 +467,7 @@ onMounted(() => {
 }
 
 .mobile-nav-link.logout {
-  color: #e74c3c;
+  color: var(--color-danger);
   background: none;
   border: none;
   cursor: pointer;
@@ -408,6 +475,32 @@ onMounted(() => {
   font-weight: 500;
   text-align: left;
   width: 100%;
+}
+
+.mobile-nav-link.theme-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: default;
+}
+
+.theme-toggle-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.theme-toggle-mobile:hover {
+  color: var(--primary);
+  background: var(--bg-secondary);
 }
 
 .search-btn {

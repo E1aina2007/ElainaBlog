@@ -280,7 +280,7 @@ const toggleSidebar = () => {
   background: rgba(255, 107, 107, 0.1);
   border: none;
   border-radius: var(--radius-md);
-  color: #e05555;
+  color: var(--color-danger);
   cursor: pointer;
   font-size: 14px;
   transition: all var(--transition-fast);
@@ -288,7 +288,7 @@ const toggleSidebar = () => {
 
 .logout-btn:hover {
   background: rgba(255, 107, 107, 0.2);
-  color: #c0392b;
+  color: var(--color-danger-hover);
 }
 
 .main-content {

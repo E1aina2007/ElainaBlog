@@ -166,7 +166,7 @@ const handleSaveCode = async () => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .tools-grid {
@@ -176,10 +176,10 @@ const handleSaveCode = async () => {
 }
 
 .tool-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .tool-card.full-width {
@@ -189,8 +189,8 @@ const handleSaveCode = async () => {
 }
 
 .tool-card.danger-zone {
-  border: 2px solid #ef4444;
-  background: #fef2f2;
+  border: 2px solid var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--bg-card));
 }
 
 .card-header {
@@ -206,30 +206,30 @@ const handleSaveCode = async () => {
   justify-content: center;
   width: 48px;
   height: 48px;
-  background: #6366f115;
-  color: #6366f1;
+  background: color-mix(in srgb, var(--color-indigo) 10%, transparent);
+  color: var(--color-indigo);
   border-radius: 10px;
 }
 
 .header-icon.danger {
-  background: #ef444415;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
 }
 
 .header-text h3 {
   margin: 0 0 4px 0;
   font-size: 18px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .header-text p {
   margin: 0;
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .warning-text {
-  color: #ef4444 !important;
+  color: var(--color-danger) !important;
   font-weight: 500;
 }
 
@@ -237,7 +237,7 @@ const handleSaveCode = async () => {
   margin: 0 0 20px 0;
   font-size: 14px;
   line-height: 1.6;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .btn-danger {
@@ -247,7 +247,7 @@ const handleSaveCode = async () => {
   gap: 8px;
   width: 100%;
   padding: 16px 24px;
-  background: #ef4444;
+  background: var(--color-danger);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -263,9 +263,9 @@ const handleSaveCode = async () => {
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: var(--color-danger-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-danger) 30%, transparent);
 }
 
 .btn-danger:disabled {
@@ -278,7 +278,7 @@ const handleSaveCode = async () => {
   align-items: center;
   gap: 8px;
   padding: 12px 32px;
-  background: #6366f1;
+  background: var(--color-indigo);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -289,7 +289,7 @@ const handleSaveCode = async () => {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #4f46e5;
+  background: var(--color-indigo-hover);
 }
 
 .btn-primary:disabled {
@@ -313,18 +313,19 @@ const handleSaveCode = async () => {
 .code-textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
   line-height: 1.5;
-  background: #f9fafb;
+  background: var(--input-bg);
+  color: var(--text-primary);
   resize: vertical;
   outline: none;
 }
 
 .code-textarea:focus {
-  border-color: #6366f1;
+  border-color: var(--input-focus);
 }
 
 @media (max-width: 768px) {

@@ -6,7 +6,7 @@
 // ---------- 邮箱 ----------
 // 规则：标准格式 local@domain.tld，长度不超过 100 个字符
 const EMAIL_MAX_LENGTH = 100
-const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
 // ---------- 用户名 ----------
 // 规则：2-20 个字符，仅允许中文、英文字母、数字、下划线
@@ -20,7 +20,7 @@ const USERNAME_REGEX = /^[\u4e00-\u9fa5a-zA-Z0-9_]{2,20}$/
 //   4. 必须包含至少一个数字
 const PASSWORD_MIN_LENGTH = 8
 const PASSWORD_MAX_LENGTH = 72
-const PASSWORD_CHARS_REGEX = /^[a-zA-Z0-9!@#$%^&*()\-_=+\[\]{};:'",.<>?/\\|`~]+$/
+const PASSWORD_CHARS_REGEX = /^[a-zA-Z0-9!@#$%^&*()\-_=+[\]{};:'",.<>?/\\|`~]+$/
 const PASSWORD_LETTER_REGEX = /[a-zA-Z]/
 const PASSWORD_DIGIT_REGEX = /[0-9]/
 

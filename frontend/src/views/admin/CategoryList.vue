@@ -186,15 +186,15 @@ onMounted(fetchCategories)
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .add-section {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .add-form {
@@ -205,7 +205,7 @@ onMounted(fetchCategories)
 .add-form input {
   flex: 1;
   padding: 12px 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-size: 14px;
   outline: none;
@@ -213,7 +213,7 @@ onMounted(fetchCategories)
 }
 
 .add-form input:focus {
-  border-color: #6366f1;
+  border-color: var(--color-indigo);
 }
 
 .btn-primary {
@@ -221,7 +221,7 @@ onMounted(fetchCategories)
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: #6366f1;
+  background: var(--color-indigo);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -232,13 +232,13 @@ onMounted(fetchCategories)
 }
 
 .btn-primary:hover {
-  background: #4f46e5;
+  background: var(--color-indigo-hover);
 }
 
 .table-container {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -255,24 +255,24 @@ onMounted(fetchCategories)
 }
 
 .data-table th {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--input-border);
 }
 
 .data-table td {
-  color: #6b7280;
-  border-bottom: 1px solid #f3f4f6;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
 }
 
 .data-table tr:hover td {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
 }
 
 .category-name {
   font-weight: 500;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .edit-form {
@@ -283,7 +283,7 @@ onMounted(fetchCategories)
 
 .edit-form input {
   padding: 8px 12px;
-  border: 1px solid #6366f1;
+  border: 1px solid var(--color-indigo);
   border-radius: 6px;
   font-size: 14px;
   outline: none;
@@ -297,23 +297,23 @@ onMounted(fetchCategories)
   height: 32px;
   border: none;
   border-radius: 6px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--border);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-icon:hover {
-  background: #e5e7eb;
+  background: var(--input-border);
 }
 
 .btn-icon.success {
-  background: #10b98115;
-  color: #10b981;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  color: var(--color-success);
 }
 
 .btn-icon.success:hover {
-  background: #10b98125;
+  background: color-mix(in srgb, var(--color-success) 15%, transparent);
 }
 
 .actions {
@@ -329,25 +329,25 @@ onMounted(fetchCategories)
   height: 32px;
   border: none;
   border-radius: 6px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--border);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .action-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--input-border);
+  color: var(--text-primary);
 }
 
 .action-btn.edit:hover {
-  background: #6366f115;
-  color: #6366f1;
+  background: color-mix(in srgb, var(--color-indigo) 10%, transparent);
+  color: var(--color-indigo);
 }
 
 .action-btn.delete:hover {
-  background: #ef444415;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
 }
 
 .empty-cell {
@@ -359,7 +359,7 @@ onMounted(fetchCategories)
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .empty-state p {

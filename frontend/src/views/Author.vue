@@ -895,7 +895,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -927,8 +927,8 @@ onUnmounted(() => {
 }
 
 .btn-delete-msg:hover {
-  color: #e05555;
-  background: rgba(224, 85, 85, 0.1);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .message-content {

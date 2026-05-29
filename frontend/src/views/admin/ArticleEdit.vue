@@ -205,7 +205,7 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -215,7 +215,7 @@ onMounted(() => {
 
 .btn-primary {
   padding: 10px 24px;
-  background: #6366f1;
+  background: var(--color-indigo);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -226,14 +226,14 @@ onMounted(() => {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #4f46e5;
+  background: var(--color-indigo-hover);
 }
 
 .btn-secondary {
   padding: 10px 20px;
-  background: #fff;
-  color: #374151;
-  border: 1px solid #e5e7eb;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
@@ -242,7 +242,7 @@ onMounted(() => {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #f9fafb;
+  background: var(--bg-secondary);
 }
 
 button:disabled {
@@ -251,10 +251,10 @@ button:disabled {
 }
 
 .edit-form {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 32px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .form-group {
@@ -266,7 +266,7 @@ button:disabled {
   margin-bottom: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .form-row {
@@ -280,14 +280,16 @@ button:disabled {
   padding: 12px 16px;
   font-size: 18px;
   font-weight: 600;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   outline: none;
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: border-color 0.2s;
 }
 
 .title-input:focus {
-  border-color: #6366f1;
+  border-color: var(--input-focus);
 }
 
 .form-select,
@@ -295,16 +297,17 @@ button:disabled {
   width: 100%;
   padding: 10px 14px;
   font-size: 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   outline: none;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: border-color 0.2s;
 }
 
 .form-select:focus,
 .form-input:focus {
-  border-color: #6366f1;
+  border-color: var(--input-focus);
 }
 
 .summary-input,
@@ -313,43 +316,45 @@ button:disabled {
   padding: 12px 16px;
   font-size: 14px;
   line-height: 1.6;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   outline: none;
   resize: vertical;
+  background: var(--input-bg);
+  color: var(--text-primary);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   transition: border-color 0.2s;
 }
 
 .summary-input:focus,
 .content-input:focus {
-  border-color: #6366f1;
+  border-color: var(--input-focus);
 }
 
 .editor-toolbar {
   display: flex;
   gap: 4px;
   padding: 8px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--input-border);
   border-bottom: none;
   border-radius: 8px 8px 0 0;
 }
 
 .editor-toolbar button {
   padding: 6px 12px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: 4px;
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .editor-toolbar button:hover {
-  background: #f3f4f6;
+  background: var(--bg-secondary);
 }
 
 .content-input {
@@ -366,12 +371,12 @@ button:disabled {
 .checkbox-label input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #6366f1;
+  accent-color: var(--color-indigo);
 }
 
 .checkbox-label span {
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 @media (max-width: 768px) {

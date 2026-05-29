@@ -260,17 +260,17 @@ onMounted(fetchUsers)
 
 .btn-delete {
   padding: 4px 12px;
-  border: 1px solid #e05555;
+  border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
   background: transparent;
-  color: #e05555;
+  color: var(--color-danger);
   font-size: 13px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-delete:hover:not(:disabled) {
-  background: #e05555;
+  background: var(--color-danger);
   color: white;
 }
 

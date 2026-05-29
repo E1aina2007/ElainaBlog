@@ -184,7 +184,7 @@ const formatDate = (date?: string) => {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
   color: white;
   font-size: 10px;
   font-weight: 600;

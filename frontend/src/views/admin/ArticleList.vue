@@ -232,7 +232,7 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .btn-primary {
@@ -240,7 +240,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #6366f1;
+  background: var(--color-indigo);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -251,7 +251,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: #4f46e5;
+  background: var(--color-indigo-hover);
   transform: translateY(-1px);
 }
 
@@ -267,13 +267,13 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
 }
 
 .search-box svg {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .search-box input {
@@ -281,24 +281,24 @@ onMounted(() => {
   border: none;
   outline: none;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .category-select {
   padding: 10px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
   cursor: pointer;
   min-width: 140px;
 }
 
 .table-container {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -315,19 +315,19 @@ onMounted(() => {
 }
 
 .data-table th {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--input-border);
 }
 
 .data-table td {
-  color: #6b7280;
-  border-bottom: 1px solid #f3f4f6;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
 }
 
 .data-table tr:hover td {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
 }
 
 .title-cell {
@@ -339,12 +339,12 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .top-badge {
   padding: 2px 8px;
-  background: #f59e0b;
+  background: var(--color-warning);
   color: #fff;
   font-size: 11px;
   border-radius: 4px;
@@ -353,7 +353,7 @@ onMounted(() => {
 
 .draft-badge {
   padding: 2px 8px;
-  background: #6b7280;
+  background: var(--text-secondary);
   color: #fff;
   font-size: 11px;
   border-radius: 4px;
@@ -368,13 +368,13 @@ onMounted(() => {
 }
 
 .status-badge.published {
-  background: #10b98115;
-  color: #10b981;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  color: var(--color-success);
 }
 
 .status-badge.draft {
-  background: #6b728015;
-  color: #6b7280;
+  background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+  color: var(--text-secondary);
 }
 
 .actions {
@@ -390,25 +390,25 @@ onMounted(() => {
   height: 32px;
   border: none;
   border-radius: 6px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--border);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .action-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--input-border);
+  color: var(--text-primary);
 }
 
 .action-btn.edit:hover {
-  background: #6366f115;
-  color: #6366f1;
+  background: color-mix(in srgb, var(--color-indigo) 10%, transparent);
+  color: var(--color-indigo);
 }
 
 .action-btn.delete:hover {
-  background: #ef444415;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
 }
 
 .empty-cell {
@@ -420,7 +420,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .empty-state p {
@@ -439,17 +439,17 @@ onMounted(() => {
 
 .page-btn {
   padding: 8px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .page-btn:hover:not(:disabled) {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
   border-color: #d1d5db;
 }
 
@@ -460,6 +460,6 @@ onMounted(() => {
 
 .page-info {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 </style>
