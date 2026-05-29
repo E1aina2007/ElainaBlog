@@ -25,8 +25,8 @@ const isAdmin = computed(() => userStore.isAdmin)
 const username = computed(() => userStore.userInfo?.username || '')
 const avatarUrl = computed(() => userStore.userInfo?.avatar || '')
 
-function handleLogout() {
-  userStore.logout()
+async function handleLogout() {
+  await userStore.logout()
   userDropdownOpen.value = false
   router.push('/')
 }

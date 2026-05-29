@@ -2,9 +2,7 @@ package site
 
 import (
 	"ElainaBlog/config/db"
-	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
-	"ElainaBlog/internal/user"
 	"ElainaBlog/pkg/rdb"
 	"bufio"
 	"context"
@@ -21,19 +19,15 @@ import (
 )
 
 type Controller struct {
-	service     *Service
-	userService *user.Service
+	service *Service
 }
 
-func NewController(service *Service, userService *user.Service) *Controller {
-	return &Controller{service: service, userService: userService}
+func NewController(service *Service) *Controller {
+	return &Controller{service: service}
 }
 
 // GetDashboardStats 获取仪表盘统计数据（管理员）
 func (ctl *Controller) GetDashboardStats(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
 	stats, err := ctl.service.GetDashboardStats()
 	if err != nil {
 		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
@@ -172,10 +166,6 @@ func readMemInfo() (totalMB, usedMB uint64, usagePercent float64) {
 
 // GetSystemStatus 获取系统运行状态（管理员）
 func (ctl *Controller) GetSystemStatus(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	// 检查数据库连接
 	dbStatus := "connected"
 	if err := db.DBPool.Ping(); err != nil {
@@ -225,10 +215,6 @@ func (ctl *Controller) GetSystemStatus(c *gin.Context) {
 
 // ClearCache 清理缓存（管理员）
 func (ctl *Controller) ClearCache(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	// 清理 Go 内存缓存
 	runtime.GC()
 
@@ -237,10 +223,6 @@ func (ctl *Controller) ClearCache(c *gin.Context) {
 
 // ExportBackup 导出数据库备份（管理员）
 func (ctl *Controller) ExportBackup(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	// 使用 mysqldump 命令导出数据库
 	// 简单实现：查询所有表数据并返回
 	backup, err := ctl.service.ExportDatabaseBackup()
@@ -257,20 +239,12 @@ func (ctl *Controller) ExportBackup(c *gin.Context) {
 
 // GetBannedIPs 获取被封禁的IP列表（管理员）
 func (ctl *Controller) GetBannedIPs(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	ips := ctl.service.GetBannedIPs()
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(ips))
 }
 
 // UnbanIP 解封IP（管理员）
 func (ctl *Controller) UnbanIP(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	var req struct {
 		IP string `json:"ip"`
 	}

@@ -9,8 +9,6 @@ export interface LoginParams {
 export interface LoginResult {
     user_id: number
     email: string
-    access_token: string
-    refresh_token: string
 }
 
 interface RegisterParams {
@@ -30,4 +28,8 @@ export function register(params: RegisterParams): Promise<{ user_id: number }> {
 
 export function sendCode(email: string): Promise<void> {
     return request.post('/send-code', { email })
+}
+
+export function logout(): Promise<void> {
+    return request.post('/logout')
 }

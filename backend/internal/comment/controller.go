@@ -51,11 +51,6 @@ func (ctl *Controller) GetList(c *gin.Context) {
 
 // GetAllList 管理员获取所有评论列表
 func (ctl *Controller) GetAllList(c *gin.Context) {
-	// 需要管理员权限
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	list, err := ctl.service.GetAllCommentList()
 	if err != nil {
 		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
@@ -118,7 +113,11 @@ func (ctl *Controller) DeleteComment(c *gin.Context) {
 
 	if comment.UserID != userID {
 		isAdmin, err := ctl.userService.CheckIsAdmin(userID)
-		if err != nil || !isAdmin {
+		if err != nil {
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			return
+		}
+		if !isAdmin {
 			appErr := model.ErrForbidden.WithDetail("仅评论作者或管理员可删除")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 			return

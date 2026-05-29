@@ -8,7 +8,7 @@ import toast from '@/utils/toast'
 
 const router = useRouter()
 const userStore = useUserStore()
-const canComment = computed(() => !!userStore.accessToken)
+const canComment = computed(() => userStore.isLoggedIn)
 
 const authorInfo = ref({
   nickname: '',

@@ -29,14 +29,17 @@ func (m *JwtAuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
+		var tokenString string
+
 		authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
-		if authHeader == "" {
-			c.JSON(model.ErrUnauthorized.HTTPStatus(), model.ApiErrorResponse(model.ErrUnauthorized.Code, model.ErrUnauthorized.Message, nil))
-			c.Abort()
-			return
+		if authHeader != "" {
+			tokenString = extractBearerToken(authHeader)
 		}
 
-		tokenString := extractBearerToken(authHeader)
+		if tokenString == "" {
+			tokenString, _ = c.Cookie("access_token")
+		}
+
 		if tokenString == "" {
 			c.JSON(model.ErrUnauthorized.HTTPStatus(), model.ApiErrorResponse(model.ErrUnauthorized.Code, model.ErrUnauthorized.Message, nil))
 			c.Abort()
