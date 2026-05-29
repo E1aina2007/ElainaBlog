@@ -29,6 +29,8 @@ backend/uploads/
 
 # ===== 构建产物 =====
 frontend/dist/
+frontend/.vite/
+.vite/
 backend/tmp/
 backend/elainablog
 
