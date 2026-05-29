@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github-dark.css'
+import { MdEditor } from 'md-editor-v3'
+import 'md-editor-v3/lib/style.css'
+import { useTheme } from '@/composables/useTheme'
+
+const { isDark } = useTheme()
+const editorTheme = computed(() => isDark.value ? 'dark' : 'light')
 
 const activeTab = ref('random')
 
@@ -138,27 +141,12 @@ convertColor()
 
 // ========== Markdown 预览 ==========
 const mdText = ref('# Hello World\n\n这是一个 **Markdown** 在线预览工具。\n\n- 支持列表\n- 支持 `代码`\n- 支持 [链接](https://example.com)\n\n```js\nconsole.log("Hello!")\n```')
+
+// ========== 正则表达式测试 ==========
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
-const md = new MarkdownIt({
-  html: false,
-  linkify: true,
-  typographer: true,
-  highlight(str: string, lang: string): string {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        const result = hljs.highlight(str, { language: lang, ignoreIllegals: true })
-        return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${lang}</span></div><pre class="hljs-code-block"><code class="hljs language-${lang}">${result.value}</code></pre></div>`
-      } catch (_) {}
-    }
-    return `<div class="code-block-wrapper"><pre class="hljs-code-block"><code class="hljs">${escapeHtml(str)}</code></pre></div>`
-  },
-})
-const mdHtml = computed(() => md.render(mdText.value || ''))
-
-// ========== 正则表达式测试 ==========
 const regexPattern = ref('')
 const regexFlags = ref('g')
 const regexTestStr = ref('')
@@ -326,16 +314,12 @@ function fallbackCopy(text: string) {
       <!-- Markdown 预览 -->
       <section v-show="activeTab === 'markdown'" class="tool-card">
         <h2 class="tool-title">Markdown 在线预览</h2>
-        <div class="md-split">
-          <div class="md-editor">
-            <div class="md-panel-label">编辑</div>
-            <textarea v-model="mdText" class="md-textarea" v-tab-indent></textarea>
-          </div>
-          <div class="md-preview">
-            <div class="md-panel-label">预览</div>
-            <div class="md-body markdown-body" v-html="mdHtml"></div>
-          </div>
-        </div>
+        <MdEditor
+          v-model="mdText"
+          :theme="editorTheme"
+          :show-code-row-number="true"
+          style="height: 450px"
+        />
       </section>
 
       <!-- 正则表达式测试 -->
@@ -655,50 +639,10 @@ function fallbackCopy(text: string) {
   flex-shrink: 0;
 }
 
-/* Markdown 分栏 */
-.md-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  min-height: 400px;
-}
-
-.md-editor,
-.md-preview {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
+/* Markdown 编辑器圆角适配 */
+.tool-card :deep(.md-editor) {
   border-radius: var(--radius-md);
   overflow: hidden;
-}
-
-.md-panel-label {
-  padding: 8px 14px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-}
-
-.md-textarea {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  outline: none;
-  resize: none;
-  font-family: 'Fira Code', 'Consolas', monospace;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: var(--text-primary);
-  background: var(--bg-card);
-}
-
-.md-body {
-  flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  background: var(--bg-card);
 }
 
 /* 使用说明 */
@@ -847,23 +791,6 @@ function fallbackCopy(text: string) {
   border-radius: 2px;
 }
 
-/* Markdown 预览内样式 */
-.md-body :deep(h1) { font-size: 1.5rem; margin: 0.5rem 0; }
-.md-body :deep(h2) { font-size: 1.25rem; margin: 0.5rem 0; }
-.md-body :deep(h3) { font-size: 1.125rem; margin: 0.5rem 0; }
-.md-body :deep(p) { margin: 0.5rem 0; line-height: 1.7; color: var(--text-secondary); }
-.md-body :deep(code) { font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85rem; background: var(--bg-secondary); padding: 0.125rem 0.375rem; border-radius: var(--radius-sm); color: var(--primary-dark); }
-.md-body :deep(.code-block-wrapper) { background: #0d1117; border-radius: var(--radius-md); margin: 0.5rem 0; }
-.md-body :deep(.code-block-header) { display: flex; align-items: center; padding: 4px 10px; background: rgba(255,255,255,0.04); border-bottom: 1px solid rgba(255,255,255,0.06); }
-.md-body :deep(.code-block-header .code-lang) { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; font-family: 'Fira Code', 'Consolas', monospace; }
-.md-body :deep(.code-block-wrapper .hljs-code-block) { margin: 0; border-radius: 0 0 var(--radius-md) var(--radius-md); background: transparent; padding: 1rem; overflow-x: auto; }
-.md-body :deep(.hljs-code-block code) { background: transparent; color: #e6edf3; padding: 0; line-height: 1.6; font-size: 0.875rem; }
-.md-body :deep(ul), .md-body :deep(ol) { padding-left: 1.5rem; margin: 0.5rem 0; }
-.md-body :deep(li) { margin: 0.25rem 0; color: var(--text-secondary); }
-.md-body :deep(a) { color: var(--primary); }
-.md-body :deep(strong) { font-weight: 600; color: var(--text-primary); }
-.md-body :deep(blockquote) { border-left: 3px solid var(--primary); padding-left: 1rem; margin: 0.5rem 0; color: var(--text-secondary); }
-
 /* 响应式 */
 @media (max-width: 768px) {
   .tools-page {
@@ -876,10 +803,6 @@ function fallbackCopy(text: string) {
 
   .tool-row {
     flex-direction: column;
-  }
-
-  .md-split {
-    grid-template-columns: 1fr;
   }
 
   .tab-nav {
