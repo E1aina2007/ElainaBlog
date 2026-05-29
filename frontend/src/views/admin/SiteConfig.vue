@@ -103,6 +103,7 @@ onMounted(fetchConfigs)
           class="config-textarea"
           rows="6"
           placeholder='["句子1","句子2","句子3"]'
+          v-tab-indent
         ></textarea>
         <p class="config-hint">JSON 数组格式，每个元素为一条随机语句</p>
       </div>

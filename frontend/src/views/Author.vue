@@ -8,7 +8,7 @@ import toast from '@/utils/toast'
 
 const router = useRouter()
 const userStore = useUserStore()
-const canComment = computed(() => !!userStore.accessToken)
+const canComment = computed(() => userStore.isLoggedIn)
 
 const authorInfo = ref({
   nickname: '',
@@ -354,6 +354,7 @@ onUnmounted(() => {
             v-model="newMessage"
             class="message-textarea"
             rows="3"
+            v-tab-indent
             :placeholder="canComment ? '写下你的留言...' : '登录后即可留言'"
             :disabled="!canComment"
           ></textarea>

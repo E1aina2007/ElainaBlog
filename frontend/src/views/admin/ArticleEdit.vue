@@ -155,6 +155,7 @@ onMounted(() => {
           rows="3"
           placeholder="请输入文章摘要（可选）..."
           class="summary-input"
+          v-tab-indent
         ></textarea>
       </div>
 
@@ -175,6 +176,7 @@ onMounted(() => {
           rows="20"
           placeholder="请输入文章内容（支持 Markdown 语法）..."
           class="content-input"
+          v-tab-indent
         ></textarea>
       </div>
 

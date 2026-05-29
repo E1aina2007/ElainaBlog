@@ -84,7 +84,11 @@ func (ctl *Controller) Delete(c *gin.Context) {
 
 	if msg.UserID != userID {
 		isAdmin, err := ctl.userService.CheckIsAdmin(userID)
-		if err != nil || !isAdmin {
+		if err != nil {
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			return
+		}
+		if !isAdmin {
 			appErr := model.ErrForbidden.WithDetail("仅留言作者或管理员可删除")
 			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 			return

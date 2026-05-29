@@ -26,140 +26,79 @@ func RouterInit(r *gin.Engine) {
 	userService := user.NewService(user.NewRepository(db.DBPool))
 
 	auth := middleware.NewJwtAuthMiddleware(common.JwtAuth)
+	adminAuth := middleware.NewAdminAuthMiddleware(userService)
 	rateLimiter := middleware.NewRateLimitMiddleware()
 	userController := user.NewController(userService)
-	categoryController := category.NewController(userService)
+	categoryController := category.NewController()
 	articleController := article.NewController(userService)
 	commentController := comment.NewController(userService)
 	uploadStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.Path)
 	avatarStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.AvatarPath)
 	uploadController := upload.NewController(uploadStorage, config.GlobalConfig.Upload.Size, avatarStorage, config.GlobalConfig.Upload.AvatarSize, userService)
-	siteController := site.NewController(site.NewService(site.NewRepository(db.DBPool)), userService)
+	siteController := site.NewController(site.NewService(site.NewRepository(db.DBPool)))
 	messageController := message.NewController(userService)
-	siteConfigController := siteconfig.NewController(userService)
-	authorProfileController := authorprofile.NewController(userService)
+	siteConfigController := siteconfig.NewController()
+	authorProfileController := authorprofile.NewController()
 
 	// 无需鉴权
 	r.GET("/health", health)
-
 	r.Static("/uploads", config.GlobalConfig.Upload.Path)
 
 	// api路由组
 	apiGroup := r.Group("/api/ui")
 	{
+		// 公开接口
 		apiGroup.POST("/login", rateLimiter.Limit("login", 10, time.Minute), userController.Login)
 		apiGroup.POST("/register", rateLimiter.Limit("register", 5, time.Minute), userController.Register)
 		apiGroup.POST("/refresh", rateLimiter.Limit("refresh", 30, time.Minute), userController.RefreshToken)
 		apiGroup.POST("/send-code", rateLimiter.Limit("send-code", 5, time.Minute), userController.SendCode)
-
-		// 仪表盘统计（管理员）
-		apiGroup.GET("/dashboard/stats", auth.RequireAuth(), siteController.GetDashboardStats)
-
-		// 分类（列表公开）
 		apiGroup.GET("/category/list", categoryController.GetList)
-
-		// 上传接口（需鉴权，登录用户）
-		apiGroup.POST("/upload", auth.RequireAuth(), uploadController.Upload)
-		apiGroup.POST("/upload/avatar", auth.RequireAuth(), uploadController.UploadAvatar)
-
-		// 需要鉴权的路由
-		userGroup := apiGroup.Group("/user", auth.RequireAuth())
-		{
-			userGroup.GET("/profile", userController.GetProfile)
-			userGroup.GET("/list", userController.GetList)
-			userGroup.POST("/profile", userController.UpdateProfile)
-			userGroup.POST("/password", userController.UpdatePassword)
-			userGroup.POST("/delete", userController.DeleteUser)
-		}
-
-		// 分类管理（需鉴权，仅管理员）
-		categoryGroup := apiGroup.Group("/category", auth.RequireAuth())
-		{
-			categoryGroup.POST("/create", categoryController.Create)
-			categoryGroup.POST("/update", categoryController.Update)
-			categoryGroup.POST("/delete", categoryController.Delete)
-		}
-
-		// 文章（列表和详情公开）
 		apiGroup.GET("/article/list", articleController.GetList)
 		apiGroup.GET("/article/:id", articleController.GetByID)
-
-		// 文章管理（需鉴权）
-		articleGroup := apiGroup.Group("/article", auth.RequireAuth())
-		{
-			articleGroup.POST("/create", articleController.CreateArticle)
-			articleGroup.POST("/update", articleController.UpdateArticle)
-			articleGroup.POST("/delete", articleController.DeleteArticle)
-		}
-
-		// 评论（列表公开）
 		apiGroup.GET("/comment/:article_id", commentController.GetList)
-
-		// 评论管理（需鉴权，登录用户）
-		commentGroup := apiGroup.Group("/comment", auth.RequireAuth())
-		{
-			commentGroup.POST("/create", commentController.CreateComment)
-			commentGroup.POST("/delete", commentController.DeleteComment)
-			commentGroup.GET("/list", commentController.GetAllList)
-		}
-
-		// 系统管理（需鉴权，仅管理员）
-		systemGroup := apiGroup.Group("/system", auth.RequireAuth())
-		{
-			systemGroup.GET("/status", siteController.GetSystemStatus)
-		}
-
-		// 缓存管理（需鉴权，仅管理员）
-		cacheGroup := apiGroup.Group("/cache", auth.RequireAuth())
-		{
-			cacheGroup.POST("/clear", siteController.ClearCache)
-		}
-
-		// 备份管理（需鉴权，仅管理员）
-		backupGroup := apiGroup.Group("/backup", auth.RequireAuth())
-		{
-			backupGroup.GET("/export", siteController.ExportBackup)
-		}
-
-		// 安全管理（需鉴权，仅管理员）
-		securityGroup := apiGroup.Group("/security", auth.RequireAuth())
-		{
-			securityGroup.GET("/banned-ips", siteController.GetBannedIPs)
-			securityGroup.POST("/unban", siteController.UnbanIP)
-		}
-
-		// 作者页统计（公开）
 		apiGroup.GET("/author/stats", siteController.GetAuthorStats)
-
-		// 站点配置（公开）
 		apiGroup.GET("/site-config", siteConfigController.GetPublicConfigs)
 		apiGroup.GET("/site-config/quotes", siteConfigController.GetQuotes)
-
-		// 作者信息（公开）
 		apiGroup.GET("/author/profile", authorProfileController.Get)
-
-		// 站点配置管理（需鉴权，仅管理员）
-		siteConfigGroup := apiGroup.Group("/site-config", auth.RequireAuth())
-		{
-			siteConfigGroup.GET("/all", siteConfigController.GetAll)
-			siteConfigGroup.POST("/update", siteConfigController.Upsert)
-			siteConfigGroup.POST("/delete", siteConfigController.Delete)
-		}
-
-		// 作者信息管理（需鉴权，仅管理员）
-		authorProfileGroup := apiGroup.Group("/author/profile", auth.RequireAuth())
-		{
-			authorProfileGroup.POST("/update", authorProfileController.Update)
-		}
-
-		// 留言板（列表公开）
 		apiGroup.GET("/message/list", messageController.GetList)
 
-		// 留言管理（需鉴权，登录用户）
-		messageGroup := apiGroup.Group("/message", auth.RequireAuth())
+		// 需要登录的接口
+		authGroup := apiGroup.Group("", auth.RequireAuth())
 		{
-			messageGroup.POST("/create", messageController.Create)
-			messageGroup.POST("/delete", messageController.Delete)
+			authGroup.GET("/user/profile", userController.GetProfile)
+			authGroup.POST("/user/profile", userController.UpdateProfile)
+			authGroup.POST("/user/password", userController.UpdatePassword)
+			authGroup.POST("/user/delete", userController.DeleteUser)
+			authGroup.POST("/upload", uploadController.Upload)
+			authGroup.POST("/upload/avatar", uploadController.UploadAvatar)
+			authGroup.POST("/article/create", articleController.CreateArticle)
+			authGroup.POST("/article/update", articleController.UpdateArticle)
+			authGroup.POST("/article/delete", articleController.DeleteArticle)
+			authGroup.POST("/comment/create", commentController.CreateComment)
+			authGroup.POST("/comment/delete", commentController.DeleteComment)
+			authGroup.POST("/message/create", messageController.Create)
+			authGroup.POST("/message/delete", messageController.Delete)
+			authGroup.POST("/logout", userController.Logout)
+		}
+
+		// 需要管理员权限的接口
+		adminGroup := apiGroup.Group("", auth.RequireAuth(), adminAuth.RequireAdmin())
+		{
+			adminGroup.GET("/dashboard/stats", siteController.GetDashboardStats)
+			adminGroup.POST("/category/create", categoryController.Create)
+			adminGroup.POST("/category/update", categoryController.Update)
+			adminGroup.POST("/category/delete", categoryController.Delete)
+			adminGroup.GET("/user/list", userController.GetList)
+			adminGroup.GET("/comment/list", commentController.GetAllList)
+			adminGroup.GET("/system/status", siteController.GetSystemStatus)
+			adminGroup.POST("/cache/clear", siteController.ClearCache)
+			adminGroup.GET("/backup/export", siteController.ExportBackup)
+			adminGroup.GET("/security/banned-ips", siteController.GetBannedIPs)
+			adminGroup.POST("/security/unban", siteController.UnbanIP)
+			adminGroup.GET("/site-config/all", siteConfigController.GetAll)
+			adminGroup.POST("/site-config/update", siteConfigController.Upsert)
+			adminGroup.POST("/site-config/delete", siteConfigController.Delete)
+			adminGroup.POST("/author/profile/update", authorProfileController.Update)
 		}
 	}
 }

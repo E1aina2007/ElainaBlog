@@ -1,8 +1,10 @@
 package user
 
 import (
+	"ElainaBlog/config"
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -50,6 +52,72 @@ type RefreshTokenRequest struct {
 
 type SendCodeRequest struct {
 	Email string `json:"email"`
+}
+
+const (
+	accessTokenCookie  = "access_token"
+	refreshTokenCookie = "refresh_token"
+)
+
+func parseDuration(s string, defaultDur time.Duration) time.Duration {
+	// Handle "Nd" (days) format which time.ParseDuration doesn't support
+	if len(s) > 1 && s[len(s)-1] == 'd' {
+		var days int
+		if _, err := fmt.Sscanf(s, "%dd", &days); err == nil {
+			return time.Duration(days) * 24 * time.Hour
+		}
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return defaultDur
+	}
+	return d
+}
+
+func (ctl *Controller) setTokenCookies(c *gin.Context, accessToken, refreshToken string) {
+	secure := !config.GlobalConfig.Dev
+	accessTTL := parseDuration(config.GlobalConfig.Auth.AccessTokenExpiryTime, 2*time.Hour)
+	refreshTTL := parseDuration(config.GlobalConfig.Auth.RefreshTokenExpiryTime, 7*24*time.Hour)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     accessTokenCookie,
+		Value:    accessToken,
+		MaxAge:   int(accessTTL.Seconds()),
+		Path:     "/",
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshTokenCookie,
+		Value:    refreshToken,
+		MaxAge:   int(refreshTTL.Seconds()),
+		Path:     "/",
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+func (ctl *Controller) clearTokenCookies(c *gin.Context) {
+	secure := !config.GlobalConfig.Dev
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     accessTokenCookie,
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     refreshTokenCookie,
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
 }
 
 // Register 注册接口：创建新用户。
@@ -135,11 +203,10 @@ func (ctl *Controller) Login(c *gin.Context) {
 		}
 	}
 
+	ctl.setTokenCookies(c, result.AccessToken, result.RefreshToken)
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{
-		"user_id":       result.UserID,
-		"email":         result.Email,
-		"access_token":  result.AccessToken,
-		"refresh_token": result.RefreshToken,
+		"user_id": result.UserID,
+		"email":   result.Email,
 	}))
 }
 
@@ -155,19 +222,6 @@ func (ctl *Controller) GetProfile(c *gin.Context) {
 }
 
 func (ctl *Controller) GetList(c *gin.Context) {
-	// 验证管理员权限：从 JWT 中取出当前用户 ID，校验是否为管理员
-	userID := c.GetInt64(common.CtxUserIDKey)
-	isAdmin, err := ctl.service.CheckIsAdmin(userID)
-	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
-		return
-	}
-	if !isAdmin {
-		appErr := model.ErrForbidden.WithDetail("仅管理员可访问")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
-		return
-	}
-
 	users, err := ctl.service.GetList()
 	if err != nil {
 		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
@@ -275,14 +329,21 @@ func (ctl *Controller) DeleteUser(c *gin.Context) {
 }
 
 func (ctl *Controller) RefreshToken(c *gin.Context) {
-	var req RefreshTokenRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
+	refreshTokenStr, err := c.Cookie(refreshTokenCookie)
+	if err != nil || refreshTokenStr == "" {
+		var req RefreshTokenRequest
+		if bindErr := c.ShouldBindJSON(&req); bindErr == nil {
+			refreshTokenStr = req.RefreshToken
+		}
+	}
+
+	if refreshTokenStr == "" {
+		appErr := model.ErrInvalidParams.WithDetail("缺少 refresh token")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(req.RefreshToken)
+	claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(refreshTokenStr)
 	if err != nil {
 		c.JSON(model.ErrRefreshTokenInvalid.HTTPStatus(), model.ApiErrorResponse(model.ErrRefreshTokenInvalid.Code, model.ErrRefreshTokenInvalid.Message, model.ErrRefreshTokenInvalid))
 		return
@@ -308,10 +369,33 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{
-		"access_token":  accessToken,
-		"refresh_token": refreshToken,
-	}))
+	ctl.setTokenCookies(c, accessToken, refreshToken)
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+}
+
+func (ctl *Controller) Logout(c *gin.Context) {
+	// 吊销 access token
+	if tokenStr, err := c.Cookie(accessTokenCookie); err == nil && tokenStr != "" {
+		if claims, err := common.JwtAuth.ParseAndVerifyAccessToken(tokenStr); err == nil && claims.JTI != "" {
+			ttl := time.Until(claims.ExpiresAt.Time)
+			if ttl > 0 {
+				common.BlacklistToken(claims.JTI, ttl)
+			}
+		}
+	}
+
+	// 吊销 refresh token
+	if tokenStr, err := c.Cookie(refreshTokenCookie); err == nil && tokenStr != "" {
+		if claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(tokenStr); err == nil && claims.JTI != "" {
+			ttl := time.Until(claims.ExpiresAt.Time)
+			if ttl > 0 {
+				common.BlacklistToken(claims.JTI, ttl)
+			}
+		}
+	}
+
+	ctl.clearTokenCookies(c)
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) SendCode(c *gin.Context) {

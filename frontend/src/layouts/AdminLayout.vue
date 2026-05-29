@@ -32,8 +32,8 @@ const isActive = (path: string) => {
   return route.path.startsWith(path)
 }
 
-const handleLogout = () => {
-  userStore.logout()
+const handleLogout = async () => {
+  await userStore.logout()
   router.push('/login')
 }
 

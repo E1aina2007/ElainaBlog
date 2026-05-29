@@ -1,17 +1,15 @@
-// user.ts Pinia 用户状态管理，存储登录态和 token
+// user.ts Pinia 用户状态管理，存储登录态
+// Token 通过 HttpOnly Cookie 管理，前端不存储 token
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login as loginApi, type LoginParams, type LoginResult } from '@/api/auth'
+import { login as loginApi, logout as logoutApi, type LoginParams, type LoginResult } from '@/api/auth'
 import { getProfile, type UserProfile } from '@/api/user'
-import { setAccessToken, setRefreshToken, getAccessToken, clearTokens } from '@/utils/auth'
 
 export const useUserStore = defineStore('user', () => {
     const userInfo = ref<UserProfile | null>(null)
     const isLoading = ref(false)
-    // 使用响应式 token 变量，确保登录状态正确更新
-    const accessToken = ref<string | null>(getAccessToken())
 
-    const isLoggedIn = computed(() => !!accessToken.value && !!userInfo.value)
+    const isLoggedIn = computed(() => !!userInfo.value)
     const isAdmin = computed(() => userInfo.value?.is_admin === true)
 
     // 登录
@@ -19,10 +17,7 @@ export const useUserStore = defineStore('user', () => {
         isLoading.value = true
         try {
             const result = await loginApi(params)
-            setAccessToken(result.access_token)
-            setRefreshToken(result.refresh_token)
-            // 更新响应式 token，触发登录状态更新
-            accessToken.value = result.access_token
+            // Token 通过 HttpOnly Cookie 设置，无需前端存储
             // 登录成功后获取用户信息
             await fetchProfile()
             return result
@@ -42,19 +37,18 @@ export const useUserStore = defineStore('user', () => {
     }
 
     // 退出登录
-    function logout(): void {
-        clearTokens()
-        accessToken.value = null
+    async function logout(): Promise<void> {
+        try {
+            await logoutApi()
+        } catch {
+            // 即使后端注销失败，也要清理本地状态
+        }
         userInfo.value = null
     }
 
-    // 初始化：如果本地有 token，尝试恢复用户信息
+    // 初始化：尝试恢复用户信息（cookie 自动携带）
     async function init(): Promise<void> {
-        const token = getAccessToken()
-        if (token) {
-            accessToken.value = token
-            await fetchProfile()
-        }
+        await fetchProfile()
     }
 
     return {
@@ -62,7 +56,6 @@ export const useUserStore = defineStore('user', () => {
         isLoading,
         isLoggedIn,
         isAdmin,
-        accessToken,
         login,
         fetchProfile,
         logout,

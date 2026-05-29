@@ -14,6 +14,7 @@ const siteName = computed(() => siteStore.get('site_name'))
 
 const navLinks = [
   { name: '首页', path: '/' },
+  { name: '工具', path: '/tools' },
   { name: '关于作者', path: '/author' },
 ]
 
@@ -24,8 +25,8 @@ const isAdmin = computed(() => userStore.isAdmin)
 const username = computed(() => userStore.userInfo?.username || '')
 const avatarUrl = computed(() => userStore.userInfo?.avatar || '')
 
-function handleLogout() {
-  userStore.logout()
+async function handleLogout() {
+  await userStore.logout()
   userDropdownOpen.value = false
   router.push('/')
 }

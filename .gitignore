@@ -1,4 +1,4 @@
-# ===== 配置文件（敏感信息，不提交到仓库）=====
+# ===== 配置文件 =====
 config/.env
 config/backend/.env
 config/backend/config.dev.yaml
@@ -15,10 +15,17 @@ backend/cmd/tmp/
 # ===== 数据库外部脚本 =====
 backend/config/db/foreign/
 
-# ===== 文档示例 =====
-docs/
+# ===== Claude AI =====
 .claude/
+
+# ===== 辅助文档 =====
+docs/
 TODO.md
+REVIEW.md
+IMPROVEMENT_PLAN.md 
+
+# ===== 测试资源 =====
+backend/uploads/
 
 # ===== 构建产物 =====
 frontend/dist/
@@ -44,3 +51,7 @@ frontend/public/author/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# ===== 临时文件 =====
+under-construction.html
+DEPLOY_UNDER_CONSTRUCTION.md

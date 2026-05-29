@@ -74,6 +74,7 @@ const insertMarkdown = (syntax: string) => {
   textarea.focus()
 }
 
+
 const handleSubmit = async (publish: boolean) => {
   if (!form.value.title.trim() || !form.value.content.trim()) {
     toast.warning('标题和内容不能为空')
@@ -166,6 +167,7 @@ onMounted(() => {
           class="summary-input"
           rows="2"
           placeholder="文章摘要（可选，会显示在文章列表中）"
+          v-tab-indent
         ></textarea>
 
         <!-- Markdown 工具栏 -->
@@ -187,6 +189,7 @@ onMounted(() => {
             v-model="form.content"
             class="content-editor"
             placeholder="请输入文章内容（支持 Markdown 语法）..."
+            v-tab-indent
           ></textarea>
         </div>
         <div v-else class="preview-wrapper">

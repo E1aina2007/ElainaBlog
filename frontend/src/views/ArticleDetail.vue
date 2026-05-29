@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import type { TocItem } from '@/components/MarkdownRenderer.vue'
+import TableOfContents from '@/components/TableOfContents.vue'
 import CommentForm from '@/components/CommentForm.vue'
 import CommentList from '@/components/CommentList.vue'
 import { getArticleDetail, deleteArticle, updateArticle, type Article } from '@/api/article'
@@ -18,6 +20,9 @@ const comments = ref<Comment[]>([])
 const isLoading = ref(false)
 const isCommentLoading = ref(false)
 const error = ref('')
+const mdRenderer = ref<InstanceType<typeof MarkdownRenderer> | null>(null)
+
+const tocItems = computed<TocItem[]>(() => mdRenderer.value?.toc ?? [])
 
 const articleId = computed(() => {
   const id = Number(route.params.id)
@@ -151,6 +156,15 @@ function goBack() {
   window.location.href = '/'
 }
 
+// 分享文章
+function handleShare() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    toast.success('链接已复制到剪贴板')
+  }).catch(() => {
+    toast.error('复制失败，请手动复制')
+  })
+}
+
 onMounted(() => {
   loadArticle()
   loadComments()
@@ -196,6 +210,18 @@ onMounted(() => {
                 <span class="meta-item category">{{ article.category_name }}</span>
               </template>
             </div>
+            <div class="article-actions">
+              <button class="share-article-btn" @click="handleShare">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+                分享
+              </button>
+            </div>
             <div v-if="canEditArticle" class="article-actions">
               <button
                 class="pin-article-btn"
@@ -227,7 +253,7 @@ onMounted(() => {
 
         <!-- 文章内容 -->
         <div class="article-content">
-          <MarkdownRenderer :content="article.content" />
+          <MarkdownRenderer ref="mdRenderer" :content="article.content" />
         </div>
 
         <!-- 文章底部 -->
@@ -240,6 +266,9 @@ onMounted(() => {
           </button>
         </footer>
       </article>
+
+      <!-- 文章目录 -->
+      <TableOfContents :items="tocItems" />
 
       <!-- 评论区 -->
       <section v-if="article" class="comments-section">
@@ -370,6 +399,26 @@ onMounted(() => {
 }
 
 .edit-article-btn:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.share-article-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.share-article-btn:hover {
   background: var(--primary);
   color: white;
 }

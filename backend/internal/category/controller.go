@@ -2,23 +2,20 @@ package category
 
 import (
 	"ElainaBlog/config/db"
-	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
-	"ElainaBlog/internal/user"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Controller struct {
-	service     *Service
-	userService *user.Service
+	service *Service
 }
 
-func NewController(userService *user.Service) *Controller {
+func NewController() *Controller {
 	repo := NewRepository(db.DBPool)
 	service := NewService(repo)
-	return &Controller{service: service, userService: userService}
+	return &Controller{service: service}
 }
 
 type CreateCategoryRequest struct {
@@ -47,10 +44,6 @@ func (ctl *Controller) GetList(c *gin.Context) {
 
 // Create 创建分类（管理员）
 func (ctl *Controller) Create(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	var req CreateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
@@ -78,10 +71,6 @@ func (ctl *Controller) Create(c *gin.Context) {
 
 // Update 更新分类（管理员）
 func (ctl *Controller) Update(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	var req UpdateCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
@@ -112,10 +101,6 @@ func (ctl *Controller) Update(c *gin.Context) {
 
 // Delete 删除分类（管理员）
 func (ctl *Controller) Delete(c *gin.Context) {
-	if !common.RequireAdmin(c, ctl.userService.CheckIsAdmin) {
-		return
-	}
-
 	var req DeleteCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
