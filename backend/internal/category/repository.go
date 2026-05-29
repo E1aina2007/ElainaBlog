@@ -5,8 +5,9 @@ import (
 )
 
 type CategoryVO struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	ArticleCount int    `json:"article_count"`
 }
 
 type Repository struct {
@@ -38,7 +39,12 @@ func (r *Repository) GetCategoryByName(name string) (*CategoryVO, error) {
 }
 
 func (r *Repository) GetCategoryList() ([]*CategoryVO, error) {
-	rows, err := r.db.Query("SELECT id, name FROM category WHERE is_deleted = 0")
+	rows, err := r.db.Query(`
+		SELECT c.id, c.name, COUNT(a.id) AS article_count
+		FROM category c
+		LEFT JOIN article a ON a.category_id = c.id AND a.is_deleted = 0 AND a.is_draft = 0
+		WHERE c.is_deleted = 0
+		GROUP BY c.id, c.name`)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +53,7 @@ func (r *Repository) GetCategoryList() ([]*CategoryVO, error) {
 	categories := make([]*CategoryVO, 0)
 	for rows.Next() {
 		var category CategoryVO
-		err := rows.Scan(&category.ID, &category.Name)
+		err := rows.Scan(&category.ID, &category.Name, &category.ArticleCount)
 		if err != nil {
 			return nil, err
 		}
