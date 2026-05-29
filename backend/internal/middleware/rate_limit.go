@@ -1,4 +1,4 @@
-// rate_limit.go 基于 Redis 的滑动窗口速率限制中间件
+// rate_limit.go 基于 Redis 的固定窗口速率限制中间件
 package middleware
 
 import (
