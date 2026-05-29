@@ -1,9 +1,13 @@
 package article
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
+
+	"ElainaBlog/pkg/rdb"
 )
 
 type CommentDeleter interface {
@@ -105,7 +109,7 @@ func (s *Service) GetArticleByID(id int64) (*ArticleVO, error) {
 	return vo, nil
 }
 
-// IncrementViewCount 增加文章浏览量
+// IncrementViewCount 增加文章浏览量（Redis 缓冲，定时同步到 MySQL）
 func (s *Service) IncrementViewCount(id int64) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
@@ -113,6 +117,19 @@ func (s *Service) IncrementViewCount(id int64) error {
 	if id <= 0 {
 		return ErrInvalidParams
 	}
+
+	ctx := context.Background()
+	key := fmt.Sprintf("article:view_count:%d", id)
+
+	// Redis 可用时写入 Redis
+	if rdb.RedisClient != nil {
+		err := rdb.RedisClient.Incr(ctx, key).Err()
+		if err == nil {
+			return nil
+		}
+		// Redis 故障时 fallback 到直接写 MySQL
+	}
+
 	return s.repo.IncrementViewCount(id)
 }
 

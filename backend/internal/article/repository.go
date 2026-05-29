@@ -1,8 +1,12 @@
 package article
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"time"
+
+	"ElainaBlog/pkg/rdb"
 )
 
 // 返回给前端
@@ -49,6 +53,8 @@ func (r *Repository) GetArticleByID(id int64) (*ArticleVO, error) {
 	if err != nil {
 		return nil, err
 	}
+	// 叠加 Redis 中的浏览量增量
+	vo.ViewCount += r.GetViewCountDelta(vo.ID)
 	if categoryID.Valid {
 		vo.CategoryID = &categoryID.Int64
 		vo.CategoryName = categoryName
@@ -123,6 +129,72 @@ func (r *Repository) GetArticleList(categoryID *int64, page, pageSize int) ([]*A
 func (r *Repository) IncrementViewCount(id int64) error {
 	_, err := r.db.Exec("UPDATE article SET view_count = view_count + 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
+}
+
+// GetViewCountDelta 从 Redis 读取并删除文章浏览量增量
+func (r *Repository) GetViewCountDelta(id int64) int {
+	if rdb.RedisClient == nil {
+		return 0
+	}
+	ctx := context.Background()
+	key := fmt.Sprintf("article:view_count:%d", id)
+	val, err := rdb.RedisClient.GetDel(ctx, key).Result()
+	if err != nil {
+		return 0
+	}
+	var delta int
+	fmt.Sscanf(val, "%d", &delta)
+	return delta
+}
+
+// FlushViewCounts 将 Redis 中累积的浏览量批量同步到 MySQL
+func (r *Repository) FlushViewCounts() (int, error) {
+	if rdb.RedisClient == nil {
+		return 0, nil
+	}
+
+	ctx := context.Background()
+
+	var cursor uint64
+	flushed := 0
+	for {
+		keys, nextCursor, err := rdb.RedisClient.Scan(ctx, cursor, "article:view_count:*", 100).Result()
+		if err != nil {
+			return flushed, err
+		}
+
+		for _, key := range keys {
+			val, err := rdb.RedisClient.GetDel(ctx, key).Result()
+			if err != nil {
+				continue
+			}
+
+			var delta int
+			fmt.Sscanf(val, "%d", &delta)
+			if delta <= 0 {
+				continue
+			}
+
+			var articleID int64
+			fmt.Sscanf(key, "article:view_count:%d", &articleID)
+			if articleID <= 0 {
+				continue
+			}
+
+			_, err = r.db.Exec("UPDATE article SET view_count = view_count + ? WHERE id = ? AND is_deleted = 0", delta, articleID)
+			if err != nil {
+				continue
+			}
+			flushed++
+		}
+
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
+	return flushed, nil
 }
 
 func (r *Repository) CreateArticle(userID int64, categoryID *int64, title, summary, content, cover string, isTop, isDraft bool) (int64, error) {
