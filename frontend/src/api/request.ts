@@ -99,9 +99,8 @@ function doRefresh(): Promise<void> {
         pendingRequests.forEach((cb) => cb())
         pendingRequests = []
     }).catch(() => {
-        // 刷新失败，拒绝所有排队的请求
+        // 刷新失败，清空队列，不重定向（由路由守卫处理）
         pendingRequests = []
-        window.location.href = '/login'
         throw new Error('登录已过期，请重新登录')
     }).finally(() => {
         refreshPromise = null
@@ -130,7 +129,8 @@ request.interceptors.response.use(
             // 排除登录相关请求
             const isAuthRequest = originalRequest.url?.includes('/login') ||
                 originalRequest.url?.includes('/register') ||
-                originalRequest.url?.includes('/send-code')
+                originalRequest.url?.includes('/send-code') ||
+                originalRequest.url?.includes('/refresh')
             if (isAuthRequest) {
                 return Promise.reject(new Error(getErrorMessage(error)))
             }

@@ -1,15 +1,19 @@
 import { useDark, useToggle } from '@vueuse/core'
+import { type Ref } from 'vue'
 
-const isDark = useDark({
-  selector: 'html',
-  attribute: 'class',
-  valueDark: 'dark',
-  valueLight: '',
-  storageKey: 'elaina-theme-dark',
-})
-
-const toggleDark = useToggle(isDark)
+let isDark: Ref<boolean>
+let toggleDark: (value?: boolean) => void
 
 export function useTheme() {
+  if (!isDark) {
+    isDark = useDark({
+      selector: 'html',
+      attribute: 'class',
+      valueDark: 'dark',
+      valueLight: '',
+      storageKey: 'elaina-theme-dark',
+    })
+    toggleDark = useToggle(isDark)
+  }
   return { isDark, toggleDark }
 }
