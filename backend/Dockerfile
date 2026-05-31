@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /elainablog ./cmd
 # 运行阶段
 FROM alpine:3.21
 
-RUN apk add --no-cache tzdata mysql-client
+RUN apk add --no-cache tzdata
 ENV TZ=Asia/Shanghai
 
 WORKDIR /app

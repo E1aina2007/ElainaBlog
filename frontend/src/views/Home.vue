@@ -104,7 +104,6 @@ const goToWrite = () => {
 }
 
 // 滚动监听
-const showBackToTop = ref(false)
 const handleScroll = () => {
   const scrollTop = window.scrollY || document.documentElement.scrollTop
   const clientHeight = window.innerHeight || document.documentElement.clientHeight
@@ -113,11 +112,6 @@ const handleScroll = () => {
   if (scrollTop + clientHeight >= scrollHeight - 200) {
     loadMore()
   }
-  showBackToTop.value = scrollTop > 300
-}
-
-const scrollToTop = () => {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(() => {
@@ -182,7 +176,6 @@ onUnmounted(() => {
       </div>
 
       <div class="hero-scroll">
-        <span class="scroll-text">向下探索</span>
         <div class="scroll-indicator">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 5v14M19 12l-7 7-7-7"/>
@@ -273,14 +266,6 @@ onUnmounted(() => {
         </div>
       </div>
     </section>
-
-    <!-- 浮动回到顶部按钮 -->
-    <transition name="fade-up">
-      <button v-if="showBackToTop" class="back-to-top" @click="scrollToTop" title="回到顶部">
-        <span class="back-icon">∧</span>
-        <span class="back-label">顶部</span>
-      </button>
-    </transition>
   </main>
 </template>
 
@@ -480,11 +465,6 @@ onUnmounted(() => {
   animation: fadeUp 1s ease 0.5s both;
 }
 
-.scroll-text {
-  font-size: 0.75rem;
-  letter-spacing: 1px;
-}
-
 .scroll-indicator {
   animation: bounce 2s infinite;
 }
@@ -580,60 +560,6 @@ onUnmounted(() => {
 .category-card.active .category-count {
   background: var(--primary);
   color: white;
-}
-
-/* 浮动回到顶部按钮 */
-.back-to-top {
-  position: fixed;
-  bottom: 32px;
-  right: 32px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  width: 44px;
-  height: 44px;
-  background: var(--primary);
-  border: none;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 20px rgba(126, 215, 193, 0.3);
-  cursor: pointer;
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, opacity 0.3s ease;
-  color: white;
-}
-
-.back-to-top:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 30px rgba(126, 215, 193, 0.45);
-}
-
-.back-to-top:active {
-  transform: scale(0.98);
-}
-
-.back-icon {
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.back-label {
-  font-size: 10px;
-  font-weight: 500;
-}
-
-/* 回到顶部过渡动画 */
-.fade-up-enter-active,
-.fade-up-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.fade-up-enter-from,
-.fade-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
 }
 
 /* 右侧文章区域 */
@@ -778,13 +704,6 @@ onUnmounted(() => {
 
   .category-name {
     white-space: nowrap;
-  }
-
-  .back-to-top {
-    bottom: 20px;
-    right: 20px;
-    width: 42px;
-    height: 42px;
   }
 }
 
