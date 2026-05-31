@@ -131,6 +131,11 @@ const router = createRouter({
           name: 'admin-author-profile',
           component: () => import('../views/admin/AuthorProfile.vue'),
         },
+        {
+          path: 'friend-links',
+          name: 'admin-friend-links',
+          component: () => import('../views/admin/FriendLinkList.vue'),
+        },
       ],
     },
     {
