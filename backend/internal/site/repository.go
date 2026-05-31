@@ -1,16 +1,19 @@
 package site
 
 import (
+	"ElainaBlog/config/db"
 	"database/sql"
 	"time"
 )
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 site.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建站点仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
 // DashboardStats 仪表盘统计数据
@@ -21,7 +24,7 @@ type DashboardStats struct {
 }
 
 // GetDashboardStats 获取仪表盘统计数据
-func (r *Repository) GetDashboardStats() (*DashboardStats, error) {
+func (r *MySQLRepository) GetDashboardStats() (*DashboardStats, error) {
 	var stats DashboardStats
 
 	// 文章数（不包含草稿和已删除）
@@ -54,7 +57,7 @@ type AuthorStats struct {
 }
 
 // GetAuthorStats 获取作者页统计数据
-func (r *Repository) GetAuthorStats() (*AuthorStats, error) {
+func (r *MySQLRepository) GetAuthorStats() (*AuthorStats, error) {
 	var stats AuthorStats
 
 	err := r.db.QueryRow("SELECT COUNT(*) FROM article WHERE is_deleted = 0 AND is_draft = 0").Scan(&stats.ArticleCount)

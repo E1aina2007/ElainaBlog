@@ -21,6 +21,7 @@ type JwtAuthService struct {
 	AccessTokenTTL     time.Duration
 	RefreshTokenTTL    time.Duration
 	Issuer             string
+	Redis              rdb.RedisClient // 可选，用于 token 黑名单
 }
 
 type TokenClaims struct {
@@ -46,19 +47,19 @@ func generateJTI() (string, error) {
 }
 
 // BlacklistToken 将 token 的 JTI 加入 Redis 黑名单，TTL 等于 token 剩余有效期。
-func BlacklistToken(jti string, ttl time.Duration) error {
-	if rdb.RedisClient == nil || jti == "" {
+func BlacklistToken(redis rdb.RedisClient, jti string, ttl time.Duration) error {
+	if redis == nil || jti == "" {
 		return nil
 	}
-	return rdb.RedisClient.Set(context.Background(), "token_blacklist:"+jti, "1", ttl).Err()
+	return redis.Set(context.Background(), "token_blacklist:"+jti, "1", ttl).Err()
 }
 
 // IsTokenBlacklisted 检查 token 的 JTI 是否在黑名单中。
-func IsTokenBlacklisted(jti string) bool {
-	if rdb.RedisClient == nil || jti == "" {
+func IsTokenBlacklisted(redis rdb.RedisClient, jti string) bool {
+	if redis == nil || jti == "" {
 		return false
 	}
-	val, err := rdb.RedisClient.Exists(context.Background(), "token_blacklist:"+jti).Result()
+	val, err := redis.Exists(context.Background(), "token_blacklist:"+jti).Result()
 	return err == nil && val > 0
 }
 
@@ -203,7 +204,7 @@ func (s *JwtAuthService) ParseAndVerifyToken(tokenString string) (*TokenClaims, 
 	}
 
 	// 检查 token 是否已被吊销（加入黑名单）
-	if IsTokenBlacklisted(claims.JTI) {
+	if IsTokenBlacklisted(s.Redis, claims.JTI) {
 		return nil, ErrInvalidToken
 	}
 

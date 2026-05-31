@@ -1,7 +1,7 @@
 package siteconfig
 
 import (
-	"database/sql"
+	"ElainaBlog/config/db"
 )
 
 type SiteConfig struct {
@@ -10,15 +10,17 @@ type SiteConfig struct {
 	Value   string `json:"value"`
 }
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 siteconfig.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建站点配置仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
-func (r *Repository) GetAll() ([]*SiteConfig, error) {
+func (r *MySQLRepository) GetAll() ([]*SiteConfig, error) {
 	rows, err := r.db.Query(`SELECT id, key_name, value FROM site_config WHERE is_deleted = 0`)
 	if err != nil {
 		return nil, err
@@ -36,7 +38,7 @@ func (r *Repository) GetAll() ([]*SiteConfig, error) {
 	return configs, rows.Err()
 }
 
-func (r *Repository) GetByKey(key string) (*SiteConfig, error) {
+func (r *MySQLRepository) GetByKey(key string) (*SiteConfig, error) {
 	var c SiteConfig
 	err := r.db.QueryRow(`SELECT id, key_name, value FROM site_config WHERE key_name = ? AND is_deleted = 0`, key).Scan(
 		&c.ID, &c.KeyName, &c.Value)
@@ -46,7 +48,7 @@ func (r *Repository) GetByKey(key string) (*SiteConfig, error) {
 	return &c, nil
 }
 
-func (r *Repository) Upsert(key, value string) error {
+func (r *MySQLRepository) Upsert(key, value string) error {
 	_, err := r.db.Exec(`
 		INSERT INTO site_config (key_name, value) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = CURRENT_TIMESTAMP
@@ -54,7 +56,7 @@ func (r *Repository) Upsert(key, value string) error {
 	return err
 }
 
-func (r *Repository) DeleteByKey(key string) error {
+func (r *MySQLRepository) DeleteByKey(key string) error {
 	_, err := r.db.Exec(`UPDATE site_config SET is_deleted = 1 WHERE key_name = ? AND is_deleted = 0`, key)
 	return err
 }

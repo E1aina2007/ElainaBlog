@@ -1,7 +1,7 @@
 package message
 
 import (
-	"database/sql"
+	"ElainaBlog/config/db"
 	"time"
 )
 
@@ -22,15 +22,17 @@ type MessageVO struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 message.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建留言仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
-func (r *Repository) GetList(limit int) ([]*MessageVO, error) {
+func (r *MySQLRepository) GetList(limit int) ([]*MessageVO, error) {
 	rows, err := r.db.Query(`
 		SELECT m.id, m.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, m.content, m.created_at
 		FROM message m
@@ -57,7 +59,7 @@ func (r *Repository) GetList(limit int) ([]*MessageVO, error) {
 	return messages, nil
 }
 
-func (r *Repository) Create(msg *Message) (int64, error) {
+func (r *MySQLRepository) Create(msg *Message) (int64, error) {
 	result, err := r.db.Exec(`INSERT INTO message (user_id, content) VALUES (?, ?)`, msg.UserID, msg.Content)
 	if err != nil {
 		return 0, err
@@ -65,7 +67,7 @@ func (r *Repository) Create(msg *Message) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (r *Repository) GetByID(id int64) (*Message, error) {
+func (r *MySQLRepository) GetByID(id int64) (*Message, error) {
 	var msg Message
 	err := r.db.QueryRow(`SELECT id, user_id, content, created_at FROM message WHERE id = ? AND is_deleted = 0`, id).Scan(
 		&msg.ID, &msg.UserID, &msg.Content, &msg.CreatedAt)
@@ -75,7 +77,7 @@ func (r *Repository) GetByID(id int64) (*Message, error) {
 	return &msg, nil
 }
 
-func (r *Repository) Delete(id int64) error {
+func (r *MySQLRepository) Delete(id int64) error {
 	_, err := r.db.Exec(`UPDATE message SET is_deleted = 1 WHERE id = ? AND is_deleted = 0`, id)
 	return err
 }

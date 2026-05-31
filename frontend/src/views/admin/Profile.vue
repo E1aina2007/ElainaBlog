@@ -147,7 +147,7 @@ const handleChangePassword = async () => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .profile-content {
@@ -157,16 +157,16 @@ const handleChangePassword = async () => {
 }
 
 .profile-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .profile-card h3 {
   margin: 0 0 20px 0;
   font-size: 18px;
-  color: #1f2937;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -176,7 +176,7 @@ const handleChangePassword = async () => {
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border);
 }
 
 .avatar-section :deep(.avatar-upload) {
@@ -192,13 +192,13 @@ const handleChangePassword = async () => {
 .username {
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .user-role {
   font-size: 14px;
-  color: #6366f1;
-  background: #6366f115;
+  color: var(--color-indigo);
+  background: color-mix(in srgb, var(--color-indigo) 10%, transparent);
   padding: 2px 10px;
   border-radius: 20px;
   display: inline-block;
@@ -220,12 +220,12 @@ const handleChangePassword = async () => {
 .form-group label {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .form-group input {
   padding: 10px 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   font-size: 14px;
   outline: none;
@@ -233,12 +233,12 @@ const handleChangePassword = async () => {
 }
 
 .form-group input:focus {
-  border-color: #6366f1;
+  border-color: var(--color-indigo);
 }
 
 .btn-primary {
   padding: 12px 24px;
-  background: #6366f1;
+  background: var(--color-indigo);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -250,7 +250,7 @@ const handleChangePassword = async () => {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #4f46e5;
+  background: var(--color-indigo-hover);
 }
 
 .btn-primary:disabled {

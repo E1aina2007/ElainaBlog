@@ -1,27 +1,26 @@
 package article
 
 import (
-	"ElainaBlog/config/db"
-	"ElainaBlog/internal/comment"
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
-	"ElainaBlog/internal/user"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-type Controller struct {
-	service     *Service
-	userService *user.Service // 用于验证管理员权限
+// AdminChecker 管理员权限检查接口，避免直接依赖 user.Service。
+type AdminChecker interface {
+	CheckIsAdmin(userID int64) (bool, error)
 }
 
-func NewController(userService *user.Service) *Controller {
-	repo := NewRepository(db.DBPool)
-	commentRepo := comment.NewRepository(db.DBPool)
-	service := NewService(repo, commentRepo)
-	return &Controller{service: service, userService: userService}
+type Controller struct {
+	service       *Service
+	adminChecker  AdminChecker
+}
+
+func NewController(service *Service, adminChecker AdminChecker) *Controller {
+	return &Controller{service: service, adminChecker: adminChecker}
 }
 
 type CreateArticleRequest struct {
@@ -91,7 +90,7 @@ func (ctl *Controller) UpdateArticle(c *gin.Context) {
 	}
 
 	userID := c.GetInt64(common.CtxUserIDKey)
-	isAdmin, _ := ctl.userService.CheckIsAdmin(userID)
+	isAdmin, _ := ctl.adminChecker.CheckIsAdmin(userID)
 
 	err := ctl.service.UpdateArticle(&UpdateArticleParams{
 		ID:         req.ID,
@@ -132,7 +131,7 @@ func (ctl *Controller) DeleteArticle(c *gin.Context) {
 	}
 
 	userID := c.GetInt64(common.CtxUserIDKey)
-	isAdmin, _ := ctl.userService.CheckIsAdmin(userID)
+	isAdmin, _ := ctl.adminChecker.CheckIsAdmin(userID)
 
 	err := ctl.service.DeleteArticle(&DeleteArticleParams{ID: req.ID}, userID, isAdmin)
 	if err != nil {

@@ -9,21 +9,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// JwtAuthMiddleware JWT 鉴权中间件，持有 JwtAuthService 实例用于 token 的签发与校验。
+// JwtAuthMiddleware JWT 鉴权中间件，持有 TokenManager 实例用于 token 的签发与校验。
 type JwtAuthMiddleware struct {
-	JwtAuthService *common.JwtAuthService
+	tokenMgr common.TokenManager
 }
 
 // NewJwtAuthMiddleware 创建 JWT 鉴权中间件实例。
-func NewJwtAuthMiddleware(jwtAuthService *common.JwtAuthService) *JwtAuthMiddleware {
-	return &JwtAuthMiddleware{JwtAuthService: jwtAuthService}
+func NewJwtAuthMiddleware(tokenMgr common.TokenManager) *JwtAuthMiddleware {
+	return &JwtAuthMiddleware{tokenMgr: tokenMgr}
 }
 
 // RequireAuth 强制鉴权：从 Authorization 头中提取 Bearer token，
 // 校验通过后将 UserID 和 Claims 写入 gin.Context，校验失败则返回 401 并终止请求。
 func (m *JwtAuthMiddleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if m == nil || m.JwtAuthService == nil {
+		if m == nil || m.tokenMgr == nil {
 			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 			c.Abort()
 			return
@@ -46,7 +46,7 @@ func (m *JwtAuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := m.JwtAuthService.ParseAndVerifyAccessToken(tokenString)
+		claims, err := m.tokenMgr.ParseAndVerifyAccessToken(tokenString)
 		if err != nil {
 			c.JSON(model.ErrTokenInvalid.HTTPStatus(), model.ApiErrorResponse(model.ErrTokenInvalid.Code, model.ErrTokenInvalid.Message, model.ErrTokenInvalid))
 			c.Abort()

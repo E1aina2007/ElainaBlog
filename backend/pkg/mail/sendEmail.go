@@ -7,9 +7,7 @@ import (
 )
 
 // SendVerificationCode 通过 SMTP 发送验证码邮件（HTML 格式）
-func SendVerificationCode(to string, code string) error {
-	cfg := config.GlobalConfig.Smtp
-	expireSeconds := config.GlobalConfig.Verification.ExpireTime
+func SendVerificationCode(smtpCfg config.SmtpConfig, expireSeconds int, to string, code string) error {
 	subject := "来自 ElainaBlog 的邮箱验证码"
 
 	htmlBody := fmt.Sprintf(`<!DOCTYPE html>
@@ -37,10 +35,10 @@ func SendVerificationCode(to string, code string) error {
 </html>`, code, expireSeconds)
 
 	mime := "MIME-version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n"
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n%s\r\n%s", cfg.From, to, subject, mime, htmlBody)
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n%s\r\n%s", smtpCfg.From, to, subject, mime, htmlBody)
 
-	auth := smtp.PlainAuth("", cfg.From, cfg.Verification, cfg.Host)
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	auth := smtp.PlainAuth("", smtpCfg.From, smtpCfg.Verification, smtpCfg.Host)
+	addr := fmt.Sprintf("%s:%d", smtpCfg.Host, smtpCfg.Port)
 
-	return smtp.SendMail(addr, auth, cfg.From, []string{to}, []byte(msg))
+	return smtp.SendMail(addr, auth, smtpCfg.From, []string{to}, []byte(msg))
 }

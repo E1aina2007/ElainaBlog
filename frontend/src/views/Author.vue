@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getAuthorStats, getMessageList, createMessage, deleteMessage } from '@/api/message'
 import { getAuthorProfile } from '@/api/authorProfile'
+import { getFriendLinkList } from '@/api/friendlink'
 import toast from '@/utils/toast'
 
 const router = useRouter()
@@ -108,6 +109,7 @@ const handleBannerScroll = () => {
 const messages = ref([])
 const newMessage = ref('')
 const sending = ref(false)
+const friendLinks = ref([])
 
 const fetchStats = async () => {
   try {
@@ -127,6 +129,14 @@ const fetchMessages = async () => {
   } catch (e) {
     console.error('获取留言失败:', e)
     toast.error(e?.message || '获取留言列表失败')
+  }
+}
+
+const fetchFriendLinks = async () => {
+  try {
+    friendLinks.value = (await getFriendLinkList()) ?? []
+  } catch {
+    // 静默失败
   }
 }
 
@@ -175,6 +185,7 @@ onMounted(() => {
   fetchAuthorProfile()
   fetchStats()
   fetchMessages()
+  fetchFriendLinks()
   window.addEventListener('scroll', handleBannerScroll, { passive: true })
   handleBannerScroll()
 })
@@ -339,6 +350,29 @@ onUnmounted(() => {
               <path d="M17.813 4.653h.854c1.51.044 2.769.578 3.773 1.608 1.004 1.029 1.524 2.29 1.56 3.777v7.36c-.044 1.487-.565 2.748-1.56 3.777-1.004 1.03-2.262 1.564-3.773 1.608H5.333c-1.51-.044-2.769-.578-3.773-1.608C.556 19.748.036 18.487 0 17V9.653c.036-1.487.556-2.748 1.56-3.777 1.004-1.03 2.262-1.564 3.773-1.608h.774l-1.174-1.12a1.234 1.234 0 01-.373-.906c0-.356.124-.658.373-.907l.027-.027c.267-.249.573-.373.92-.373.347 0 .653.124.92.373l3.307 3.16h2.507l3.307-3.16c.267-.249.573-.373.92-.373.347 0 .653.124.92.373l.027.027c.249.249.373.551.373.907 0 .355-.124.657-.373.906L17.813 4.653zM5.333 6.12c-.8.027-1.466.311-2 .987-.533.676-.8 1.458-.8 2.347v7.36c0 .889.267 1.671.8 2.347.534.676 1.2 1.014 2 1.014h13.334c.8 0 1.466-.338 2-1.014.533-.676.8-1.458.8-2.347v-7.36c0-.889-.267-1.671-.8-2.347-.534-.676-1.2-1.014-2-1.014H5.333zM8 11.107c.733 0 1.333.6 1.333 1.334v1.333c0 .733-.6 1.334-1.333 1.334s-1.334-.6-1.334-1.334v-1.333c0-.734.6-1.334 1.334-1.334zm8 0c.733 0 1.333.6 1.333 1.334v1.333c0 .733-.6 1.334-1.333 1.334s-1.334-.6-1.334-1.334v-1.333c0-.734.6-1.334 1.334-1.334z"/>
             </svg>
             <span class="social-name">Bilibili</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- 友情链接 -->
+      <section v-if="friendLinks.length > 0" class="friends-card">
+        <h2 class="section-title">友情链接</h2>
+        <div class="bio-divider"></div>
+        <div class="friends-grid">
+          <a
+            v-for="link in friendLinks"
+            :key="link.id"
+            :href="link.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="friend-item"
+          >
+            <img v-if="link.avatar" :src="link.avatar" class="friend-avatar" alt="" />
+            <span v-else class="friend-avatar-placeholder">{{ link.name.charAt(0) }}</span>
+            <div class="friend-info">
+              <span class="friend-name">{{ link.name }}</span>
+              <span v-if="link.description" class="friend-desc">{{ link.description }}</span>
+            </div>
           </a>
         </div>
       </section>
@@ -749,6 +783,84 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
+/* ===== 友情链接 ===== */
+.friends-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-soft);
+}
+
+.friends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: all 0.2s ease-out;
+}
+
+.friend-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary-light);
+}
+
+.friend-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.friend-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.friend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.friend-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-desc {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ===== 留言板 ===== */
 .message-card {
   background: var(--bg-card);
@@ -895,7 +1007,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -927,8 +1039,8 @@ onUnmounted(() => {
 }
 
 .btn-delete-msg:hover {
-  color: #e05555;
-  background: rgba(224, 85, 85, 0.1);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .message-content {

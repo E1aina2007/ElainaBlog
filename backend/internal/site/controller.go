@@ -20,10 +20,12 @@ import (
 
 type Controller struct {
 	service *Service
+	db      db.DBTX
+	rdb     rdb.RedisClient
 }
 
-func NewController(service *Service) *Controller {
-	return &Controller{service: service}
+func NewController(service *Service, db db.DBTX, redis rdb.RedisClient) *Controller {
+	return &Controller{service: service, db: db, rdb: redis}
 }
 
 // GetDashboardStats 获取仪表盘统计数据（管理员）
@@ -168,19 +170,19 @@ func readMemInfo() (totalMB, usedMB uint64, usagePercent float64) {
 func (ctl *Controller) GetSystemStatus(c *gin.Context) {
 	// 检查数据库连接
 	dbStatus := "connected"
-	if err := db.DBPool.Ping(); err != nil {
+	if err := ctl.db.Ping(); err != nil {
 		dbStatus = "error"
 	}
 
 	// 检查 Redis 连接并获取缓存命中率
 	redisStatus := "connected"
 	cacheHitRate := float64(-1)
-	if rdb.RedisClient == nil {
+	if ctl.rdb == nil {
 		redisStatus = "not_initialized"
-	} else if err := rdb.RedisClient.Ping(context.Background()).Err(); err != nil {
+	} else if err := ctl.rdb.Ping(context.Background()).Err(); err != nil {
 		redisStatus = "error"
 	} else {
-		cacheHitRate = getRedisCacheHitRate()
+		cacheHitRate = ctl.getRedisCacheHitRate()
 	}
 
 	// CPU 使用率（从 /proc/stat 读取）
@@ -265,8 +267,8 @@ func (ctl *Controller) UnbanIP(c *gin.Context) {
 var startTime = time.Now()
 
 // getRedisCacheHitRate 从 Redis INFO stats 中计算缓存命中率
-func getRedisCacheHitRate() float64 {
-	info, err := rdb.RedisClient.Info(context.Background(), "stats").Result()
+func (ctl *Controller) getRedisCacheHitRate() float64 {
+	info, err := ctl.rdb.Info(context.Background(), "stats").Result()
 	if err != nil {
 		return -1
 	}

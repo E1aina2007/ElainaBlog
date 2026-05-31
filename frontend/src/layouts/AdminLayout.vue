@@ -18,6 +18,7 @@ const menuItems = [
   { name: '分类管理', path: '/admin/categories', icon: 'category' },
   { name: '用户管理', path: '/admin/users', icon: 'users' },
   { name: '站点配置', path: '/admin/site-config', icon: 'settings' },
+  { name: '友情链接', path: '/admin/friend-links', icon: 'link' },
   { name: '作者信息', path: '/admin/author-profile', icon: 'user' },
   { name: '系统监控', path: '/admin/system', icon: 'monitor' },
   { name: '安全备份', path: '/admin/security', icon: 'security' },
@@ -124,6 +125,11 @@ const toggleSidebar = () => {
             <svg v-else-if="item.icon === 'user'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <!-- Link -->
+            <svg v-else-if="item.icon === 'link'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
             </svg>
           </span>
           <span v-if="!sidebarCollapsed" class="nav-text">{{ item.name }}</span>
@@ -280,7 +286,7 @@ const toggleSidebar = () => {
   background: rgba(255, 107, 107, 0.1);
   border: none;
   border-radius: var(--radius-md);
-  color: #e05555;
+  color: var(--color-danger);
   cursor: pointer;
   font-size: 14px;
   transition: all var(--transition-fast);
@@ -288,7 +294,7 @@ const toggleSidebar = () => {
 
 .logout-btn:hover {
   background: rgba(255, 107, 107, 0.2);
-  color: #c0392b;
+  color: var(--color-danger-hover);
 }
 
 .main-content {

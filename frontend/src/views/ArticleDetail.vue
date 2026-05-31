@@ -429,8 +429,8 @@ onMounted(() => {
   gap: 4px;
   padding: 6px 14px;
   background: transparent;
-  color: #f59e0b;
-  border: 1px solid #f59e0b;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
   border-radius: var(--radius-md);
   font-size: 0.8125rem;
   cursor: pointer;
@@ -439,12 +439,12 @@ onMounted(() => {
 }
 
 .pin-article-btn:hover {
-  background: #f59e0b;
+  background: var(--color-warning);
   color: white;
 }
 
 .pin-article-btn.pinned {
-  background: #f59e0b;
+  background: var(--color-warning);
   color: white;
 }
 
@@ -454,8 +454,8 @@ onMounted(() => {
   gap: 4px;
   padding: 6px 14px;
   background: transparent;
-  color: #ef4444;
-  border: 1px solid #ef4444;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
   font-size: 0.8125rem;
   cursor: pointer;
@@ -464,7 +464,7 @@ onMounted(() => {
 }
 
 .delete-article-btn:hover {
-  background: #ef4444;
+  background: var(--color-danger);
   color: white;
 }
 
@@ -482,7 +482,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
   color: white;
   font-size: 11px;
   font-weight: 600;

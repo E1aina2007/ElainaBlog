@@ -9,12 +9,15 @@ import (
 	"ElainaBlog/internal/category"
 	"ElainaBlog/internal/comment"
 	"ElainaBlog/internal/common"
+	"ElainaBlog/internal/friendlink"
 	"ElainaBlog/internal/message"
 	"ElainaBlog/internal/middleware"
+	"ElainaBlog/internal/notification"
 	"ElainaBlog/internal/site"
 	"ElainaBlog/internal/siteconfig"
 	"ElainaBlog/internal/upload"
 	"ElainaBlog/internal/user"
+	"ElainaBlog/pkg/rdb"
 	"net/http"
 	"time"
 
@@ -22,23 +25,50 @@ import (
 )
 
 func RouterInit(r *gin.Engine) {
-	// 统一创建 user.Service 实例
-	userService := user.NewService(user.NewRepository(db.DBPool))
+	// 获取依赖实例
+	dbPool := db.DBPool
+	redis := rdb.DefaultClient
+	tokenMgr := common.JwtAuth
 
-	auth := middleware.NewJwtAuthMiddleware(common.JwtAuth)
+	// 创建仓储层
+	userRepo := user.NewRepository(dbPool)
+	categoryRepo := category.NewRepository(dbPool)
+	commentRepo := comment.NewRepository(dbPool)
+	articleRepo := article.NewRepository(dbPool, redis)
+	messageRepo := message.NewRepository(dbPool)
+	siteRepo := site.NewRepository(dbPool)
+	friendLinkRepo := friendlink.NewRepository(dbPool)
+	notificationRepo := notification.NewRepository(dbPool)
+
+	// 创建服务层
+	userService := user.NewService(userRepo, redis, tokenMgr)
+	categoryService := category.NewService(categoryRepo)
+	notificationService := notification.NewService(notificationRepo)
+	commentService := comment.NewService(commentRepo, articleRepo, notificationService)
+	articleService := article.NewService(articleRepo, commentRepo)
+	messageService := message.NewService(messageRepo, userRepo, notificationService)
+	siteService := site.NewService(siteRepo, redis)
+	friendLinkService := friendlink.NewService(friendLinkRepo)
+
+	// 创建中间件
+	auth := middleware.NewJwtAuthMiddleware(tokenMgr)
 	adminAuth := middleware.NewAdminAuthMiddleware(userService)
-	rateLimiter := middleware.NewRateLimitMiddleware()
-	userController := user.NewController(userService)
-	categoryController := category.NewController()
-	articleController := article.NewController(userService)
-	commentController := comment.NewController(userService)
+	rateLimiter := middleware.NewRateLimitMiddleware(redis)
+
+	// 创建控制器
+	userController := user.NewController(userService, redis)
+	categoryController := category.NewController(categoryService)
+	articleController := article.NewController(articleService, userService)
+	commentController := comment.NewController(commentService, userService)
 	uploadStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.Path)
 	avatarStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.AvatarPath)
 	uploadController := upload.NewController(uploadStorage, config.GlobalConfig.Upload.Size, avatarStorage, config.GlobalConfig.Upload.AvatarSize, userService)
-	siteController := site.NewController(site.NewService(site.NewRepository(db.DBPool)))
-	messageController := message.NewController(userService)
-	siteConfigController := siteconfig.NewController()
-	authorProfileController := authorprofile.NewController()
+	siteController := site.NewController(siteService, dbPool, redis)
+	messageController := message.NewController(messageService, userService)
+	siteConfigController := siteconfig.NewController(siteconfig.NewService(siteconfig.NewRepository(dbPool)))
+	authorProfileController := authorprofile.NewController(authorprofile.NewService(authorprofile.NewRepository(dbPool)))
+	friendLinkController := friendlink.NewController(friendLinkService)
+	notificationController := notification.NewController(notificationService)
 
 	// 无需鉴权
 	r.GET("/health", health)
@@ -52,6 +82,7 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.POST("/register", rateLimiter.Limit("register", 5, time.Minute), userController.Register)
 		apiGroup.POST("/refresh", rateLimiter.Limit("refresh", 30, time.Minute), userController.RefreshToken)
 		apiGroup.POST("/send-code", rateLimiter.Limit("send-code", 5, time.Minute), userController.SendCode)
+		apiGroup.POST("/reset-password", rateLimiter.Limit("reset-password", 5, time.Minute), userController.ResetPassword)
 		apiGroup.GET("/category/list", categoryController.GetList)
 		apiGroup.GET("/article/list", articleController.GetList)
 		apiGroup.GET("/article/:id", articleController.GetByID)
@@ -61,6 +92,7 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.GET("/site-config/quotes", siteConfigController.GetQuotes)
 		apiGroup.GET("/author/profile", authorProfileController.Get)
 		apiGroup.GET("/message/list", messageController.GetList)
+		apiGroup.GET("/friend-link/list", friendLinkController.GetList)
 
 		// 需要登录的接口
 		authGroup := apiGroup.Group("", auth.RequireAuth())
@@ -78,6 +110,11 @@ func RouterInit(r *gin.Engine) {
 			authGroup.POST("/comment/delete", commentController.DeleteComment)
 			authGroup.POST("/message/create", messageController.Create)
 			authGroup.POST("/message/delete", messageController.Delete)
+			authGroup.GET("/notification/list", notificationController.GetList)
+			authGroup.GET("/notification/unread-count", notificationController.GetUnreadCount)
+			authGroup.POST("/notification/read", notificationController.MarkAsRead)
+			authGroup.POST("/notification/read-all", notificationController.MarkAllAsRead)
+			authGroup.POST("/notification/delete", notificationController.Delete)
 			authGroup.POST("/logout", userController.Logout)
 		}
 
@@ -99,6 +136,9 @@ func RouterInit(r *gin.Engine) {
 			adminGroup.POST("/site-config/update", siteConfigController.Upsert)
 			adminGroup.POST("/site-config/delete", siteConfigController.Delete)
 			adminGroup.POST("/author/profile/update", authorProfileController.Update)
+			adminGroup.POST("/friend-link/create", friendLinkController.Create)
+			adminGroup.POST("/friend-link/update", friendLinkController.Update)
+			adminGroup.POST("/friend-link/delete", friendLinkController.Delete)
 		}
 	}
 }

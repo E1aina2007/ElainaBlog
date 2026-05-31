@@ -150,7 +150,7 @@ onMounted(fetchComments)
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .search-box {
@@ -158,14 +158,14 @@ onMounted(fetchComments)
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
   min-width: 300px;
 }
 
 .search-box svg {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .search-box input {
@@ -173,13 +173,13 @@ onMounted(fetchComments)
   border: none;
   outline: none;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .table-container {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -196,19 +196,19 @@ onMounted(fetchComments)
 }
 
 .data-table th {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--input-border);
 }
 
 .data-table td {
-  color: #6b7280;
-  border-bottom: 1px solid #f3f4f6;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
 }
 
 .data-table tr:hover td {
-  background: #f9fafb;
+  background: var(--toolbar-bg);
 }
 
 .content-cell {
@@ -217,11 +217,11 @@ onMounted(fetchComments)
 
 .comment-content {
   line-height: 1.5;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .article-link {
-  color: #6366f1;
+  color: var(--color-indigo);
   cursor: pointer;
   text-decoration: none;
 }
@@ -243,20 +243,20 @@ onMounted(fetchComments)
   height: 32px;
   border: none;
   border-radius: 6px;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--border);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .action-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--input-border);
+  color: var(--text-primary);
 }
 
 .action-btn.delete:hover {
-  background: #ef444415;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
 }
 
 .empty-cell {
@@ -268,7 +268,7 @@ onMounted(fetchComments)
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .empty-state p {

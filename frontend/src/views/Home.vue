@@ -15,7 +15,8 @@ const articles = ref<Article[]>([])
 const categories = ref<Category[]>([])
 const totalArticles = ref(0)
 const totalViews = ref(0)
-const currentCategory = ref('全部')
+const currentCategoryId = ref<number | null>(null)
+const allArticlesTotal = ref(0)
 const currentPage = ref(1)
 const pageSize = 12
 const isLoading = ref(false)
@@ -34,11 +35,6 @@ onMounted(() => {
   }
 })
 
-const filteredArticles = computed(() => {
-  if (currentCategory.value === '全部') return articles.value
-  return articles.value.filter(a => a.category_name === currentCategory.value)
-})
-
 // 拉取分类列表
 const fetchCategories = async () => {
   try {
@@ -52,7 +48,11 @@ const fetchCategories = async () => {
 const fetchArticles = async (page: number, append = false) => {
   isLoading.value = true
   try {
-    const res = await getArticleList({ page, pageSize })
+    const params: { page: number; pageSize: number; categoryId?: number } = { page, pageSize }
+    if (currentCategoryId.value !== null) {
+      params.categoryId = currentCategoryId.value
+    }
+    const res = await getArticleList(params)
     const list = res.list || []
     if (append) {
       articles.value = [...articles.value, ...list]
@@ -60,6 +60,9 @@ const fetchArticles = async (page: number, append = false) => {
       articles.value = list
     }
     totalArticles.value = res.total ?? articles.value.length
+    if (currentCategoryId.value === null) {
+      allArticlesTotal.value = totalArticles.value
+    }
     totalViews.value = articles.value.reduce((sum, a) => sum + (a.view_count || 0), 0)
     hasMore.value = list.length >= pageSize
   } catch (e) {
@@ -77,8 +80,11 @@ const fetchArticles = async (page: number, append = false) => {
 }
 
 // 切换分类时重新加载
-const switchCategory = (name: string) => {
-  currentCategory.value = name
+const switchCategory = (categoryId: number | null) => {
+  currentCategoryId.value = categoryId
+  currentPage.value = 1
+  hasMore.value = true
+  fetchArticles(1)
 }
 
 // 无限滚动加载更多
@@ -159,7 +165,7 @@ onUnmounted(() => {
         </p>
         <div class="hero-stats">
           <div class="stat-item">
-            <span class="stat-number">{{ totalArticles }}</span>
+            <span class="stat-number">{{ allArticlesTotal }}</span>
             <span class="stat-label">篇文章</span>
           </div>
           <div class="stat-divider"></div>
@@ -194,21 +200,21 @@ onUnmounted(() => {
             <div class="category-list">
               <button
                 class="category-card"
-                :class="{ active: currentCategory === '全部' }"
-                @click="switchCategory('全部')"
+                :class="{ active: currentCategoryId === null }"
+                @click="switchCategory(null)"
               >
                 <span class="category-name">全部</span>
-                <span class="category-count">{{ totalArticles }}篇</span>
+                <span class="category-count">{{ allArticlesTotal }}篇</span>
               </button>
               <button
                 v-for="cat in categories"
                 :key="cat.id"
                 class="category-card"
-                :class="{ active: currentCategory === cat.name }"
-                @click="switchCategory(cat.name)"
+                :class="{ active: currentCategoryId === cat.id }"
+                @click="switchCategory(cat.id)"
               >
                 <span class="category-name">{{ cat.name }}</span>
-                <span class="category-count">{{ articles.filter(a => a.category_name === cat.name).length }}篇</span>
+                <span class="category-count">{{ cat.article_count }}篇</span>
               </button>
             </div>
           </div>
@@ -217,9 +223,9 @@ onUnmounted(() => {
         <!-- 右侧：文章列表 -->
         <div class="articles-main">
           <div class="section-header">
-            <h2 class="section-title">{{ currentCategory === '全部' ? '全部文章' : currentCategory + '文章' }}</h2>
+            <h2 class="section-title">{{ currentCategoryId === null ? '全部文章' : (categories.find(c => c.id === currentCategoryId)?.name ?? '') + '文章' }}</h2>
             <div class="header-actions">
-              <span class="article-count">共 {{ filteredArticles.length }} 篇</span>
+              <span class="article-count">共 {{ totalArticles }} 篇</span>
               <button class="btn-write" title="写新文章" @click="goToWrite">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"/>
@@ -239,7 +245,7 @@ onUnmounted(() => {
           <!-- 文章列表 -->
           <div v-else class="articles-list">
             <ArticleCard
-              v-for="(article, index) in filteredArticles"
+              v-for="(article, index) in articles"
               :key="article.id"
               :article="article"
               :index="index"
@@ -247,9 +253,9 @@ onUnmounted(() => {
           </div>
 
           <!-- 空状态 -->
-          <div v-if="!isInitialLoading && filteredArticles.length === 0" class="empty-state">
+          <div v-if="!isInitialLoading && articles.length === 0" class="empty-state">
             <p class="empty-text">这个分类下还没有文章哦</p>
-            <button class="btn-primary" @click="switchCategory('全部')">
+            <button class="btn-primary" @click="switchCategory(null)">
               查看全部文章
             </button>
           </div>
@@ -261,7 +267,7 @@ onUnmounted(() => {
           </div>
 
           <!-- 已加载全部 -->
-          <div v-else-if="!hasMore && filteredArticles.length > 0" class="all-loaded">
+          <div v-else-if="!hasMore && articles.length > 0" class="all-loaded">
             <span>已加载全部文章</span>
           </div>
         </div>
@@ -415,7 +421,7 @@ onUnmounted(() => {
   font-size: 1.125rem;
   font-family: 'Microsoft YaHei', sans-serif;
   font-weight: 500;
-  color: #666;
+  color: var(--text-muted);
   margin-bottom: 32px;
   line-height: 1.8;
 }

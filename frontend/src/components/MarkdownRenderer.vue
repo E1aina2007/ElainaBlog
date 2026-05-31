@@ -47,6 +47,17 @@ const md = new MarkdownIt({
   },
 })
 
+// 图片懒加载：为所有 <img> 添加 loading="lazy" decoding="async"
+const defaultImageRenderer = md.renderer.rules.image!
+md.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx]
+  if (token) {
+    token.attrSet('loading', 'lazy')
+    token.attrSet('decoding', 'async')
+  }
+  return defaultImageRenderer(tokens, idx, options, env, self)
+}
+
 // 提取 TOC
 function extractToc(content: string): TocItem[] {
   const lines = content.split('\n')
@@ -57,7 +68,7 @@ function extractToc(content: string): TocItem[] {
     const match = line.match(/^(#{1,6})\s+(.+)$/)
     if (!match || !match[1] || !match[2]) continue
     const level = match[1].length
-    const text = match[2].replace(/[*_`~\[\]()]/g, '').trim()
+    const text = match[2].replace(/[*_`~[\]()]/g, '').trim()
     let id = slugify(text)
     if (!id) continue
     if (slugCount[id] !== undefined) {

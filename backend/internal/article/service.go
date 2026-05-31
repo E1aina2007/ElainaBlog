@@ -11,7 +11,7 @@ type CommentDeleter interface {
 }
 
 type Service struct {
-	repo           *Repository
+	repo           Repository
 	commentDeleter CommentDeleter
 }
 
@@ -61,7 +61,7 @@ var (
 	ErrNoPermission     = errors.New("没有权限操作此文章")
 )
 
-func NewService(repo *Repository, commentDeleter CommentDeleter) *Service {
+func NewService(repo Repository, commentDeleter CommentDeleter) *Service {
 	return &Service{repo: repo, commentDeleter: commentDeleter}
 }
 
@@ -105,7 +105,7 @@ func (s *Service) GetArticleByID(id int64) (*ArticleVO, error) {
 	return vo, nil
 }
 
-// IncrementViewCount 增加文章浏览量
+// IncrementViewCount 增加文章浏览量（Redis 缓冲，定时同步到 MySQL）
 func (s *Service) IncrementViewCount(id int64) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
@@ -113,6 +113,8 @@ func (s *Service) IncrementViewCount(id int64) error {
 	if id <= 0 {
 		return ErrInvalidParams
 	}
+
+	// 直接调用仓储层方法（内部处理 Redis 缓冲和 MySQL fallback）
 	return s.repo.IncrementViewCount(id)
 }
 

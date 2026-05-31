@@ -60,14 +60,14 @@ const fetchSystemStatus = async () => {
 }
 
 const cards = [
-  { key: 'article_count', title: '文章总数', icon: 'article', color: '#6366f1' },
-  { key: 'pending_comments', title: '待审评论', icon: 'comment', color: '#f59e0b' },
-  { key: 'today_pv', title: '今日访问量(PV)', icon: 'eye', color: '#10b981' },
-  { key: 'today_uv', title: '今日访客(UV)', icon: 'user', color: '#ec4899' },
-  { key: 'yesterday_pv', title: '昨日访问量(PV)', icon: 'eye', color: '#8b5cf6' },
-  { key: 'yesterday_uv', title: '昨日访客(UV)', icon: 'user', color: '#06b6d4' },
-  { key: 'user_count', title: '注册用户', icon: 'users', color: '#14b8a6' },
-  { key: 'comment_count', title: '评论总数', icon: 'message', color: '#f97316' },
+  { key: 'article_count', title: '文章总数', icon: 'article', color: 'var(--color-indigo)' },
+  { key: 'pending_comments', title: '待审评论', icon: 'comment', color: 'var(--color-warning)' },
+  { key: 'today_pv', title: '今日访问量(PV)', icon: 'eye', color: 'var(--color-success)' },
+  { key: 'today_uv', title: '今日访客(UV)', icon: 'user', color: 'var(--color-pink)' },
+  { key: 'yesterday_pv', title: '昨日访问量(PV)', icon: 'eye', color: 'var(--color-purple)' },
+  { key: 'yesterday_uv', title: '昨日访客(UV)', icon: 'user', color: 'var(--color-cyan)' },
+  { key: 'user_count', title: '注册用户', icon: 'users', color: 'var(--color-teal)' },
+  { key: 'comment_count', title: '评论总数', icon: 'message', color: 'var(--color-orange)' },
 ]
 
 onMounted(() => {
@@ -97,7 +97,7 @@ onMounted(() => {
         class="stat-card"
         :style="{ borderLeftColor: card.color }"
       >
-        <div class="card-icon" :style="{ background: card.color + '15', color: card.color }">
+        <div class="card-icon" :style="{ background: `color-mix(in srgb, ${card.color} 10%, transparent)`, color: card.color }">
           <svg v-if="card.icon === 'article'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -216,7 +216,7 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .refresh-btn {
@@ -224,18 +224,18 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--input-border);
   border-radius: 8px;
-  color: #6b7280;
+  color: var(--text-secondary);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
 }
 
 .refresh-btn:hover {
-  background: #f9fafb;
-  color: #374151;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .refresh-btn:disabled {
@@ -246,8 +246,8 @@ onMounted(() => {
 .loading-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #e5e7eb;
-  border-top-color: #6366f1;
+  border: 2px solid var(--input-border);
+  border-top-color: var(--color-indigo);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -268,16 +268,16 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   padding: 20px;
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
   border-left: 4px solid;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-hover);
 }
 
 .card-icon {
@@ -295,14 +295,14 @@ onMounted(() => {
 
 .card-title {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
 .card-value {
   font-size: 28px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .dashboard-sections {
@@ -312,16 +312,16 @@ onMounted(() => {
 }
 
 .section-card {
-  background: #fff;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-card);
 }
 
 .section-card h3 {
   margin: 0 0 20px 0;
   font-size: 18px;
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 .quick-actions {
@@ -344,23 +344,23 @@ onMounted(() => {
 }
 
 .action-btn.primary {
-  background: #6366f115;
-  color: #6366f1;
+  background: color-mix(in srgb, var(--color-indigo) 10%, transparent);
+  color: var(--color-indigo);
 }
 
 .action-btn.warning {
-  background: #f59e0b15;
-  color: #f59e0b;
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
 }
 
 .action-btn.danger {
-  background: #ef444415;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
 }
 
 .action-btn.success {
-  background: #10b98115;
-  color: #10b981;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  color: var(--color-success);
 }
 
 .action-btn:hover {
@@ -379,7 +379,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border);
 }
 
 .status-item:last-child {
@@ -388,7 +388,7 @@ onMounted(() => {
 
 .status-label {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .status-badge {
@@ -399,17 +399,17 @@ onMounted(() => {
 }
 
 .status-badge.success {
-  background: #10b98115;
-  color: #10b981;
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  color: var(--color-success);
 }
 
 .status-badge.error {
-  background: #ef444415;
-  color: #ef4444;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger);
 }
 
 .status-value.warn {
-  color: #ef4444;
+  color: var(--color-danger);
   font-weight: 600;
 }
 
@@ -418,18 +418,18 @@ onMounted(() => {
   border: none;
   font-size: 16px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-secondary);
   padding: 0 4px;
   vertical-align: middle;
 }
 
 .refresh-status-btn:hover {
-  color: #374151;
+  color: var(--text-primary);
 }
 
 .status-value {
   font-size: 14px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 @media (max-width: 768px) {

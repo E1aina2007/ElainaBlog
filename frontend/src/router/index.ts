@@ -50,6 +50,12 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/ForgotPassword.vue'),
+      meta: { guestOnly: true },
+    },
+    {
       path: '/register',
       name: 'register',
       component: () => import('../views/Register.vue'),
@@ -125,7 +131,17 @@ const router = createRouter({
           name: 'admin-author-profile',
           component: () => import('../views/admin/AuthorProfile.vue'),
         },
+        {
+          path: 'friend-links',
+          name: 'admin-friend-links',
+          component: () => import('../views/admin/FriendLinkList.vue'),
+        },
       ],
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFound.vue'),
     },
   ],
   scrollBehavior() {

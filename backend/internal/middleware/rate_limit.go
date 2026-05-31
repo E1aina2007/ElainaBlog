@@ -1,4 +1,4 @@
-// rate_limit.go 基于 Redis 的滑动窗口速率限制中间件
+// rate_limit.go 基于 Redis 的固定窗口速率限制中间件
 package middleware
 
 import (
@@ -13,11 +13,13 @@ import (
 )
 
 // RateLimitMiddleware 基于 Redis 的速率限制中间件。
-type RateLimitMiddleware struct{}
+type RateLimitMiddleware struct {
+	rdb rdb.RedisClient
+}
 
 // NewRateLimitMiddleware 创建速率限制中间件实例。
-func NewRateLimitMiddleware() *RateLimitMiddleware {
-	return &RateLimitMiddleware{}
+func NewRateLimitMiddleware(redis rdb.RedisClient) *RateLimitMiddleware {
+	return &RateLimitMiddleware{rdb: redis}
 }
 
 // Limit 返回一个 Gin 中间件，基于客户端 IP 进行速率限制。
@@ -30,7 +32,7 @@ func (m *RateLimitMiddleware) Limit(keyPrefix string, maxRequests int, window ti
 		key := fmt.Sprintf("rate_limit:%s:%s", keyPrefix, clientIP)
 
 		ctx := context.Background()
-		count, err := rdb.RedisClient.Incr(ctx, key).Result()
+		count, err := m.rdb.Incr(ctx, key).Result()
 		if err != nil {
 			// Redis 故障时放行，不影响正常请求
 			c.Next()
@@ -39,7 +41,7 @@ func (m *RateLimitMiddleware) Limit(keyPrefix string, maxRequests int, window ti
 
 		// 首次请求时设置过期时间
 		if count == 1 {
-			rdb.RedisClient.Expire(ctx, key, window)
+			m.rdb.Expire(ctx, key, window)
 		}
 
 		if count > int64(maxRequests) {

@@ -3,8 +3,11 @@ package main
 import (
 	"ElainaBlog/config"
 	"ElainaBlog/config/db"
+	"ElainaBlog/internal/article"
+	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/router"
 	"ElainaBlog/internal/user"
+	"ElainaBlog/pkg/rdb"
 	"ElainaBlog/pkg/zaplogger"
 	"context"
 	"log"
@@ -41,7 +44,7 @@ func initSystem() {
 		adminEmail = "admin@admin.com"
 	}
 
-	userService := user.NewService(user.NewRepository(db.DBPool))
+	userService := user.NewService(user.NewRepository(db.DBPool), rdb.DefaultClient, common.JwtAuth)
 	adminUserID, err := userService.CreateUser(user.CreateUserParams{
 		Username: adminUsername,
 		Password: adminPassword,
@@ -95,6 +98,21 @@ func runServer() error {
 
 	// 注册路由
 	router.RouterInit(r)
+
+	// 启动浏览量定时同步（每 5 分钟将 Redis 缓冲写入 MySQL）
+	articleRepo := article.NewRepository(db.DBPool, rdb.DefaultClient)
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			flushed, err := articleRepo.FlushViewCounts()
+			if err != nil {
+				zaplogger.Logger.Error("浏览量同步失败", zap.Error(err))
+			} else if flushed > 0 {
+				zaplogger.Logger.Info("浏览量同步完成", zap.Int("articles", flushed))
+			}
+		}
+	}()
 
 	// 初始化服务器
 	address := config.GlobalConfig.Server.GetAddress()

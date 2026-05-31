@@ -1,7 +1,7 @@
 package user
 
 import (
-	"database/sql"
+	"ElainaBlog/config/db"
 	"time"
 )
 
@@ -37,15 +37,17 @@ func (u *User) ToVO() *UserVO {
 	}
 }
 
-type Repository struct {
-	db *sql.DB
+// MySQLRepository 实现 user.Repository 接口，使用 MySQL 存储。
+type MySQLRepository struct {
+	db db.DBTX
 }
 
-func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+// NewRepository 创建用户仓储实例。
+func NewRepository(db db.DBTX) *MySQLRepository {
+	return &MySQLRepository{db: db}
 }
 
-func (r *Repository) GetUserByUsername(username string) (*User, error) {
+func (r *MySQLRepository) GetUserByUsername(username string) (*User, error) {
 	row := r.db.QueryRow("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE username = ? AND is_deleted = 0", username)
 
 	var user User
@@ -56,7 +58,7 @@ func (r *Repository) GetUserByUsername(username string) (*User, error) {
 	return &user, nil
 }
 
-func (r *Repository) GetUserByEmail(email string) (*User, error) {
+func (r *MySQLRepository) GetUserByEmail(email string) (*User, error) {
 	row := r.db.QueryRow("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE email = ? AND is_deleted = 0", email)
 
 	var user User
@@ -67,7 +69,7 @@ func (r *Repository) GetUserByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
-func (r *Repository) GetUserByID(id int64) (*User, error) {
+func (r *MySQLRepository) GetUserByID(id int64) (*User, error) {
 	row := r.db.QueryRow("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE id = ? AND is_deleted = 0", id)
 
 	var user User
@@ -78,7 +80,7 @@ func (r *Repository) GetUserByID(id int64) (*User, error) {
 	return &user, nil
 }
 
-func (r *Repository) GetUserList() ([]*User, error) {
+func (r *MySQLRepository) GetUserList() ([]*User, error) {
 	rows, err := r.db.Query("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE is_deleted = 0")
 	if err != nil {
 		return nil, err
@@ -100,7 +102,7 @@ func (r *Repository) GetUserList() ([]*User, error) {
 	return users, nil
 }
 
-func (r *Repository) CreateUser(user *User) (int64, error) {
+func (r *MySQLRepository) CreateUser(user *User) (int64, error) {
 	result, err := r.db.Exec("INSERT INTO `user` (username, password, email, avatar, is_admin) VALUES (?, ?, ?, ?, ?)", user.Username, user.Password, user.Email, user.Avatar, user.IsAdmin)
 	if err != nil {
 		return 0, err
@@ -108,18 +110,37 @@ func (r *Repository) CreateUser(user *User) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (r *Repository) UpdateProfile(id int64, username, email, avatar string) error {
+func (r *MySQLRepository) UpdateProfile(id int64, username, email, avatar string) error {
 	_, err := r.db.Exec("UPDATE `user` SET username = ?, email = ?, avatar = ? WHERE id = ? AND is_deleted = 0", username, email, avatar, id)
 	return err
 }
 
-func (r *Repository) UpdatePassword(id int64, newPassword string) error {
+func (r *MySQLRepository) UpdatePassword(id int64, newPassword string) error {
 	_, err := r.db.Exec("UPDATE `user` SET password = ? WHERE id = ? AND is_deleted = 0", newPassword, id)
 	return err
 }
 
-func (r *Repository) DeleteUser(id int64) error {
+func (r *MySQLRepository) DeleteUser(id int64) error {
 	_, err := r.db.Exec("UPDATE `user` SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
+}
+
+// GetAdminUserIDs 获取所有管理员用户的 ID 列表
+func (r *MySQLRepository) GetAdminUserIDs() ([]int64, error) {
+	rows, err := r.db.Query("SELECT id FROM `user` WHERE is_admin = 1 AND is_deleted = 0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 

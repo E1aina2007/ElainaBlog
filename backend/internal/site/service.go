@@ -10,11 +10,12 @@ import (
 )
 
 type Service struct {
-	repo *Repository
+	repo Repository
+	rdb  rdb.RedisClient // 可选，用于 IP 封禁等操作
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, redis rdb.RedisClient) *Service {
+	return &Service{repo: repo, rdb: redis}
 }
 
 var (
@@ -71,7 +72,7 @@ func (s *Service) ExportDatabaseBackup() ([]byte, error) {
 
 // GetBannedIPs 获取被封禁的IP列表
 func (s *Service) GetBannedIPs() []string {
-	ips, err := rdb.GetBannedIPs()
+	ips, err := rdb.GetBannedIPs(s.rdb)
 	if err != nil {
 		return []string{}
 	}
@@ -80,6 +81,6 @@ func (s *Service) GetBannedIPs() []string {
 
 // UnbanIP 解封IP
 func (s *Service) UnbanIP(ip string) error {
-	return rdb.UnbanIP(ip)
+	return rdb.UnbanIP(s.rdb, ip)
 }
 

@@ -171,7 +171,7 @@ function handleDelete(id: number) {
   display: inline-flex;
   align-items: center;
   padding: 1px 8px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -201,7 +201,7 @@ function handleDelete(id: number) {
 
 .delete-btn {
   font-size: 0.75rem;
-  color: #e74c3c;
+  color: var(--color-danger);
   background: transparent;
   border: none;
   cursor: pointer;

@@ -4,6 +4,7 @@ import (
 	"ElainaBlog/config"
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
+	"ElainaBlog/pkg/rdb"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,10 +14,11 @@ import (
 
 type Controller struct {
 	service *Service
+	rdb     rdb.RedisClient // 可选，用于 token 黑名单
 }
 
-func NewController(service *Service) *Controller {
-	return &Controller{service: service}
+func NewController(service *Service, redis rdb.RedisClient) *Controller {
+	return &Controller{service: service, rdb: redis}
 }
 
 type LoginRequest struct {
@@ -52,6 +54,12 @@ type RefreshTokenRequest struct {
 
 type SendCodeRequest struct {
 	Email string `json:"email"`
+}
+
+type ResetPasswordRequest struct {
+	Email       string `json:"email"`
+	Code        string `json:"code"`
+	NewPassword string `json:"new_password"`
 }
 
 const (
@@ -353,7 +361,7 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 	if claims.JTI != "" {
 		ttl := time.Until(claims.ExpiresAt.Time)
 		if ttl > 0 {
-			common.BlacklistToken(claims.JTI, ttl)
+			common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 		}
 	}
 
@@ -379,7 +387,7 @@ func (ctl *Controller) Logout(c *gin.Context) {
 		if claims, err := common.JwtAuth.ParseAndVerifyAccessToken(tokenStr); err == nil && claims.JTI != "" {
 			ttl := time.Until(claims.ExpiresAt.Time)
 			if ttl > 0 {
-				common.BlacklistToken(claims.JTI, ttl)
+				common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 			}
 		}
 	}
@@ -389,7 +397,7 @@ func (ctl *Controller) Logout(c *gin.Context) {
 		if claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(tokenStr); err == nil && claims.JTI != "" {
 			ttl := time.Until(claims.ExpiresAt.Time)
 			if ttl > 0 {
-				common.BlacklistToken(claims.JTI, ttl)
+				common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 			}
 		}
 	}
@@ -413,6 +421,36 @@ func (ctl *Controller) SendCode(c *gin.Context) {
 			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
 		case ErrResendTooFrequent:
 			c.JSON(model.ErrResendTooFrequent.HTTPStatus(), model.ApiErrorResponse(model.ErrResendTooFrequent.Code, model.ErrResendTooFrequent.Message, model.ErrResendTooFrequent))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+}
+
+func (ctl *Controller) ResetPassword(c *gin.Context) {
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	err := ctl.service.ResetPassword(req.Email, req.Code, req.NewPassword)
+	if err != nil {
+		switch err {
+		case ErrEmailFormat, ErrEmailTooLong:
+			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
+		case ErrPasswordLength, ErrPasswordChars, ErrPasswordNeedLetter, ErrPasswordNeedDigit:
+			c.JSON(model.ErrPasswordLength.HTTPStatus(), model.ApiErrorResponse(model.ErrPasswordLength.Code, model.ErrPasswordLength.Message, model.ErrPasswordLength))
+		case ErrCodeExpired:
+			c.JSON(model.ErrCodeExpired.HTTPStatus(), model.ApiErrorResponse(model.ErrCodeExpired.Code, model.ErrCodeExpired.Message, model.ErrCodeExpired))
+		case ErrCodeMismatch:
+			c.JSON(model.ErrCodeMismatch.HTTPStatus(), model.ApiErrorResponse(model.ErrCodeMismatch.Code, model.ErrCodeMismatch.Message, model.ErrCodeMismatch))
+		case ErrUserNotFound:
+			c.JSON(model.ErrUserNotFound.HTTPStatus(), model.ApiErrorResponse(model.ErrUserNotFound.Code, model.ErrUserNotFound.Message, model.ErrUserNotFound))
 		default:
 			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		}
