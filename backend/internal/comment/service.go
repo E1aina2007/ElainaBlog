@@ -3,15 +3,28 @@ package comment
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 )
 
-type Service struct {
-	repo Repository
+// ArticleInfoProvider 获取文章信息的接口，避免直接依赖 article 模块
+type ArticleInfoProvider interface {
+	GetArticleAuthorInfo(id int64) (articleUserID int64, title string, err error)
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+// NotificationCreator 创建通知的接口
+type NotificationCreator interface {
+	CreateNotification(userID int64, nType, title, content string, targetID int64) error
+}
+
+type Service struct {
+	repo           Repository
+	articleInfo    ArticleInfoProvider
+	notifCreator   NotificationCreator
+}
+
+func NewService(repo Repository, articleInfo ArticleInfoProvider, notifCreator NotificationCreator) *Service {
+	return &Service{repo: repo, articleInfo: articleInfo, notifCreator: notifCreator}
 }
 
 type CreateCommentParams struct {
@@ -82,11 +95,19 @@ func (s *Service) CreateComment(params *CreateCommentParams) (int64, error) {
 		return 0, ErrInvalidParams
 	}
 
-	return s.repo.CreateComment(&Comment{
+	commentID, err := s.repo.CreateComment(&Comment{
 		ArticleID: params.ArticleID,
 		UserID:    params.UserID,
 		Content:   content,
 	})
+	if err != nil {
+		return 0, err
+	}
+
+	// 异步通知文章作者（非阻塞）
+	go s.notifyArticleAuthor(params.ArticleID, params.UserID, content)
+
+	return commentID, nil
 }
 
 func (s *Service) DeleteComment(params *DeleteCommentParams) error {
@@ -107,4 +128,34 @@ func (s *Service) DeleteComment(params *DeleteCommentParams) error {
 	}
 
 	return s.repo.DeleteComment(params.ID)
+}
+
+// notifyArticleAuthor 通知文章作者有新评论
+func (s *Service) notifyArticleAuthor(articleID, commentUserID int64, commentContent string) {
+	if s.notifCreator == nil || s.articleInfo == nil {
+		return
+	}
+
+	articleUserID, title, err := s.articleInfo.GetArticleAuthorInfo(articleID)
+	if err != nil {
+		return
+	}
+
+	// 不通知自己
+	if articleUserID == commentUserID {
+		return
+	}
+
+	summary := commentContent
+	if len([]rune(summary)) > 50 {
+		summary = string([]rune(summary)[:50]) + "..."
+	}
+
+	s.notifCreator.CreateNotification(
+		articleUserID,
+		"comment",
+		fmt.Sprintf("你的文章《%s》有新评论", title),
+		summary,
+		articleID,
+	)
 }

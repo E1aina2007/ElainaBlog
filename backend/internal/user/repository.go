@@ -125,3 +125,22 @@ func (r *MySQLRepository) DeleteUser(id int64) error {
 	return err
 }
 
+// GetAdminUserIDs 获取所有管理员用户的 ID 列表
+func (r *MySQLRepository) GetAdminUserIDs() ([]int64, error) {
+	rows, err := r.db.Query("SELECT id FROM `user` WHERE is_admin = 1 AND is_deleted = 0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+

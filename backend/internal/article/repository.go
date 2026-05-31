@@ -232,3 +232,9 @@ func (r *MySQLRepository) DeleteArticle(id int64) error {
 	_, err := r.db.Exec("UPDATE article SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
 }
+
+// GetArticleAuthorInfo 获取文章作者 ID 和标题（供通知使用）
+func (r *MySQLRepository) GetArticleAuthorInfo(id int64) (userID int64, title string, err error) {
+	err = r.db.QueryRow("SELECT user_id, title FROM article WHERE id = ? AND is_deleted = 0", id).Scan(&userID, &title)
+	return
+}
