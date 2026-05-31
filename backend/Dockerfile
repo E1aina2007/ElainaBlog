@@ -5,7 +5,7 @@ WORKDIR /app
 
 # 先复制依赖文件，利用 Docker 缓存
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go env -w GOPROXY=https://goproxy.cn,direct && go mod download
 
 # 复制源码并构建
 COPY . .
