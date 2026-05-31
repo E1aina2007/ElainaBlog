@@ -3,6 +3,7 @@ package db
 
 import (
 	"ElainaBlog/config"
+	"ElainaBlog/pkg/zaplogger"
 	"database/sql"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
+	"go.uber.org/zap"
 )
 
 var DBPool *sql.DB // DBPool 全局数据库连接池
@@ -77,16 +79,24 @@ func Migrate() error {
 	}
 
 	// 执行未完成的迁移
+	var applied int
 	for _, file := range upFiles {
 		version := extractVersion(file)
 		if _, executed := executedVersions[version]; executed {
 			continue
 		}
 
-		fmt.Printf("执行迁移: %s\n", file)
 		if err := executeMigrationFile(filepath.Join(migrationDir, file), version); err != nil {
 			return fmt.Errorf("执行迁移 %s 失败: %w", file, err)
 		}
+		zaplogger.Logger.Info("数据库迁移成功", zap.String("version", version))
+		applied++
+	}
+
+	if applied == 0 {
+		zaplogger.Logger.Info("数据库已是最新，无需迁移")
+	} else {
+		zaplogger.Logger.Info("数据库迁移全部完成", zap.Int("applied", applied))
 	}
 
 	return nil
@@ -116,14 +126,14 @@ func DownMigrate() error {
 	}
 
 	// 执行回滚
+	var rolledBack int
 	for _, version := range executedVersions {
 		downFile := filepath.Join(migrationDir, version+".down.sql")
 		if _, err := os.Stat(downFile); os.IsNotExist(err) {
-			fmt.Printf("跳过回滚 %s: 下迁文件不存在\n", version)
+			zaplogger.Logger.Warn("跳过回滚: 下迁文件不存在", zap.String("version", version))
 			continue
 		}
 
-		fmt.Printf("执行回滚: %s\n", version)
 		if err := executeMigrationFile(downFile, version); err != nil {
 			return fmt.Errorf("回滚 %s 失败: %w", version, err)
 		}
@@ -132,6 +142,15 @@ func DownMigrate() error {
 		if err := deleteMigrationRecord(version); err != nil {
 			return fmt.Errorf("删除迁移记录失败: %w", err)
 		}
+
+		zaplogger.Logger.Info("回滚成功", zap.String("version", version))
+		rolledBack++
+	}
+
+	if rolledBack == 0 {
+		zaplogger.Logger.Info("没有可回滚的迁移")
+	} else {
+		zaplogger.Logger.Info("数据库回滚全部完成", zap.Int("rolled_back", rolledBack))
 	}
 
 	return nil
