@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.md
+.env*
+.vscode
+.idea
+cmd/tmp
+uploads
+log
