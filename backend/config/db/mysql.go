@@ -15,7 +15,8 @@ import (
 
 var DBPool *sql.DB // DBPool 全局数据库连接池
 
-func InitDB(dbConfig *config.DbConfig) error {
+// ConnectDB 连接数据库并初始化连接池，不执行迁移
+func ConnectDB(dbConfig *config.DbConfig) error {
 	dsn := dbConfig.GetDSN()
 	db, err := sql.Open(dbConfig.SqlName, dsn)
 	if err != nil {
@@ -30,8 +31,15 @@ func InitDB(dbConfig *config.DbConfig) error {
 	db.SetMaxOpenConns(dbConfig.MaxOpenConns)
 
 	DBPool = db
+	return nil
+}
 
-	// 自动执行数据库迁移
+// InitDB 连接数据库并自动执行迁移（向后兼容）
+func InitDB(dbConfig *config.DbConfig) error {
+	if err := ConnectDB(dbConfig); err != nil {
+		return err
+	}
+
 	if err := Migrate(); err != nil {
 		return fmt.Errorf("数据库迁移失败: %w", err)
 	}
