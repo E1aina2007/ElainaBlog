@@ -151,6 +151,26 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
+#### 配置 Swap 空间（≤2GB 内存服务器必做）
+
+Docker 构建镜像时内存占用较高，Swap 可作为安全垫防止 OOM 导致卡死：
+
+```bash
+# 创建 2GB Swap 文件
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# 持久化（重启后自动挂载）
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+# 验证
+free -h
+```
+
+> Swap 仅作为构建时的安全垫，运行时不会被使用（Docker 容器默认不使用 Swap）。
+
 ### 1. 克隆项目
 
 ```bash
