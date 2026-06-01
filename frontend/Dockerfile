@@ -3,13 +3,18 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# 限制 Node.js 堆内存，防止 OOM
+ENV NODE_OPTIONS=--max-old-space-size=512
+
 # 先复制依赖文件，利用 Docker 缓存
 COPY package.json package-lock.json ./
 RUN npm config set registry https://registry.npmmirror.com && npm ci
 
 # 复制源码并构建
+# 不使用 npm run build（会并行执行 type-check 和 build，内存翻倍）
+# 改为串行执行，降低峰值内存占用
 COPY . .
-RUN npm run build
+RUN npx vue-tsc --build && npx vite build
 
 # 运行阶段
 FROM nginx:stable-alpine
