@@ -42,7 +42,13 @@ server:
   host: 0.0.0.0       # 开发环境可改为 127.0.0.1
   port: 9178
   env: debug           # 生产环境改为 production
-  cors_origins:        # 允许的跨域来源，生产环境改为实际域名
+  # 允许的跨域来源
+  # 生产环境改为实际域名，例如：
+  #   cors_origins:
+  #     - "https://example.com"
+  #     - "https://www.example.com"
+  # 需包含前端页面的所有访问入口（含 www 和非 www），否则浏览器会拦截跨域请求
+  cors_origins:
     - "http://localhost:5173"
 
 upload:

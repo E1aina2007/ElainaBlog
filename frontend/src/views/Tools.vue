@@ -44,7 +44,7 @@ function generateRandom() {
     const nums = Array.from({ length: range }, (_, i) => min + i)
     for (let i = nums.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [nums[i], nums[j]] = [nums[j], nums[i]]
+      [nums[i], nums[j]] = [nums[j] as number, nums[i] as number]
     }
     randResults.value = nums.slice(0, count)
   }

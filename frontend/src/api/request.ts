@@ -141,7 +141,7 @@ request.interceptors.response.use(
             if (refreshPromise) {
                 return new Promise<void>((resolve, reject) => {
                     pendingRequests.push(() => {
-                        request(originalRequest).then(resolve).catch(reject)
+                        request(originalRequest).then(() => resolve()).catch(reject)
                     })
                 })
             }
