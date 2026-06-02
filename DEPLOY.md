@@ -225,6 +225,7 @@ auth:
 db:
   host: mysql                            # Docker 服务名
   password: "替换为数据库密码"              # 必须与 .env 中 MYSQL_ROOT_PASSWORD 一致
+  config: charset=utf8mb4&parseTime=True  # 不要添加 loc=Local，时区已由代码自动设置为 Asia/Shanghai
 
 smtp:
   from: "your_email@qq.com"
@@ -535,12 +536,17 @@ git pull
 ```
 
 ```bash
+# 停止所有服务（保留数据卷）
+docker compose down
+```
+
+```bash
 # 重新构建所有镜像（顺序构建，防止内存不足）
 docker compose build --parallel=false
 ```
 
 ```bash
-# 重启所有服务
+# 启动所有服务
 docker compose up -d
 ```
 
@@ -557,6 +563,7 @@ docker compose logs backend
 #### 仅更新前端
 
 ```bash
+docker compose down frontend
 docker compose build frontend
 docker compose up -d frontend
 ```
@@ -564,6 +571,7 @@ docker compose up -d frontend
 #### 仅更新后端
 
 ```bash
+docker compose down backend
 docker compose build backend
 docker compose up -d backend
 docker compose logs backend

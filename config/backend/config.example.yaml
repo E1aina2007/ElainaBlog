@@ -12,7 +12,7 @@ db:
   sqlname: mysql
   host: 127.0.0.1     # 生产环境改为 mysql（Docker 服务名）
   port: 3306
-  config: charset=utf8mb4&parseTime=True&loc=Local
+  config: charset=utf8mb4&parseTime=True
   db_name: ElainaBlog
   username: root
   password: your-mysql-password  # 生产环境需与 docker-compose 中 MYSQL_ROOT_PASSWORD 一致
