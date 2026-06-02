@@ -28,8 +28,14 @@ type DbConfig struct {
 //
 // 生成的 DSN 格式形如：
 //
-//	username:password@tcp(host:port)/dbname?parseTime=true&loc=Local&collation=utf8mb4_general_ci
+//	username:password@tcp(host:port)/dbname?parseTime=true&loc=Asia%2FShanghai&collation=utf8mb4_general_ci
 func (m DbConfig) GetDSN() string {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		// 如果加载失败，回退到 UTC
+		loc = time.UTC
+	}
+
 	cfg := mysql.Config{
 		User:                 m.Username,                                     // 数据库登录用户名
 		Passwd:               m.Password,                                     // 数据库登录密码
@@ -37,7 +43,7 @@ func (m DbConfig) GetDSN() string {
 		Addr:                 net.JoinHostPort(m.Host, strconv.Itoa(m.Port)), // 拼接为 "host:port" 格式的地址
 		DBName:               m.DBName,                                       // 要连接的目标数据库名
 		ParseTime:            true,                                           // 将 MySQL 的 DATE/DATETIME 自动解析为 Go 的 time.Time
-		Loc:                  time.Local,                                     // 时区设置为系统本地时区
+		Loc:                  loc,                                            // 时区设置为 Asia/Shanghai
 		Collation:            "utf8mb4_0900_ai_ci",                           // 字符排序规则，utf8mb4 支持完整 Unicode（含 emoji）
 		AllowNativePasswords: true,                                           // 允许 MySQL 原生密码认证（mysql_native_password）
 	}
