@@ -38,6 +38,34 @@ func (ctl *Controller) GetDashboardStats(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(stats))
 }
 
+// RecordVisit 记录页面访问（公开接口）
+func (ctl *Controller) RecordVisit(c *gin.Context) {
+	var req struct {
+		Path string `json:"path"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.Path == "" {
+		c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+		return
+	}
+
+	// 只统计公开页面
+	allowedPrefixes := []string{"/", "/article/", "/author", "/tools"}
+	valid := false
+	for _, prefix := range allowedPrefixes {
+		if req.Path == prefix || (prefix != "/" && len(req.Path) > len(prefix) && req.Path[:len(prefix)] == prefix) {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+		return
+	}
+
+	ctl.service.RecordVisit(c.ClientIP())
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+}
+
 // GetAuthorStats 获取作者页统计数据（公开接口）
 func (ctl *Controller) GetAuthorStats(c *gin.Context) {
 	stats, err := ctl.service.GetAuthorStats()

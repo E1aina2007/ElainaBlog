@@ -93,6 +93,7 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.GET("/author/profile", authorProfileController.Get)
 		apiGroup.GET("/message/list", messageController.GetList)
 		apiGroup.GET("/friend-link/list", friendLinkController.GetList)
+		apiGroup.POST("/visit", siteController.RecordVisit)
 
 		// 需要登录的接口
 		authGroup := apiGroup.Group("", auth.RequireAuth())

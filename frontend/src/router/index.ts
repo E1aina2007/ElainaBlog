@@ -190,4 +190,19 @@ router.beforeEach(async (to, _from, next) => {
   next()
 })
 
+// 公开页面访问统计
+router.afterEach((to) => {
+  // 排除 admin、login、register 等非公开页面
+  if (to.path.startsWith('/admin') || to.path.startsWith('/login') || to.path.startsWith('/register') || to.path.startsWith('/forgot-password') || to.path.startsWith('/profile') || to.path.startsWith('/write')) {
+    return
+  }
+  const base = import.meta.env.VITE_API_BASE_URL || '/api/ui'
+  fetch(`${base}/visit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: to.fullPath }),
+    credentials: 'include',
+  }).catch(() => {})
+})
+
 export default router

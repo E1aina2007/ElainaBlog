@@ -6,7 +6,6 @@ interface DashboardStats {
   article_count: number
   comment_count: number
   user_count: number
-  pending_comments?: number
   today_pv?: number
   today_uv?: number
   yesterday_pv?: number
@@ -17,7 +16,6 @@ const stats = ref<DashboardStats>({
   article_count: 0,
   comment_count: 0,
   user_count: 0,
-  pending_comments: 0,
   today_pv: 0,
   today_uv: 0,
   yesterday_pv: 0,
@@ -61,7 +59,6 @@ const fetchSystemStatus = async () => {
 
 const cards = [
   { key: 'article_count', title: '文章总数', icon: 'article', color: 'var(--color-indigo)' },
-  { key: 'pending_comments', title: '待审评论', icon: 'comment', color: 'var(--color-warning)' },
   { key: 'today_pv', title: '今日访问量(PV)', icon: 'eye', color: 'var(--color-success)' },
   { key: 'today_uv', title: '今日访客(UV)', icon: 'user', color: 'var(--color-pink)' },
   { key: 'yesterday_pv', title: '昨日访问量(PV)', icon: 'eye', color: 'var(--color-purple)' },
@@ -142,12 +139,6 @@ onMounted(() => {
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
             写文章
-          </router-link>
-          <router-link to="/admin/comments" class="action-btn warning">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-            </svg>
-            审核评论
           </router-link>
           <router-link to="/admin/tools" class="action-btn danger">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

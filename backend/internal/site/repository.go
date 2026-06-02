@@ -21,6 +21,10 @@ type DashboardStats struct {
 	ArticleCount int64 `json:"article_count"`
 	CommentCount int64 `json:"comment_count"`
 	UserCount    int64 `json:"user_count"`
+	TodayPV      int64 `json:"today_pv"`
+	TodayUV      int64 `json:"today_uv"`
+	YesterdayPV  int64 `json:"yesterday_pv"`
+	YesterdayUV  int64 `json:"yesterday_uv"`
 }
 
 // GetDashboardStats 获取仪表盘统计数据
