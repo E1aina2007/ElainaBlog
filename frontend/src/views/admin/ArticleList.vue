@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getArticleList, deleteArticle, updateArticle, type Article } from '@/api/article'
+import { getAdminArticleList, getArticleDetail, deleteArticle, updateArticle, type Article } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
 import toast from '@/utils/toast'
 
@@ -19,7 +19,7 @@ const total = ref(0)
 const fetchArticles = async () => {
   loading.value = true
   try {
-    const result = await getArticleList({
+    const result = await getAdminArticleList({
       page: currentPage.value,
       pageSize: pageSize.value,
       categoryId: selectedCategory.value || undefined,
@@ -74,8 +74,10 @@ const handleDelete = async (article: Article) => {
 
 const handleToggleTop = async (article: Article) => {
   try {
+    // 先获取完整文章数据，避免部分更新丢失字段（如 is_draft）
+    const full = await getArticleDetail(article.id)
     await updateArticle({
-      id: article.id,
+      ...full,
       is_top: !article.is_top,
     })
     article.is_top = !article.is_top

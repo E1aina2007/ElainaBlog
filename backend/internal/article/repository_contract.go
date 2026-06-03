@@ -4,7 +4,10 @@ package article
 // Repository 接口封装文章数据访问操作。
 type Repository interface {
 	GetArticleByID(id int64) (*ArticleVO, error)
+	GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error)
 	GetArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error)
+	GetAdminArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error)
+	GetUserArticleList(userID int64, categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error)
 	IncrementViewCount(id int64) error
 	GetViewCountDelta(id int64) int
 	FlushViewCounts() (int, error)

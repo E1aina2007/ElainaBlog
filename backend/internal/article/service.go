@@ -91,11 +91,75 @@ func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult,
 	}, nil
 }
 
+func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListResult, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrDBNotInitialized
+	}
+
+	page := params.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := params.PageSize
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	articles, total, err := s.repo.GetAdminArticleList(params.CategoryID, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ArticleListResult{
+		List:  articles,
+		Total: total,
+	}, nil
+}
+
+func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*ArticleListResult, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrDBNotInitialized
+	}
+
+	page := params.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := params.PageSize
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	articles, total, err := s.repo.GetUserArticleList(userID, params.CategoryID, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ArticleListResult{
+		List:  articles,
+		Total: total,
+	}, nil
+}
+
 func (s *Service) GetArticleByID(id int64) (*ArticleVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
 	vo, err := s.repo.GetArticleByID(id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrArticleNotFound
+		}
+		return nil, err
+	}
+	return vo, nil
+}
+
+func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrDBNotInitialized
+	}
+	vo, err := s.repo.GetArticleByIDIncludeDraft(id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrArticleNotFound
@@ -162,8 +226,8 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 		return ErrInvalidParams
 	}
 
-	// 检查文章是否存在
-	article, err := s.repo.GetArticleByID(params.ID)
+	// 检查文章是否存在（包含草稿）
+	article, err := s.repo.GetArticleByIDIncludeDraft(params.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrArticleNotFound
@@ -191,7 +255,8 @@ func (s *Service) DeleteArticle(params *DeleteArticleParams, userID int64, isAdm
 		return ErrInvalidParams
 	}
 
-	article, err := s.repo.GetArticleByID(params.ID)
+	// 检查文章是否存在（包含草稿）
+	article, err := s.repo.GetArticleByIDIncludeDraft(params.ID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrArticleNotFound

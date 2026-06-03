@@ -116,6 +116,7 @@ func RouterInit(r *gin.Engine) {
 			authGroup.POST("/notification/read", notificationController.MarkAsRead)
 			authGroup.POST("/notification/read-all", notificationController.MarkAllAsRead)
 			authGroup.POST("/notification/delete", notificationController.Delete)
+			authGroup.GET("/article/mine", articleController.GetMyList)
 			authGroup.POST("/logout", userController.Logout)
 		}
 
@@ -123,6 +124,8 @@ func RouterInit(r *gin.Engine) {
 		adminGroup := apiGroup.Group("", auth.RequireAuth(), adminAuth.RequireAdmin())
 		{
 			adminGroup.GET("/dashboard/stats", siteController.GetDashboardStats)
+		adminGroup.GET("/article/admin-list", articleController.GetAdminList)
+		adminGroup.GET("/article/admin/:id", articleController.GetAdminByID)
 			adminGroup.POST("/category/create", categoryController.Create)
 			adminGroup.POST("/category/update", categoryController.Update)
 			adminGroup.POST("/category/delete", categoryController.Delete)
