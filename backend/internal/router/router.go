@@ -117,6 +117,7 @@ func RouterInit(r *gin.Engine) {
 			authGroup.POST("/notification/read-all", notificationController.MarkAllAsRead)
 			authGroup.POST("/notification/delete", notificationController.Delete)
 			authGroup.GET("/article/mine", articleController.GetMyList)
+			authGroup.GET("/article/mine/:id", articleController.GetMyByID)
 			authGroup.POST("/logout", userController.Logout)
 		}
 

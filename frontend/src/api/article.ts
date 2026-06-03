@@ -58,6 +58,11 @@ export function getAdminArticleDetail(id: number): Promise<Article> {
     return request.get(`/article/admin/${id}`)
 }
 
+// 获取自己的文章详情（含草稿，仅限自己的文章）
+export function getMyArticleDetail(id: number): Promise<Article> {
+    return request.get(`/article/mine/${id}`)
+}
+
 // 创建文章（管理员）
 export function createArticle(data: Omit<Article, 'id' | 'created_at' | 'updated_at'>): Promise<{ id: number }> {
     return request.post('/article/create', data)

@@ -281,6 +281,38 @@ func (ctl *Controller) GetAdminByID(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
 }
 
+// GetMyByID 文章详情（当前用户，含草稿，仅限自己的文章）
+func (ctl *Controller) GetMyByID(c *gin.Context) {
+	id, err := parseArticleID(c)
+	if err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	article, err := ctl.service.GetArticleByIDIncludeDraft(id)
+	if err != nil {
+		switch err {
+		case ErrArticleNotFound:
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	// 校验文章归属：只能查看自己的文章
+	userID := c.GetInt64(common.CtxUserIDKey)
+	if article.UserID != userID {
+		appErr := model.ErrForbidden.WithDetail("无权限访问此文章")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
+}
+
 // GetArticleUV 获取文章的独立访客数（管理员）
 func (ctl *Controller) GetArticleUV(c *gin.Context) {
 	id, err := parseArticleID(c)

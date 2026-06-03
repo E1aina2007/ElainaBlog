@@ -41,6 +41,7 @@ const handleSubmit = async (data: ArticleSubmitData) => {
       <ArticleEditor
         ref="editorRef"
         :show-top-option="false"
+        :user-mode="!!route.params.id"
         @submit="handleSubmit"
         @cancel="router.push('/')"
       />
