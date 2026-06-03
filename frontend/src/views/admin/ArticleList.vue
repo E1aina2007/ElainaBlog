@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getArticleList, deleteArticle, updateArticle, type Article } from '@/api/article'
+import { getAdminArticleList, getArticleDetail, deleteArticle, updateArticle, type Article } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
 import toast from '@/utils/toast'
 
@@ -19,7 +19,7 @@ const total = ref(0)
 const fetchArticles = async () => {
   loading.value = true
   try {
-    const result = await getArticleList({
+    const result = await getAdminArticleList({
       page: currentPage.value,
       pageSize: pageSize.value,
       categoryId: selectedCategory.value || undefined,
@@ -74,8 +74,10 @@ const handleDelete = async (article: Article) => {
 
 const handleToggleTop = async (article: Article) => {
   try {
+    // 先获取完整文章数据，避免部分更新丢失字段（如 is_draft）
+    const full = await getArticleDetail(article.id)
     await updateArticle({
-      id: article.id,
+      ...full,
       is_top: !article.is_top,
     })
     article.is_top = !article.is_top
@@ -139,6 +141,7 @@ onMounted(() => {
             <th>分类</th>
             <th>作者</th>
             <th>阅读量</th>
+            <th>UV</th>
             <th>状态</th>
             <th>发布时间</th>
             <th>操作</th>
@@ -156,6 +159,7 @@ onMounted(() => {
             <td>{{ article.category_name || '未分类' }}</td>
             <td>{{ article.author_name }}</td>
             <td>{{ article.view_count || 0 }}</td>
+            <td>{{ article.uv_count || 0 }}</td>
             <td>
               <span :class="['status-badge', article.is_draft ? 'draft' : 'published']">
                 {{ article.is_draft ? '草稿' : '已发布' }}
@@ -183,7 +187,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-if="filteredArticles.length === 0">
-            <td colspan="7" class="empty-cell">
+            <td colspan="8" class="empty-cell">
               <div class="empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

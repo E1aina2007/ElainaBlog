@@ -3,6 +3,7 @@ package article
 import (
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -154,9 +155,8 @@ func (ctl *Controller) DeleteArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
 }
 
-// GetList 文章列表（公开），支持分页和分类筛选
-func (ctl *Controller) GetList(c *gin.Context) {
-	// 解析分页参数
+// parseListParams 解析列表分页和分类筛选参数
+func parseListParams(c *gin.Context) (*ArticleListParams, error) {
 	page := 1
 	pageSize := 10
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
@@ -165,34 +165,76 @@ func (ctl *Controller) GetList(c *gin.Context) {
 	if ps, err := strconv.Atoi(c.Query("pageSize")); err == nil && ps > 0 {
 		pageSize = ps
 	}
-
-	// 解析分类筛选参数
 	var categoryID *int64
 	if catIDStr := c.Query("categoryId"); catIDStr != "" {
 		if catID, err := strconv.ParseInt(catIDStr, 10, 64); err == nil && catID > 0 {
 			categoryID = &catID
 		}
 	}
+	return &ArticleListParams{CategoryID: categoryID, Page: page, PageSize: pageSize}, nil
+}
 
-	result, err := ctl.service.GetArticleList(&ArticleListParams{
-		CategoryID: categoryID,
-		Page:       page,
-		PageSize:   pageSize,
-	})
+// GetList 文章列表（公开），支持分页和分类筛选
+func (ctl *Controller) GetList(c *gin.Context) {
+	params, err := parseListParams(c)
 	if err != nil {
 		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
 		return
 	}
-
+	result, err := ctl.service.GetArticleList(params)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(result))
 }
 
-// GetByID 文章详情（公开）
-func (ctl *Controller) GetByID(c *gin.Context) {
+// GetMyList 当前用户的文章列表（含草稿）
+func (ctl *Controller) GetMyList(c *gin.Context) {
+	params, err := parseListParams(c)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
+	userID := c.GetInt64(common.CtxUserIDKey)
+	result, err := ctl.service.GetUserArticleList(userID, params)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(result))
+}
+
+// GetAdminList 文章列表（管理员），包含草稿
+func (ctl *Controller) GetAdminList(c *gin.Context) {
+	params, err := parseListParams(c)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
+	result, err := ctl.service.GetAdminArticleList(params)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(result))
+}
+
+// parseArticleID 解析文章 ID 参数
+func parseArticleID(c *gin.Context) (int64, error) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil || id <= 0 {
-		appErr := model.ErrInvalidParams.WithDetail("无效的文章 ID")
+		return 0, fmt.Errorf("无效的文章 ID")
+	}
+	return id, nil
+}
+
+// GetByID 文章详情（公开，过滤草稿）
+func (ctl *Controller) GetByID(c *gin.Context) {
+	id, err := parseArticleID(c)
+	if err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
@@ -209,8 +251,82 @@ func (ctl *Controller) GetByID(c *gin.Context) {
 		return
 	}
 
-	// 异步增加浏览量（不阻塞响应）
-	go ctl.service.IncrementViewCount(id)
+	// 异步增加浏览量（IP 去重，不阻塞响应）
+	go ctl.service.IncrementViewCount(id, c.ClientIP())
 
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
+}
+
+// GetAdminByID 文章详情（管理员，包含草稿）
+func (ctl *Controller) GetAdminByID(c *gin.Context) {
+	id, err := parseArticleID(c)
+	if err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	article, err := ctl.service.GetArticleByIDIncludeDraft(id)
+	if err != nil {
+		switch err {
+		case ErrArticleNotFound:
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
+}
+
+// GetMyByID 文章详情（当前用户，含草稿，仅限自己的文章）
+func (ctl *Controller) GetMyByID(c *gin.Context) {
+	id, err := parseArticleID(c)
+	if err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	article, err := ctl.service.GetArticleByIDIncludeDraft(id)
+	if err != nil {
+		switch err {
+		case ErrArticleNotFound:
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	// 校验文章归属：只能查看自己的文章
+	userID := c.GetInt64(common.CtxUserIDKey)
+	if article.UserID != userID {
+		appErr := model.ErrForbidden.WithDetail("无权限访问此文章")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
+}
+
+// GetArticleUV 获取文章的独立访客数（管理员）
+func (ctl *Controller) GetArticleUV(c *gin.Context) {
+	id, err := parseArticleID(c)
+	if err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	uv, err := ctl.service.GetArticleUV(id)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"uv": uv}))
 }

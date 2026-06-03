@@ -4,9 +4,11 @@ import (
 	"ElainaBlog/config"
 	"ElainaBlog/pkg/rdb"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
+	"time"
 )
 
 type Service struct {
@@ -27,7 +29,46 @@ func (s *Service) GetDashboardStats() (*DashboardStats, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	return s.repo.GetDashboardStats()
+	stats, err := s.repo.GetDashboardStats()
+	if err != nil {
+		return nil, err
+	}
+
+	// 从 Redis 读取 PV/UV 统计
+	ctx := context.Background()
+	today := time.Now().Format("2006-01-02")
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+
+	if pv, err := s.rdb.Get(ctx, "pv:"+today).Int64(); err == nil {
+		stats.TodayPV = pv
+	}
+	if pv, err := s.rdb.Get(ctx, "pv:"+yesterday).Int64(); err == nil {
+		stats.YesterdayPV = pv
+	}
+	if uv, err := s.rdb.SCard(ctx, "uv:"+today).Result(); err == nil {
+		stats.TodayUV = uv
+	}
+	if uv, err := s.rdb.SCard(ctx, "uv:"+yesterday).Result(); err == nil {
+		stats.YesterdayUV = uv
+	}
+
+	return stats, nil
+}
+
+// RecordVisit 记录一次页面访问（PV+UV）
+func (s *Service) RecordVisit(clientIP string) {
+	ctx := context.Background()
+	today := time.Now().Format("2006-01-02")
+
+	// PV: 累加计数，TTL 48h
+	pvKey := "pv:" + today
+	s.rdb.Incr(ctx, pvKey)
+	s.rdb.Expire(ctx, pvKey, 48*time.Hour)
+
+	// UV: 记录 IP 到集合，TTL 48h
+	uvKey := "uv:" + today
+	s.rdb.SAdd(ctx, uvKey, clientIP)
+	s.rdb.Expire(ctx, uvKey, 48*time.Hour)
 }
 
 // GetAuthorStats 获取作者页统计数据

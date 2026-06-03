@@ -186,6 +186,15 @@ onUnmounted(() => {
         >
           管理面板
         </router-link>
+        <!-- 我的文章入口 -->
+        <router-link
+          v-if="isLoggedIn"
+          to="/my-articles"
+          class="nav-link"
+          :class="{ active: isActive('/my-articles') }"
+        >
+          我的文章
+        </router-link>
       </div>
 
       <!-- Right Actions -->
@@ -283,6 +292,9 @@ onUnmounted(() => {
               >
                 管理面板
               </router-link>
+              <router-link to="/my-articles" class="dropdown-item" @click="userDropdownOpen = false">
+                我的文章
+              </router-link>
               <router-link to="/profile" class="dropdown-item" @click="userDropdownOpen = false">
                 个人中心
               </router-link>
@@ -329,6 +341,15 @@ onUnmounted(() => {
           @click="mobileMenuOpen = false"
         >
           管理面板
+        </router-link>
+        <router-link
+          v-if="isLoggedIn"
+          to="/my-articles"
+          class="mobile-nav-link"
+          :class="{ active: isActive('/my-articles') }"
+          @click="mobileMenuOpen = false"
+        >
+          我的文章
         </router-link>
         <div class="mobile-nav-link theme-row">
           <span>{{ isDark ? '深色模式' : '浅色模式' }}</span>

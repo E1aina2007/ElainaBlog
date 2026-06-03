@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getArticleDetail } from '@/api/article'
+import { getArticleDetail, getAdminArticleDetail, getMyArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
 import { useTheme } from '@/composables/useTheme'
 import { MdEditor } from 'md-editor-v3'
@@ -19,8 +19,12 @@ export interface ArticleSubmitData {
 
 const props = withDefaults(defineProps<{
   showTopOption?: boolean
+  adminMode?: boolean
+  userMode?: boolean
 }>(), {
   showTopOption: false,
+  adminMode: false,
+  userMode: false,
 })
 
 const emit = defineEmits<{
@@ -58,7 +62,14 @@ const fetchCategories = async () => {
 // 加载文章（编辑模式）
 const fetchArticle = async (id: number) => {
   try {
-    const article = await getArticleDetail(id)
+    let article
+    if (props.adminMode) {
+      article = await getAdminArticleDetail(id)
+    } else if (props.userMode) {
+      article = await getMyArticleDetail(id)
+    } else {
+      article = await getArticleDetail(id)
+    }
     form.value = {
       title: article.title,
       summary: article.summary || '',

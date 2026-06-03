@@ -26,6 +26,7 @@ type ArticleVO struct {
 	IsTop        bool      `json:"is_top"`
 	IsDraft      bool      `json:"is_draft"`
 	ViewCount    int       `json:"view_count"`
+	UVCount      int64     `json:"uv_count"`
 	CommentCount int       `json:"comment_count"`
 	CreatedAt    time.Time `json:"created_at"`
 }
@@ -43,16 +44,28 @@ func NewRepository(db db.DBTX, redis rdb.RedisClient) *MySQLRepository {
 }
 
 func (r *MySQLRepository) GetArticleByID(id int64) (*ArticleVO, error) {
+	return r.getArticleByID(id, true)
+}
+
+func (r *MySQLRepository) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
+	return r.getArticleByID(id, false)
+}
+
+func (r *MySQLRepository) getArticleByID(id int64, filterDraft bool) (*ArticleVO, error) {
 	var vo ArticleVO
 	var categoryID sql.NullInt64
 	var categoryName string
-	err := r.db.QueryRow(`
+	query := `
 		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
 		       a.title, a.summary, a.content, a.cover, a.is_top, a.is_draft, a.view_count, a.created_at
 		FROM article a
-		LEFT JOIN `+"`user`"+` u ON a.user_id = u.id
+		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
-		WHERE a.id = ? AND a.is_deleted = 0`, id).Scan(
+		WHERE a.id = ? AND a.is_deleted = 0`
+	if filterDraft {
+		query += " AND a.is_draft = 0"
+	}
+	err := r.db.QueryRow(query, id).Scan(
 		&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &categoryID, &categoryName,
 		&vo.Title, &vo.Summary, &vo.Content, &vo.Cover, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CreatedAt)
 	if err != nil {
@@ -130,6 +143,134 @@ func (r *MySQLRepository) GetArticleList(categoryID *int64, page, pageSize int) 
 	return articles, total, nil
 }
 
+// GetAdminArticleList 管理员文章列表，包含草稿，支持分页和分类筛选
+func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error) {
+	whereClause := "WHERE a.is_deleted = 0"
+	args := []interface{}{}
+
+	if categoryID != nil && *categoryID > 0 {
+		whereClause += " AND a.category_id = ?"
+		args = append(args, *categoryID)
+	}
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM article a " + whereClause
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
+		       a.title, a.summary, a.content, a.cover, a.is_top, a.is_draft, a.view_count,
+		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
+		       a.created_at
+		FROM article a
+		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
+		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
+		` + whereClause + `
+		ORDER BY a.is_top DESC, a.created_at DESC
+		LIMIT ? OFFSET ?`
+
+	offset := (page - 1) * pageSize
+	args = append(args, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	articles := make([]*ArticleVO, 0)
+	for rows.Next() {
+		var vo ArticleVO
+		var catID sql.NullInt64
+		var categoryName string
+		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
+			&vo.Title, &vo.Summary, &vo.Content, &vo.Cover, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+		if err != nil {
+			return nil, 0, err
+		}
+		if catID.Valid {
+			vo.CategoryID = &catID.Int64
+			vo.CategoryName = categoryName
+		}
+		articles = append(articles, &vo)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	// 填充每篇文章的 UV 数
+	for _, vo := range articles {
+		if uv, err := r.GetArticleUV(vo.ID); err == nil {
+			vo.UVCount = uv
+		}
+	}
+
+	return articles, total, nil
+}
+
+// GetUserArticleList 用户自己的文章列表（含草稿），支持分页和分类筛选
+func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error) {
+	whereClause := "WHERE a.is_deleted = 0 AND a.user_id = ?"
+	args := []interface{}{userID}
+
+	if categoryID != nil && *categoryID > 0 {
+		whereClause += " AND a.category_id = ?"
+		args = append(args, *categoryID)
+	}
+
+	var total int
+	countQuery := "SELECT COUNT(*) FROM article a " + whereClause
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
+		       a.title, a.summary, a.content, a.cover, a.is_top, a.is_draft, a.view_count,
+		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
+		       a.created_at
+		FROM article a
+		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
+		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
+		` + whereClause + `
+		ORDER BY a.is_top DESC, a.created_at DESC
+		LIMIT ? OFFSET ?`
+
+	offset := (page - 1) * pageSize
+	args = append(args, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	articles := make([]*ArticleVO, 0)
+	for rows.Next() {
+		var vo ArticleVO
+		var catID sql.NullInt64
+		var categoryName string
+		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
+			&vo.Title, &vo.Summary, &vo.Content, &vo.Cover, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+		if err != nil {
+			return nil, 0, err
+		}
+		if catID.Valid {
+			vo.CategoryID = &catID.Int64
+			vo.CategoryName = categoryName
+		}
+		articles = append(articles, &vo)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return articles, total, nil
+}
+
 // IncrementViewCount 增加文章浏览量（Redis 缓冲，定时同步到 MySQL）
 func (r *MySQLRepository) IncrementViewCount(id int64) error {
 	// Redis 可用时写入 Redis 缓冲
@@ -145,6 +286,37 @@ func (r *MySQLRepository) IncrementViewCount(id int64) error {
 
 	_, err := r.db.Exec("UPDATE article SET view_count = view_count + 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
+}
+
+// IncrementViewCountUnique 带 IP 去重的浏览量递增
+// 使用 Redis Set 记录每篇文章的访问 IP，同一 IP 永久只计一次
+func (r *MySQLRepository) IncrementViewCountUnique(id int64, clientIP string) error {
+	if r.rdb != nil {
+		ctx := context.Background()
+		uvKey := fmt.Sprintf("article:uv:%d", id)
+
+		// 检查该 IP 是否已访问过此文章
+		exists, err := r.rdb.SIsMember(ctx, uvKey, clientIP).Result()
+		if err == nil && exists {
+			return nil // 已访问过，跳过计数
+		}
+
+		// 首次访问，加入 Set（永久保留，不设 TTL）
+		r.rdb.SAdd(ctx, uvKey, clientIP)
+	}
+
+	// 走原有的 INCR 逻辑
+	return r.IncrementViewCount(id)
+}
+
+// GetArticleUV 获取文章的独立访客数（UV）
+func (r *MySQLRepository) GetArticleUV(id int64) (int64, error) {
+	if r.rdb == nil {
+		return 0, nil
+	}
+	ctx := context.Background()
+	uvKey := fmt.Sprintf("article:uv:%d", id)
+	return r.rdb.SCard(ctx, uvKey).Result()
 }
 
 // GetViewCountDelta 从 Redis 读取文章浏览量增量（不删除，由 FlushViewCounts 定时清理）

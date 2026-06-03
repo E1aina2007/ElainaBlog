@@ -23,6 +23,7 @@ type RedisClient interface {
 	SAdd(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
 	SRem(ctx context.Context, key string, members ...interface{}) *redis.IntCmd
 	SIsMember(ctx context.Context, key string, member interface{}) *redis.BoolCmd
+	SCard(ctx context.Context, key string) *redis.IntCmd
 	SMembers(ctx context.Context, key string) *redis.StringSliceCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 	Info(ctx context.Context, sections ...string) *redis.StringCmd

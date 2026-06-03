@@ -14,6 +14,7 @@ export interface Article {
     author_avatar?: string
     author_is_admin?: boolean
     view_count?: number
+    uv_count?: number
     comment_count?: number
     is_top?: boolean
     is_draft?: boolean
@@ -32,14 +33,34 @@ interface ArticleListResult {
     total: number
 }
 
-// 获取文章列表
+// 获取文章列表（公开，不含草稿）
 export function getArticleList(params?: ArticleListParams): Promise<ArticleListResult> {
     return request.get('/article/list', { params })
 }
 
-// 获取文章详情
+// 获取文章列表（管理员，含草稿）
+export function getAdminArticleList(params?: ArticleListParams): Promise<ArticleListResult> {
+    return request.get('/article/admin-list', { params })
+}
+
+// 获取当前用户的文章列表（含草稿）
+export function getMyArticleList(params?: ArticleListParams): Promise<ArticleListResult> {
+    return request.get('/article/mine', { params })
+}
+
+// 获取文章详情（公开，不含草稿）
 export function getArticleDetail(id: number): Promise<Article> {
     return request.get(`/article/${id}`)
+}
+
+// 获取文章详情（管理员，含草稿）
+export function getAdminArticleDetail(id: number): Promise<Article> {
+    return request.get(`/article/admin/${id}`)
+}
+
+// 获取自己的文章详情（含草稿，仅限自己的文章）
+export function getMyArticleDetail(id: number): Promise<Article> {
+    return request.get(`/article/mine/${id}`)
 }
 
 // 创建文章（管理员）
