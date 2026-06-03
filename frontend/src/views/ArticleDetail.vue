@@ -140,7 +140,6 @@ async function handleTogglePin() {
       summary: article.value.summary,
       content: article.value.content,
       category_id: article.value.category_id,
-      cover: article.value.cover,
       is_top: !article.value.is_top,
       is_draft: article.value.is_draft,
     })

@@ -21,7 +21,6 @@ type CreateArticleParams struct {
 	Title      string
 	Summary    string
 	Content    string
-	Cover      string
 	IsTop      bool
 	IsDraft    bool
 }
@@ -32,7 +31,6 @@ type UpdateArticleParams struct {
 	Title      string
 	Summary    string
 	Content    string
-	Cover      string
 	IsTop      bool
 	IsDraft    bool
 }
@@ -218,7 +216,7 @@ func (s *Service) CreateArticle(params *CreateArticleParams) (int64, error) {
 	return s.repo.CreateArticle(
 		params.UserID, params.CategoryID,
 		title, strings.TrimSpace(params.Summary), content,
-		strings.TrimSpace(params.Cover), params.IsTop, params.IsDraft,
+		params.IsTop, params.IsDraft,
 	)
 }
 
@@ -253,7 +251,7 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 	return s.repo.UpdateArticle(
 		params.ID, params.CategoryID,
 		title, strings.TrimSpace(params.Summary), content,
-		strings.TrimSpace(params.Cover), params.IsTop, params.IsDraft,
+		params.IsTop, params.IsDraft,
 	)
 }
 

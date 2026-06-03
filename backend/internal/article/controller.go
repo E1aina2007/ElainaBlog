@@ -29,7 +29,6 @@ type CreateArticleRequest struct {
 	Summary    string `json:"summary"`
 	Content    string `json:"content"`
 	CategoryID *int64 `json:"category_id"` // nil 表示未分类
-	Cover      string `json:"cover"`
 	IsTop      bool   `json:"is_top"`
 	IsDraft    bool   `json:"is_draft"`
 }
@@ -40,7 +39,6 @@ type UpdateArticleRequest struct {
 	Summary    string `json:"summary"`
 	Content    string `json:"content"`
 	CategoryID *int64 `json:"category_id"`
-	Cover      string `json:"cover"`
 	IsTop      bool   `json:"is_top"`
 	IsDraft    bool   `json:"is_draft"`
 }
@@ -64,7 +62,6 @@ func (ctl *Controller) CreateArticle(c *gin.Context) {
 		Title:      req.Title,
 		Summary:    req.Summary,
 		Content:    req.Content,
-		Cover:      req.Cover,
 		IsTop:      req.IsTop,
 		IsDraft:    req.IsDraft,
 	})
@@ -99,7 +96,6 @@ func (ctl *Controller) UpdateArticle(c *gin.Context) {
 		Title:      req.Title,
 		Summary:    req.Summary,
 		Content:    req.Content,
-		Cover:      req.Cover,
 		IsTop:      req.IsTop,
 		IsDraft:    req.IsDraft,
 	}, userID, isAdmin)

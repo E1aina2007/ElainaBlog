@@ -3,7 +3,6 @@ interface Article {
   id: number
   title: string
   summary: string
-  cover?: string
   category_name?: string
   author_name?: string
   author_avatar?: string
