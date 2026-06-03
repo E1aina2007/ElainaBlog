@@ -6,7 +6,6 @@ export interface Article {
     title: string
     summary: string
     content: string
-    cover?: string
     category_id?: number
     category_name?: string
     user_id?: number
