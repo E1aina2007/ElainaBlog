@@ -362,7 +362,7 @@ onUnmounted(() => {
           <a
             v-for="link in friendLinks"
             :key="link.id"
-            :href="link.url"
+            :href="link.url.startsWith('http') ? link.url : 'https://' + link.url"
             target="_blank"
             rel="noopener noreferrer"
             class="friend-item"

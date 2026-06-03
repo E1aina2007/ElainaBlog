@@ -126,7 +126,7 @@ onMounted(fetchLinks)
               </div>
             </td>
             <td class="col-url">
-              <a :href="link.url" target="_blank" rel="noopener noreferrer" class="link-url">
+              <a :href="link.url.startsWith('http') ? link.url : 'https://' + link.url" target="_blank" rel="noopener noreferrer" class="link-url">
                 {{ link.url }}
               </a>
             </td>
