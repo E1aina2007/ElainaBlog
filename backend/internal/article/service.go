@@ -169,8 +169,8 @@ func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
 	return vo, nil
 }
 
-// IncrementViewCount 增加文章浏览量（Redis 缓冲，定时同步到 MySQL）
-func (s *Service) IncrementViewCount(id int64) error {
+// IncrementViewCount 带 IP 去重的浏览量递增
+func (s *Service) IncrementViewCount(id int64, clientIP string) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -178,8 +178,18 @@ func (s *Service) IncrementViewCount(id int64) error {
 		return ErrInvalidParams
 	}
 
-	// 直接调用仓储层方法（内部处理 Redis 缓冲和 MySQL fallback）
-	return s.repo.IncrementViewCount(id)
+	return s.repo.IncrementViewCountUnique(id, clientIP)
+}
+
+// GetArticleUV 获取文章的独立访客数
+func (s *Service) GetArticleUV(id int64) (int64, error) {
+	if s == nil || s.repo == nil {
+		return 0, ErrDBNotInitialized
+	}
+	if id <= 0 {
+		return 0, ErrInvalidParams
+	}
+	return s.repo.GetArticleUV(id)
 }
 
 func (s *Service) CreateArticle(params *CreateArticleParams) (int64, error) {

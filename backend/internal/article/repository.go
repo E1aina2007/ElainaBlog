@@ -26,6 +26,7 @@ type ArticleVO struct {
 	IsTop        bool      `json:"is_top"`
 	IsDraft      bool      `json:"is_draft"`
 	ViewCount    int       `json:"view_count"`
+	UVCount      int64     `json:"uv_count"`
 	CommentCount int       `json:"comment_count"`
 	CreatedAt    time.Time `json:"created_at"`
 }
@@ -199,6 +200,14 @@ func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, page, pageSize 
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
 	}
+
+	// 填充每篇文章的 UV 数
+	for _, vo := range articles {
+		if uv, err := r.GetArticleUV(vo.ID); err == nil {
+			vo.UVCount = uv
+		}
+	}
+
 	return articles, total, nil
 }
 
@@ -277,6 +286,37 @@ func (r *MySQLRepository) IncrementViewCount(id int64) error {
 
 	_, err := r.db.Exec("UPDATE article SET view_count = view_count + 1 WHERE id = ? AND is_deleted = 0", id)
 	return err
+}
+
+// IncrementViewCountUnique 带 IP 去重的浏览量递增
+// 使用 Redis Set 记录每篇文章的访问 IP，同一 IP 永久只计一次
+func (r *MySQLRepository) IncrementViewCountUnique(id int64, clientIP string) error {
+	if r.rdb != nil {
+		ctx := context.Background()
+		uvKey := fmt.Sprintf("article:uv:%d", id)
+
+		// 检查该 IP 是否已访问过此文章
+		exists, err := r.rdb.SIsMember(ctx, uvKey, clientIP).Result()
+		if err == nil && exists {
+			return nil // 已访问过，跳过计数
+		}
+
+		// 首次访问，加入 Set（永久保留，不设 TTL）
+		r.rdb.SAdd(ctx, uvKey, clientIP)
+	}
+
+	// 走原有的 INCR 逻辑
+	return r.IncrementViewCount(id)
+}
+
+// GetArticleUV 获取文章的独立访客数（UV）
+func (r *MySQLRepository) GetArticleUV(id int64) (int64, error) {
+	if r.rdb == nil {
+		return 0, nil
+	}
+	ctx := context.Background()
+	uvKey := fmt.Sprintf("article:uv:%d", id)
+	return r.rdb.SCard(ctx, uvKey).Result()
 }
 
 // GetViewCountDelta 从 Redis 读取文章浏览量增量（不删除，由 FlushViewCounts 定时清理）

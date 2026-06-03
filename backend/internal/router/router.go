@@ -124,8 +124,9 @@ func RouterInit(r *gin.Engine) {
 		adminGroup := apiGroup.Group("", auth.RequireAuth(), adminAuth.RequireAdmin())
 		{
 			adminGroup.GET("/dashboard/stats", siteController.GetDashboardStats)
-		adminGroup.GET("/article/admin-list", articleController.GetAdminList)
-		adminGroup.GET("/article/admin/:id", articleController.GetAdminByID)
+			adminGroup.GET("/article/admin-list", articleController.GetAdminList)
+			adminGroup.GET("/article/admin/:id", articleController.GetAdminByID)
+			adminGroup.GET("/article/:id/uv", articleController.GetArticleUV)
 			adminGroup.POST("/category/create", categoryController.Create)
 			adminGroup.POST("/category/update", categoryController.Update)
 			adminGroup.POST("/category/delete", categoryController.Delete)

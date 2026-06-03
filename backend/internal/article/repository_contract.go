@@ -9,7 +9,9 @@ type Repository interface {
 	GetAdminArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error)
 	GetUserArticleList(userID int64, categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error)
 	IncrementViewCount(id int64) error
+	IncrementViewCountUnique(id int64, clientIP string) error
 	GetViewCountDelta(id int64) int
+	GetArticleUV(id int64) (int64, error)
 	FlushViewCounts() (int, error)
 	CreateArticle(userID int64, categoryID *int64, title, summary, content, cover string, isTop, isDraft bool) (int64, error)
 	UpdateArticle(id int64, categoryID *int64, title, summary, content, cover string, isTop, isDraft bool) error

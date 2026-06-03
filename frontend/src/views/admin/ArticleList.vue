@@ -141,6 +141,7 @@ onMounted(() => {
             <th>分类</th>
             <th>作者</th>
             <th>阅读量</th>
+            <th>UV</th>
             <th>状态</th>
             <th>发布时间</th>
             <th>操作</th>
@@ -158,6 +159,7 @@ onMounted(() => {
             <td>{{ article.category_name || '未分类' }}</td>
             <td>{{ article.author_name }}</td>
             <td>{{ article.view_count || 0 }}</td>
+            <td>{{ article.uv_count || 0 }}</td>
             <td>
               <span :class="['status-badge', article.is_draft ? 'draft' : 'published']">
                 {{ article.is_draft ? '草稿' : '已发布' }}
@@ -185,7 +187,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-if="filteredArticles.length === 0">
-            <td colspan="7" class="empty-cell">
+            <td colspan="8" class="empty-cell">
               <div class="empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>

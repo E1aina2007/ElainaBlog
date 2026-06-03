@@ -14,6 +14,7 @@ export interface Article {
     author_avatar?: string
     author_is_admin?: boolean
     view_count?: number
+    uv_count?: number
     comment_count?: number
     is_top?: boolean
     is_draft?: boolean

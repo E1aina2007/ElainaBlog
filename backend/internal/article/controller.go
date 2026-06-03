@@ -251,8 +251,8 @@ func (ctl *Controller) GetByID(c *gin.Context) {
 		return
 	}
 
-	// 异步增加浏览量（不阻塞响应）
-	go ctl.service.IncrementViewCount(id)
+	// 异步增加浏览量（IP 去重，不阻塞响应）
+	go ctl.service.IncrementViewCount(id, c.ClientIP())
 
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
 }
@@ -279,4 +279,22 @@ func (ctl *Controller) GetAdminByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
+}
+
+// GetArticleUV 获取文章的独立访客数（管理员）
+func (ctl *Controller) GetArticleUV(c *gin.Context) {
+	id, err := parseArticleID(c)
+	if err != nil {
+		appErr := model.ErrInvalidParams.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	uv, err := ctl.service.GetArticleUV(id)
+	if err != nil {
+		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"uv": uv}))
 }
