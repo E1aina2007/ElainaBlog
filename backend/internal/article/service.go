@@ -248,6 +248,11 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 		return ErrNoPermission
 	}
 
+	// 只有管理员可以置顶文章
+	if params.IsTop && !isAdmin {
+		return ErrNoPermission
+	}
+
 	return s.repo.UpdateArticle(
 		params.ID, params.CategoryID,
 		title, strings.TrimSpace(params.Summary), content,

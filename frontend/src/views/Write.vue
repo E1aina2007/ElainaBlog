@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createArticle, updateArticle } from '@/api/article'
 import ArticleEditor from '@/components/ArticleEditor.vue'
 import type { ArticleSubmitData } from '@/components/ArticleEditor.vue'
+import { useUserStore } from '@/stores/user'
 import toast from '@/utils/toast'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 const editorRef = ref<InstanceType<typeof ArticleEditor>>()
+const showTopOption = computed(() => userStore.isAdmin)
 
 const handleSubmit = async (data: ArticleSubmitData) => {
   if (editorRef.value) editorRef.value.setSaving(true)
@@ -40,7 +43,7 @@ const handleSubmit = async (data: ArticleSubmitData) => {
     <div class="write-container">
       <ArticleEditor
         ref="editorRef"
-        :show-top-option="false"
+        :show-top-option="showTopOption"
         :user-mode="!!route.params.id"
         @submit="handleSubmit"
         @cancel="router.push('/')"

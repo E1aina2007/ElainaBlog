@@ -37,6 +37,15 @@ var (
 	ErrInvalidParams    = errors.New("无效的参数")
 )
 
+// normalizeURL 确保 URL 带有协议前缀，默认补全 https://
+func normalizeURL(url string) string {
+	url = strings.TrimSpace(url)
+	if url != "" && !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		url = "https://" + url
+	}
+	return url
+}
+
 func (s *Service) GetByID(id int64) (*FriendLinkVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
@@ -67,7 +76,7 @@ func (s *Service) Create(params CreateParams) (*FriendLinkVO, error) {
 	}
 
 	name := strings.TrimSpace(params.Name)
-	url := strings.TrimSpace(params.URL)
+	url := normalizeURL(params.URL)
 	if name == "" || url == "" {
 		return nil, ErrInvalidParams
 	}
@@ -94,7 +103,7 @@ func (s *Service) Update(params UpdateParams) (*FriendLinkVO, error) {
 	}
 
 	name := strings.TrimSpace(params.Name)
-	url := strings.TrimSpace(params.URL)
+	url := normalizeURL(params.URL)
 	if name == "" || url == "" {
 		return nil, ErrInvalidParams
 	}
