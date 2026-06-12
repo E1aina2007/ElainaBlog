@@ -5,8 +5,9 @@ ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
-# 复制编译好的二进制
+# 复制编译好的二进制并添加执行权限
 COPY elainablog .
+RUN chmod +x elainablog
 # 复制数据库迁移脚本
 COPY config/db/SQLscript/ /app/migrations/
 
