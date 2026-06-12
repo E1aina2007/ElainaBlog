@@ -7,7 +7,7 @@ import type { TocItem } from '@/components/MarkdownRenderer.vue'
 import TableOfContents from '@/components/TableOfContents.vue'
 import CommentForm from '@/components/CommentForm.vue'
 import CommentList from '@/components/CommentList.vue'
-import { getArticleDetail, deleteArticle, updateArticle, type Article } from '@/api/article'
+import { getArticleDetail, getMyArticleDetail, deleteArticle, updateArticle, type Article } from '@/api/article'
 import { getComments, createComment, deleteComment, type Comment } from '@/api/comment'
 import toast from '@/utils/toast'
 
@@ -52,7 +52,17 @@ async function loadArticle() {
   error.value = ''
 
   try {
-    article.value = await getArticleDetail(articleId.value)
+    // 已登录用户使用 getMyArticleDetail，确保返回 user_id 字段
+    if (userStore.isLoggedIn) {
+      try {
+        article.value = await getMyArticleDetail(articleId.value)
+      } catch {
+        // 如果是 404（不是自己的文章），降级到公开接口
+        article.value = await getArticleDetail(articleId.value)
+      }
+    } else {
+      article.value = await getArticleDetail(articleId.value)
+    }
   } catch (err: any) {
     error.value = err?.message || '加载文章失败'
   } finally {
