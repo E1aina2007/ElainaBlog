@@ -8,12 +8,16 @@ import (
 	"ElainaBlog/internal/router"
 	"ElainaBlog/internal/user"
 	"ElainaBlog/pkg/rdb"
+	"ElainaBlog/pkg/util"
 	"ElainaBlog/pkg/zaplogger"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -64,6 +68,68 @@ func initSystem() {
 		zap.String("email", adminEmail),
 		zap.String("username", adminUsername),
 	)
+}
+
+// migrateAvatars 迁移头像文件：将邮箱命名改为哈希命名
+func migrateAvatars() {
+	uploadDir := config.GlobalConfig.Upload.AvatarPath
+	if uploadDir == "" {
+		uploadDir = "uploads/avatars"
+	}
+
+	userRepo := user.NewRepository(db.DBPool)
+	users, err := userRepo.GetUserList()
+	if err != nil {
+		log.Fatalf("获取用户列表失败: %v", err)
+	}
+
+	migrated := 0
+	for _, u := range users {
+		if u.Avatar == "" {
+			continue
+		}
+
+		// 从 avatar URL 中提取文件名
+		// URL 格式: /uploads/avatars/xxx.jpg
+		parts := strings.Split(u.Avatar, "/")
+		if len(parts) == 0 {
+			continue
+		}
+		oldFileName := parts[len(parts)-1]
+		ext := filepath.Ext(oldFileName)
+
+		// 计算新文件名
+		newFileName := util.EmailToAvatarHash(u.Email) + ext
+		if oldFileName == newFileName {
+			continue // 已经是哈希命名，跳过
+		}
+
+		// 重命名文件
+		oldPath := filepath.Join(uploadDir, oldFileName)
+		newPath := filepath.Join(uploadDir, newFileName)
+
+		if _, err := os.Stat(oldPath); os.IsNotExist(err) {
+			fmt.Printf("跳过用户 %s: 头像文件不存在 %s\n", u.Email, oldPath)
+			continue
+		}
+
+		if err := os.Rename(oldPath, newPath); err != nil {
+			fmt.Printf("迁移用户 %s 头像失败: %v\n", u.Email, err)
+			continue
+		}
+
+		// 更新数据库中的 avatar URL
+		newAvatar := "/uploads/avatars/" + newFileName
+		if err := userRepo.UpdateProfile(u.ID, u.Username, u.Email, newAvatar); err != nil {
+			fmt.Printf("更新用户 %s 头像URL失败: %v\n", u.Email, err)
+			continue
+		}
+
+		migrated++
+		fmt.Printf("迁移用户 %s 头像成功: %s -> %s\n", u.Email, oldFileName, newFileName)
+	}
+
+	fmt.Printf("\n迁移完成，共迁移 %d 个头像\n", migrated)
 }
 
 func runServer() error {

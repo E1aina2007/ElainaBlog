@@ -3,6 +3,7 @@ package upload
 import (
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/common/model"
+	"ElainaBlog/pkg/util"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -169,8 +170,8 @@ func (ctl *Controller) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// 构造自定义文件名：邮箱（新头像会覆盖旧头像）
-	customName := email
+	// 构造自定义文件名：邮箱哈希（同一邮箱始终生成相同哈希，新头像会覆盖旧头像）
+	customName := util.EmailToAvatarHash(email)
 
 	// 保存到头像专用目录
 	url, err := ctl.avatarStorage.SaveAs(file, fileHeader.Filename, customName)
