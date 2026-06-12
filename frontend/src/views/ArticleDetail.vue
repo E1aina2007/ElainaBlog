@@ -106,7 +106,10 @@ async function handleDeleteComment(id: number) {
 // 是否有权编辑/删除文章（作者本人或管理员）
 const canEditArticle = computed(() => {
   if (!article.value || !userStore.isLoggedIn) return false
-  return userStore.isAdmin || article.value.user_id === userStore.userInfo?.id
+  // 管理员可以编辑所有文章
+  if (userStore.isAdmin) return true
+  // 作者本人可以编辑自己的文章（user_id 可能是 undefined，需要安全比较）
+  return article.value.user_id != null && article.value.user_id === userStore.userInfo?.id
 })
 
 // 删除文章
@@ -221,8 +224,10 @@ onMounted(() => {
                 分享
               </button>
             </div>
-            <div v-if="canEditArticle" class="article-actions">
+            <div class="article-actions">
+              <!-- 置顶按钮：仅管理员可见 -->
               <button
+                v-if="userStore.isAdmin"
                 class="pin-article-btn"
                 :class="{ pinned: article.is_top }"
                 @click="handleTogglePin"
@@ -232,20 +237,23 @@ onMounted(() => {
                 </svg>
                 {{ article.is_top ? '取消置顶' : '置顶' }}
               </button>
-              <button class="edit-article-btn" @click="handleEditArticle">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                </svg>
-                修改文章
-              </button>
-              <button class="delete-article-btn" @click="handleDeleteArticle">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-                删除文章
-              </button>
+              <!-- 编辑和删除按钮：作者本人或管理员可见 -->
+              <template v-if="canEditArticle">
+                <button class="edit-article-btn" @click="handleEditArticle">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  修改文章
+                </button>
+                <button class="delete-article-btn" @click="handleDeleteArticle">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  删除文章
+                </button>
+              </template>
             </div>
           </div>
         </header>
