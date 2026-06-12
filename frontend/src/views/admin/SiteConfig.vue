@@ -10,7 +10,7 @@ const loading = ref(false)
 const saving = ref(false)
 
 // 可编辑的配置项（排除 quotes，用专门的编辑区域）
-const editableKeys = ['site_name', 'site_title', 'greeting', 'hero_title', 'icp_beian']
+const editableKeys = ['site_name', 'site_title', 'greeting', 'hero_title', 'icp_beian', 'gov_police_record']
 const quotesText = ref('')
 const configLabels: Record<string, string> = {
   site_name: '站点名称',
@@ -18,6 +18,7 @@ const configLabels: Record<string, string> = {
   greeting: '首页问候语',
   hero_title: '首页标题',
   icp_beian: 'ICP 备案号',
+  gov_police_record: '公安备案号',
   quotes: '随机语句（JSON 数组）',
 }
 

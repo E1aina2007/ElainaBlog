@@ -279,6 +279,8 @@ frontend/public/author/
 
 ### 4. 构建镜像
 
+#### 方式一：服务器本地构建（推荐，适合内存 ≥2GB 的服务器）
+
 ```bash
 # 顺序构建前后端镜像（--parallel=false 防止同时构建导致内存不足）
 docker compose build --parallel=false
@@ -299,6 +301,84 @@ docker images | grep elainablog
 elainablog-frontend   latest   ...   ...
 elainablog-backend    latest   ...   ...
 ```
+
+#### 方式二：本地编译二进制后上传（适合内存 <2GB 的服务器）
+
+服务器内存不足时，可在本地交叉编译后端二进制文件，上传到服务器后直接构建运行镜像，跳过 Go 编译过程。
+
+**Step 1：本地交叉编译**
+
+在本地开发机器上执行（Windows / macOS / Linux 均可）：
+
+```bash
+cd backend
+
+# Windows (CMD)
+set CGO_ENABLED=0
+set GOOS=linux
+set GOARCH=amd64
+go build -ldflags="-s -w" -o elainablog ./cmd
+
+# Windows (PowerShell)
+$env:CGO_ENABLED="0"; $env:GOOS="linux"; $env:GOARCH="amd64"
+go build -ldflags="-s -w" -o elainablog ./cmd
+
+# macOS / Linux
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o elainablog ./cmd
+```
+
+编译完成后会在 `backend/` 目录生成 `elainablog` 二进制文件（约 20-30MB）。
+
+**Step 2：上传文件到服务器**
+
+```bash
+# 上传二进制文件
+scp backend/elainablog user@your-server-ip:~/ElainaBlog/backend/
+
+# 上传数据库迁移脚本
+scp -r backend/config/db/SQLscript user@your-server-ip:~/ElainaBlog/backend/config/db/
+```
+
+**Step 3：创建运行专用 Dockerfile**
+
+在服务器上创建 `backend/Dockerfile.run`：
+
+```bash
+cat > ~/ElainaBlog/backend/Dockerfile.run << 'EOF'
+FROM alpine:3.21
+
+RUN apk add --no-cache tzdata
+ENV TZ=Asia/Shanghai
+
+WORKDIR /app
+
+COPY elainablog .
+COPY config/db/SQLscript/ /app/migrations/
+
+RUN adduser -D -u 1001 appuser && \
+    mkdir -p uploads log && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+EXPOSE 9178
+
+CMD ["./elainablog", "runServer"]
+EOF
+```
+
+**Step 4：构建后端镜像**
+
+```bash
+cd ~/ElainaBlog
+docker build -t elainablog-backend -f backend/Dockerfile.run ./backend
+```
+
+**Step 5：继续执行后续步骤**
+
+构建完成后，从步骤 5「启动数据库」继续执行即可。
+
+> 💡 更新后端时，只需重复 Step 1 → Step 2 → Step 4，无需重新克隆项目。前端更新仍需本地构建或服务器构建。
 
 ### 5. 启动数据库
 

@@ -7,6 +7,7 @@ const currentYear = new Date().getFullYear()
 const siteName = computed(() => siteStore.get('site_name'))
 const siteTitle = computed(() => siteStore.get('site_title'))
 const icpBeian = computed(() => siteStore.get('icp_beian'))
+const govPoliceRecord = computed(() => siteStore.get('gov_police_record'))
 </script>
 
 <template>
@@ -27,6 +28,8 @@ const icpBeian = computed(() => siteStore.get('icp_beian'))
       <div class="beian">
         <a v-if="icpBeian && icpBeian !== '京ICP备xxxxxxxx号'" :href="'https://beian.miit.gov.cn'" target="_blank">{{ icpBeian }}</a>
         <span v-else>{{ icpBeian }}</span>
+        <span v-if="icpBeian && govPoliceRecord" class="beian-divider"> | </span>
+        <a v-if="govPoliceRecord" :href="'https://www.beian.gov.cn'" target="_blank">{{ govPoliceRecord }}</a>
       </div>
     </div>
   </footer>
@@ -85,5 +88,10 @@ const icpBeian = computed(() => siteStore.get('icp_beian'))
 
 .beian a:hover {
   color: var(--primary);
+}
+
+.beian-divider {
+  color: var(--text-muted);
+  margin: 0 4px;
 }
 </style>
