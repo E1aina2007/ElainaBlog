@@ -118,8 +118,8 @@ const canEditArticle = computed(() => {
   if (!article.value || !userStore.isLoggedIn) return false
   // 管理员可以编辑所有文章
   if (userStore.isAdmin) return true
-  // 作者本人可以编辑自己的文章（user_id 可能是 undefined，需要安全比较）
-  return article.value.user_id != null && article.value.user_id === userStore.userInfo?.id
+  // 作者本人可以编辑自己的文章（user_id 可能是 undefined 或 0，需要安全比较）
+  return article.value.user_id != null && article.value.user_id > 0 && article.value.user_id === userStore.userInfo?.id
 })
 
 // 删除文章
