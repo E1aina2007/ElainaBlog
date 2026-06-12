@@ -510,7 +510,17 @@ docker exec elainablog-backend ./elainablog initSystem
 
 执行成功后会输出管理员邮箱和初始化结果。
 
-### 11. 配置宿主机 Nginx
+### 11. 迁移头像文件命名（可选）
+
+如果从旧版本升级，头像文件可能使用邮箱作为文件名。执行以下命令将其迁移为哈希命名：
+
+```bash
+docker exec elainablog-backend ./elainablog migrateAvatars
+```
+
+执行成功后会输出迁移结果。新上传的头像会自动使用哈希命名，无需迁移。
+
+### 12. 配置宿主机 Nginx
 
 ```bash
 # 创建 Nginx 配置文件
@@ -578,7 +588,7 @@ sudo nginx -s reload
 > sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 > ```
 
-### 12. 验证服务
+### 13. 验证服务
 
 ```bash
 # 测试后端健康检查
