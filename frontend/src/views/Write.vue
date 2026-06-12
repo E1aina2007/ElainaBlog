@@ -18,6 +18,8 @@ const handleSubmit = async (data: ArticleSubmitData) => {
   try {
     const payload = {
       ...data,
+      // 非管理员不允许置顶
+      is_top: userStore.isAdmin ? data.is_top : false,
       category_id: data.category_id || undefined,
     }
 
