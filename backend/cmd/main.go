@@ -49,6 +49,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("服务器启动失败：%v", err)
 		}
+	case "migrateAvatars":
+		migrateAvatars()
 	default:
 		log.Fatalf("未知的命令")
 	}
