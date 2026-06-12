@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { getArticleDetail, getAdminArticleDetail, getMyArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
 import { useTheme } from '@/composables/useTheme'
@@ -48,7 +48,62 @@ const form = ref({
   is_top: false,
 })
 
+// 离开确认相关状态
+const isDirty = ref(false)
+const isSubmitting = ref(false)
+let initialFormSnapshot = ''
+
+// 保存当前表单快照
+const saveSnapshot = () => {
+  initialFormSnapshot = JSON.stringify(form.value)
+}
+
+// 检查表单是否有变化
+const checkDirty = () => {
+  const currentSnapshot = JSON.stringify(form.value)
+  isDirty.value = currentSnapshot !== initialFormSnapshot
+}
+
 const editorTheme = computed(() => isDark.value ? 'dark' : 'light')
+
+// 监听表单变化
+watch(form, checkDirty, { deep: true })
+
+// 路由离开拦截
+onBeforeRouteLeave((_to, _from, next) => {
+  if (isSubmitting.value || !isDirty.value) {
+    next()
+    return
+  }
+  const answer = window.confirm('文章内容尚未保存，确定要离开吗？')
+  if (answer) {
+    next()
+  } else {
+    next(false)
+  }
+})
+
+// 浏览器关闭/刷新拦截
+const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  if (isDirty.value) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+// 标记为已保存（父组件调用）
+const markSaved = () => {
+  isDirty.value = false
+  isSubmitting.value = true
+}
 
 // 加载分类
 const fetchCategories = async () => {
@@ -77,6 +132,7 @@ const fetchArticle = async (id: number) => {
       category_id: article.category_id || null,
       is_top: article.is_top || false,
     }
+    saveSnapshot()
   } catch {
     toast.error('获取文章失败')
   }
@@ -99,9 +155,15 @@ const handleSubmit = (publish: boolean) => {
   })
 }
 
-// 暴露给父组件：设置 saving 状态
+// 取消操作
+const handleCancel = () => {
+  isDirty.value = false
+  emit('cancel')
+}
+
+// 暴露给父组件
 const setSaving = (v: boolean) => { saving.value = v }
-defineExpose({ setSaving })
+defineExpose({ setSaving, markSaved })
 
 onMounted(() => {
   fetchCategories()
@@ -110,6 +172,9 @@ onMounted(() => {
     isEdit.value = true
     articleId.value = parseInt(id as string, 10)
     fetchArticle(articleId.value)
+  } else {
+    // 新建文章，保存初始快照
+    saveSnapshot()
   }
 })
 </script>
@@ -120,7 +185,7 @@ onMounted(() => {
     <div class="editor-header">
       <h2 class="editor-title">{{ isEdit ? '编辑文章' : '写文章' }}</h2>
       <div class="header-actions">
-        <button class="btn-outline" @click="emit('cancel')">取消</button>
+        <button class="btn-outline" @click="handleCancel">取消</button>
         <button class="btn-secondary" :disabled="saving" @click="handleSubmit(false)">
           保存草稿
         </button>

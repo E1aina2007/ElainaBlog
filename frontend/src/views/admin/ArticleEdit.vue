@@ -26,6 +26,7 @@ const handleSubmit = async (data: ArticleSubmitData) => {
       await createArticle(payload as any)
       toast.success(data.is_draft ? '草稿已保存' : '文章已创建并发布')
     }
+    editorRef.value?.markSaved()
     setTimeout(() => router.push('/admin/articles'), 1000)
   } catch {
     toast.error('保存失败')
