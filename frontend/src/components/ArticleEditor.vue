@@ -4,6 +4,7 @@ import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { getArticleDetail, getAdminArticleDetail, getMyArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
 import { useTheme } from '@/composables/useTheme'
+import { uploadImage } from '@/api/upload'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
 import toast from '@/utils/toast'
@@ -161,6 +162,22 @@ const handleCancel = () => {
   emit('cancel')
 }
 
+// 编辑器图片上传
+const handleUploadImage = async (files: File[], callback: (urls: string[]) => void) => {
+  const urls = await Promise.all(
+    files.map(async (file) => {
+      try {
+        const res = await uploadImage(file)
+        return res.url
+      } catch {
+        toast.error(`图片 ${file.name} 上传失败`)
+        return ''
+      }
+    })
+  )
+  callback(urls.filter(Boolean))
+}
+
 // 暴露给父组件
 const setSaving = (v: boolean) => { saving.value = v }
 defineExpose({ setSaving, markSaved })
@@ -235,6 +252,7 @@ onMounted(() => {
         v-model="form.content"
         :theme="editorTheme"
         :show-code-row-number="true"
+        :on-upload-img="handleUploadImage"
         style="height: 500px"
         placeholder="请输入文章内容（支持 Markdown 语法）..."
       />
