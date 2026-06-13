@@ -79,8 +79,18 @@ func (r *MySQLRepository) getArticleByID(id int64, filterDraft bool) (*ArticleVO
 	return &vo, nil
 }
 
+// buildOrderBy 根据 sortBy 参数构建 ORDER BY 子句
+func buildOrderBy(sortBy string) string {
+	switch sortBy {
+	case "popular":
+		return "a.is_top DESC, a.view_count DESC"
+	default:
+		return "a.is_top DESC, a.created_at DESC"
+	}
+}
+
 // GetArticleList 公开文章列表，过滤草稿，支持分页和分类筛选
-func (r *MySQLRepository) GetArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error) {
+func (r *MySQLRepository) GetArticleList(categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error) {
 	// 构建基础查询条件
 	whereClause := "WHERE a.is_deleted = 0 AND a.is_draft = 0"
 	args := []interface{}{}
@@ -108,7 +118,7 @@ func (r *MySQLRepository) GetArticleList(categoryID *int64, page, pageSize int) 
 		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
 		` + whereClause + `
-		ORDER BY a.is_top DESC, a.created_at DESC
+		ORDER BY ` + buildOrderBy(sortBy) + `
 		LIMIT ? OFFSET ?`
 
 	offset := (page - 1) * pageSize
@@ -143,7 +153,7 @@ func (r *MySQLRepository) GetArticleList(categoryID *int64, page, pageSize int) 
 }
 
 // GetAdminArticleList 管理员文章列表，包含草稿，支持分页和分类筛选
-func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error) {
+func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error) {
 	whereClause := "WHERE a.is_deleted = 0"
 	args := []interface{}{}
 
@@ -168,7 +178,7 @@ func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, page, pageSize 
 		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
 		` + whereClause + `
-		ORDER BY a.is_top DESC, a.created_at DESC
+		ORDER BY ` + buildOrderBy(sortBy) + `
 		LIMIT ? OFFSET ?`
 
 	offset := (page - 1) * pageSize
@@ -211,7 +221,7 @@ func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, page, pageSize 
 }
 
 // GetUserArticleList 用户自己的文章列表（含草稿），支持分页和分类筛选
-func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, page, pageSize int) ([]*ArticleVO, int, error) {
+func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error) {
 	whereClause := "WHERE a.is_deleted = 0 AND a.user_id = ?"
 	args := []interface{}{userID}
 
@@ -236,7 +246,7 @@ func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, pa
 		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
 		` + whereClause + `
-		ORDER BY a.is_top DESC, a.created_at DESC
+		ORDER BY ` + buildOrderBy(sortBy) + `
 		LIMIT ? OFFSET ?`
 
 	offset := (page - 1) * pageSize

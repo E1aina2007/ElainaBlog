@@ -16,6 +16,7 @@ const categories = ref<Category[]>([])
 const totalArticles = ref(0)
 const totalViews = ref(0)
 const currentCategoryId = ref<number | null>(null)
+const sortBy = ref<'latest' | 'popular'>('latest')
 const allArticlesTotal = ref(0)
 const currentPage = ref(1)
 const pageSize = 12
@@ -48,9 +49,12 @@ const fetchCategories = async () => {
 const fetchArticles = async (page: number, append = false) => {
   isLoading.value = true
   try {
-    const params: { page: number; pageSize: number; categoryId?: number } = { page, pageSize }
+    const params: { page: number; pageSize: number; categoryId?: number; sortBy?: string } = { page, pageSize }
     if (currentCategoryId.value !== null) {
       params.categoryId = currentCategoryId.value
+    }
+    if (sortBy.value !== 'latest') {
+      params.sortBy = sortBy.value
     }
     const res = await getArticleList(params)
     const list = res.list || []
@@ -82,6 +86,14 @@ const fetchArticles = async (page: number, append = false) => {
 // 切换分类时重新加载
 const switchCategory = (categoryId: number | null) => {
   currentCategoryId.value = categoryId
+  currentPage.value = 1
+  hasMore.value = true
+  fetchArticles(1)
+}
+
+// 切换排序时重新加载
+const changeSort = (sort: 'latest' | 'popular') => {
+  sortBy.value = sort
   currentPage.value = 1
   hasMore.value = true
   fetchArticles(1)
@@ -216,7 +228,19 @@ onUnmounted(() => {
         <!-- 右侧：文章列表 -->
         <div class="articles-main">
           <div class="section-header">
-            <h2 class="section-title">{{ currentCategoryId === null ? '全部文章' : (categories.find(c => c.id === currentCategoryId)?.name ?? '') + '文章' }}</h2>
+            <div class="section-header-left">
+              <h2 class="section-title">{{ currentCategoryId === null ? '全部文章' : (categories.find(c => c.id === currentCategoryId)?.name ?? '') + '文章' }}</h2>
+              <div class="sort-tabs">
+                <button
+                  :class="{ active: sortBy === 'latest' }"
+                  @click="changeSort('latest')"
+                >🕐 最新</button>
+                <button
+                  :class="{ active: sortBy === 'popular' }"
+                  @click="changeSort('popular')"
+                >🔥 最热</button>
+              </div>
+            </div>
             <div class="header-actions">
               <span class="article-count">共 {{ totalArticles }} 篇</span>
               <button class="btn-write" title="写新文章" @click="goToWrite">
@@ -578,6 +602,40 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sort-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.sort-tabs button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.sort-tabs button:hover {
+  border-color: var(--primary-light);
+  color: var(--text-primary);
+}
+
+.sort-tabs button.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -743,6 +801,12 @@ onUnmounted(() => {
   }
 
   .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .section-header-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;

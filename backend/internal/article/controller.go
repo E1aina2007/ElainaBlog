@@ -151,7 +151,7 @@ func (ctl *Controller) DeleteArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
 }
 
-// parseListParams 解析列表分页和分类筛选参数
+// parseListParams 解析列表分页、分类筛选和排序参数
 func parseListParams(c *gin.Context) (*ArticleListParams, error) {
 	page := 1
 	pageSize := 10
@@ -167,7 +167,8 @@ func parseListParams(c *gin.Context) (*ArticleListParams, error) {
 			categoryID = &catID
 		}
 	}
-	return &ArticleListParams{CategoryID: categoryID, Page: page, PageSize: pageSize}, nil
+	sortBy := c.DefaultQuery("sortBy", "latest")
+	return &ArticleListParams{CategoryID: categoryID, SortBy: sortBy, Page: page, PageSize: pageSize}, nil
 }
 
 // GetList 文章列表（公开），支持分页和分类筛选

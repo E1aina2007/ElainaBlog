@@ -42,6 +42,7 @@ type DeleteArticleParams struct {
 // ArticleListParams 文章列表查询参数
 type ArticleListParams struct {
 	CategoryID *int64
+	SortBy     string // "latest"（默认） | "popular"
 	Page       int
 	PageSize   int
 }
@@ -78,7 +79,13 @@ func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult,
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.GetArticleList(params.CategoryID, page, pageSize)
+	// 校验排序参数
+	sortBy := params.SortBy
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+		sortBy = ""
+	}
+
+	articles, total, err := s.repo.GetArticleList(params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +110,12 @@ func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListRe
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.GetAdminArticleList(params.CategoryID, page, pageSize)
+	sortBy := params.SortBy
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+		sortBy = ""
+	}
+
+	articles, total, err := s.repo.GetAdminArticleList(params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +140,12 @@ func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.GetUserArticleList(userID, params.CategoryID, page, pageSize)
+	sortBy := params.SortBy
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+		sortBy = ""
+	}
+
+	articles, total, err := s.repo.GetUserArticleList(userID, params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}

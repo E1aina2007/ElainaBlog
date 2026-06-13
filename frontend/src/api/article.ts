@@ -25,6 +25,7 @@ interface ArticleListParams {
     page?: number
     pageSize?: number
     categoryId?: number
+    sortBy?: 'latest' | 'popular'
 }
 
 interface ArticleListResult {
