@@ -279,16 +279,43 @@ frontend/public/author/
 
 ### 4. 构建镜像
 
-#### 方式一：服务器本地构建（推荐，适合内存 ≥2GB 的服务器）
+项目通过不同的 Compose 覆盖文件支持三种构建方式，按需选择：
+
+| 方式 | 适用场景 | 启动命令 |
+|------|---------|---------|
+| 远程镜像 | 服务器无需构建，直接拉取 | `docker compose up -d` |
+| 本地构建 | 服务器内存 ≥2GB | `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build` |
+| 本地编译上传 | 服务器内存 <2GB | `docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d` |
+
+> MySQL 和 Redis 使用官方镜像（`mysql:8.0`、`redis:7-alpine`），无需构建，会在 `docker compose up` 时自动拉取。如未提前配置镜像加速，请先完成「环境准备」中的镜像加速配置。
+
+#### 方式一：远程镜像（推荐，适合 CI/CD 流程）
+
+GitHub 推送到 main 分支时自动构建镜像并推送到远程仓库，服务器直接拉取。
+
+**前置条件：** 已配置 GitHub Actions + 远程容器仓库（详见 [GITHUB_ACTIONS_DOCKER.md](docs/GITHUB_ACTIONS_DOCKER.md)）。
+
+在 `.env` 中配置镜像地址：
+
+```env
+DOCKER_REGISTRY=registry.<地域>.aliyuncs.com
+DOCKER_NAMESPACE=<命名空间>
+```
 
 ```bash
-# 顺序构建前后端镜像（--parallel=false 防止同时构建导致内存不足）
-docker compose build --parallel=false
+# 拉取远程镜像并启动
+docker compose pull
+docker compose up -d
+```
+
+#### 方式二：服务器本地构建（适合内存 ≥2GB 的服务器）
+
+```bash
+# 顺序构建前后端镜像并启动（--parallel=false 防止同时构建导致内存不足）
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
 
 > ⚠️ 不要省略 `--parallel=false`。前后端同时构建可能因内存不足（OOM）导致构建卡死或失败，尤其在 ≤2GB 内存的服务器上。
->
-> MySQL 和 Redis 使用官方镜像（`mysql:8.0`、`redis:7-alpine`），无需构建，会在 `docker compose up` 时自动拉取。如未提前配置镜像加速，请先完成「环境准备」中的镜像加速配置。
 
 ```bash
 # 确认镜像构建成功
@@ -302,22 +329,16 @@ elainablog-frontend   latest   ...   ...
 elainablog-backend    latest   ...   ...
 ```
 
-#### 方式二：本地编译二进制后上传（适合内存 <2GB 的服务器）
+#### 方式三：本地编译后上传（适合内存 <2GB 的服务器）
 
-服务器内存不足时，可在本地交叉编译后端二进制文件，上传到服务器后直接构建运行镜像，跳过 Go 编译过程。
+服务器内存不足时，可在本地编译前后端产物，上传到服务器后构建镜像，跳过服务器上的编译过程。
 
-**Step 1：本地交叉编译**
+**Step 1：本地编译**
 
-在本地开发机器上执行（Windows / macOS / Linux 均可）：
+后端交叉编译（在本地开发机器上执行）：
 
 ```bash
 cd backend
-
-# Windows (CMD)
-set CGO_ENABLED=0
-set GOOS=linux
-set GOARCH=amd64
-go build -ldflags="-s -w" -o elainablog ./cmd
 
 # Windows (PowerShell)
 $env:CGO_ENABLED="0"; $env:GOOS="linux"; $env:GOARCH="amd64"
@@ -327,58 +348,33 @@ go build -ldflags="-s -w" -o elainablog ./cmd
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o elainablog ./cmd
 ```
 
-编译完成后会在 `backend/` 目录生成 `elainablog` 二进制文件（约 20-30MB）。
+前端构建：
+
+```bash
+cd frontend
+npm run build
+```
 
 **Step 2：上传文件到服务器**
 
 ```bash
-# 上传二进制文件
+# 上传后端二进制和迁移脚本
 scp backend/elainablog user@your-server-ip:~/ElainaBlog/backend/
-
-# 上传数据库迁移脚本
 scp -r backend/config/db/SQLscript user@your-server-ip:~/ElainaBlog/backend/config/db/
+
+# 上传前端构建产物和 nginx 配置
+scp -r frontend/dist user@your-server-ip:~/ElainaBlog/frontend/
+scp frontend/nginx.conf user@your-server-ip:~/ElainaBlog/frontend/
 ```
 
-**Step 3：创建运行专用 Dockerfile**
-
-在服务器上创建 `backend/Dockerfile.run`：
-
-```bash
-cat > ~/ElainaBlog/backend/Dockerfile.run << 'EOF'
-FROM alpine:3.21
-
-RUN apk add --no-cache tzdata
-ENV TZ=Asia/Shanghai
-
-WORKDIR /app
-
-COPY elainablog .
-COPY config/db/SQLscript/ /app/migrations/
-
-RUN adduser -D -u 1001 appuser && \
-    mkdir -p uploads log && \
-    chown -R appuser:appuser /app
-
-USER appuser
-
-EXPOSE 9178
-
-CMD ["./elainablog", "runServer"]
-EOF
-```
-
-**Step 4：构建后端镜像**
+**Step 3：构建并启动**
 
 ```bash
 cd ~/ElainaBlog
-docker build -t elainablog-backend -f backend/Dockerfile.run ./backend
+docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d
 ```
 
-**Step 5：继续执行后续步骤**
-
-构建完成后，从步骤 5「启动数据库」继续执行即可。
-
-> 💡 更新后端时，只需重复 Step 1 → Step 2 → Step 4，无需重新克隆项目。前端更新仍需本地构建或服务器构建。
+> 💡 更新时只需重复 Step 1 → Step 2 → Step 3，无需重新克隆项目。
 
 ### 5. 启动数据库
 
@@ -625,19 +621,25 @@ cd ElainaBlog
 git pull
 ```
 
-```bash
-# 停止所有服务（保留数据卷）
-docker compose down
-```
+#### 远程镜像模式
 
 ```bash
-# 重新构建所有镜像（顺序构建，防止内存不足）
-docker compose build --parallel=false
-```
-
-```bash
-# 启动所有服务
+docker compose pull
 docker compose up -d
+```
+
+#### 本地构建模式
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+```
+
+#### 交叉编译模式
+
+```bash
+# 上传新编译的二进制后
+scp backend/elainablog server:~/ElainaBlog/backend/
+docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d
 ```
 
 ```bash
@@ -650,18 +652,16 @@ docker compose ps
 docker compose logs backend
 ```
 
-#### 仅更新前端
+#### 仅更新前端（本地构建模式）
 
 ```bash
-docker compose down frontend
-docker compose build frontend
-docker compose up -d frontend
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build frontend
 ```
 
-#### 仅更新后端
+#### 仅更新后端（本地构建模式）
 
 ```bash
-docker compose down backend
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build backend
 docker compose build backend
 docker compose up -d backend
 docker compose logs backend
