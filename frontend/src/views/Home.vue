@@ -25,6 +25,7 @@ const isLoading = ref(false)
 const isInitialLoading = ref(true)
 const hasMore = ref(true)
 const searchKeyword = ref('')
+const sortDropdownOpen = ref(false)
 
 const greeting = computed(() => siteStore.get('greeting'))
 const heroTitle = computed(() => siteStore.get('hero_title'))
@@ -140,6 +141,25 @@ const goToWrite = () => {
   router.push('/write')
 }
 
+// 关闭排序下拉
+const closeSortDropdown = () => {
+  sortDropdownOpen.value = false
+}
+
+// 切换排序并关闭下拉
+const selectSort = (sort: 'latest' | 'popular') => {
+  sortDropdownOpen.value = false
+  changeSort(sort)
+}
+
+// 点击外部关闭排序下拉
+const handleSortDropdownOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.sort-dropdown-wrapper')) {
+    sortDropdownOpen.value = false
+  }
+}
+
 // 滚动监听
 const handleScroll = () => {
   const scrollTop = window.scrollY || document.documentElement.scrollTop
@@ -155,6 +175,7 @@ onMounted(() => {
   fetchCategories()
   fetchArticles(1)
   window.addEventListener('scroll', handleScroll)
+  document.addEventListener('click', handleSortDropdownOutside)
   // 安全兜底：确保加载状态不会永远卡住
   setTimeout(() => {
     isInitialLoading.value = false
@@ -163,6 +184,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  document.removeEventListener('click', handleSortDropdownOutside)
 })
 </script>
 
@@ -259,27 +281,30 @@ onUnmounted(() => {
                 搜索：{{ searchKeyword }}
                 <button class="btn-clear-search" @click="clearSearch">清除</button>
               </h2>
-              <div v-if="!searchKeyword" class="sort-tabs">
-                <button
-                  :class="{ active: sortBy === 'latest' }"
-                  @click="changeSort('latest')"
-                >🕐 最新</button>
-                <button
-                  :class="{ active: sortBy === 'popular' }"
-                  @click="changeSort('popular')"
-                >🔥 最热</button>
+              <!-- 排序下拉 -->
+              <div v-if="!searchKeyword" class="sort-dropdown-wrapper">
+                <button class="sort-dropdown-btn" @click="sortDropdownOpen = !sortDropdownOpen">
+                  {{ sortBy === 'popular' ? '🔥 最热' : '🕐 最新' }}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
+                  <button class="sort-dropdown-item" :class="{ active: sortBy === 'latest' }" @click="selectSort('latest')">🕐 最新</button>
+                  <button class="sort-dropdown-item" :class="{ active: sortBy === 'popular' }" @click="selectSort('popular')">🔥 最热</button>
+                </div>
               </div>
             </div>
-            <div class="header-actions">
+            <div class="header-right">
               <SearchBar @search="handleSearch" />
-              <span class="article-count">共 {{ totalArticles }} 篇</span>
-              <button class="btn-write" title="写新文章" @click="goToWrite">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                <span>写文章</span>
-              </button>
+              <div class="header-actions">
+                <span class="article-count">共 {{ totalArticles }} 篇</span>
+                <button class="btn-write" title="写新文章" @click="goToWrite">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  <span>写文章</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -638,12 +663,20 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.sort-tabs {
+.header-right {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 16px;
 }
 
-.sort-tabs button {
+.sort-dropdown-wrapper {
+  position: relative;
+}
+
+.sort-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
@@ -655,15 +688,45 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.sort-tabs button:hover {
+.sort-dropdown-btn:hover {
   border-color: var(--primary-light);
   color: var(--text-primary);
 }
 
-.sort-tabs button.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+.sort-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.sort-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.sort-dropdown-item:hover {
+  background: var(--bg-secondary);
+}
+
+.sort-dropdown-item.active {
+  color: var(--primary);
+  font-weight: 500;
 }
 
 .header-actions {
