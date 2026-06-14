@@ -5,6 +5,7 @@ import { useUserStore } from '@/stores/user'
 import { getAuthorStats, getMessageList, createMessage, deleteMessage } from '@/api/message'
 import { getAuthorProfile } from '@/api/authorProfile'
 import { getFriendLinkList } from '@/api/friendlink'
+import { getFaviconUrl } from '@/utils/favicon'
 import toast from '@/utils/toast'
 
 const router = useRouter()
@@ -179,6 +180,10 @@ const formatDate = (date) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+const handleFaviconError = (e) => {
+  e.target.style.display = 'none'
 }
 
 onMounted(() => {
@@ -367,7 +372,13 @@ onUnmounted(() => {
             rel="noopener noreferrer"
             class="friend-item"
           >
-            <img v-if="link.avatar" :src="link.avatar" class="friend-avatar" alt="" />
+            <img
+              v-if="link.avatar || getFaviconUrl(link.url)"
+              :src="link.avatar || getFaviconUrl(link.url)"
+              class="friend-avatar"
+              alt=""
+              @error="handleFaviconError"
+            />
             <span v-else class="friend-avatar-placeholder">{{ link.name.charAt(0) }}</span>
             <div class="friend-info">
               <span class="friend-name">{{ link.name }}</span>
