@@ -6,6 +6,7 @@ import (
 	"ElainaBlog/internal/article"
 	"ElainaBlog/internal/common"
 	"ElainaBlog/internal/router"
+	"ElainaBlog/internal/upload"
 	"ElainaBlog/internal/user"
 	"ElainaBlog/pkg/rdb"
 	"ElainaBlog/pkg/util"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )
 
@@ -179,6 +181,40 @@ func runServer() error {
 			}
 		}
 	}()
+
+	// 启动孤儿图片清理定时任务
+	if config.GlobalConfig.Upload.CleanupEnabled {
+		imageCleanup := upload.NewImageCleanup(
+			config.GlobalConfig.Upload.Path,
+			config.GlobalConfig.Upload.AvatarPath,
+			articleRepo,
+			zaplogger.Logger,
+		)
+
+		c := cron.New()
+		_, err := c.AddFunc(config.GlobalConfig.Upload.CleanupCron, func() {
+			zaplogger.Logger.Info("开始执行孤儿图片清理任务")
+			result, err := imageCleanup.CleanupOrphanImages()
+			if err != nil {
+				zaplogger.Logger.Error("孤儿图片清理失败", zap.Error(err))
+			} else {
+				zaplogger.Logger.Info("孤儿图片清理完成",
+					zap.Int("scanned", result.ScannedFiles),
+					zap.Int("referenced", result.ReferencedFiles),
+					zap.Int("deleted", result.DeletedFiles),
+				)
+				if len(result.Errors) > 0 {
+					zaplogger.Logger.Warn("清理过程中有错误", zap.Int("error_count", len(result.Errors)))
+				}
+			}
+		})
+		if err != nil {
+			zaplogger.Logger.Error("注册孤儿图片清理定时任务失败", zap.Error(err))
+		} else {
+			c.Start()
+			zaplogger.Logger.Info("孤儿图片清理定时任务已启动", zap.String("cron", config.GlobalConfig.Upload.CleanupCron))
+		}
+	}
 
 	// 初始化服务器
 	address := config.GlobalConfig.Server.GetAddress()

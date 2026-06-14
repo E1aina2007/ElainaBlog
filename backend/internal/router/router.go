@@ -54,6 +54,7 @@ func RouterInit(r *gin.Engine) {
 	auth := middleware.NewJwtAuthMiddleware(tokenMgr)
 	adminAuth := middleware.NewAdminAuthMiddleware(userService)
 	rateLimiter := middleware.NewRateLimitMiddleware(redis)
+	uploadLimiter := middleware.NewUploadLimitMiddleware(redis)
 
 	// 创建控制器
 	userController := user.NewController(userService, redis)
@@ -103,7 +104,7 @@ func RouterInit(r *gin.Engine) {
 			authGroup.POST("/user/profile", userController.UpdateProfile)
 			authGroup.POST("/user/password", userController.UpdatePassword)
 			authGroup.POST("/user/delete", userController.DeleteUser)
-			authGroup.POST("/upload", uploadController.Upload)
+			authGroup.POST("/upload", uploadLimiter.Limit(config.GlobalConfig.Upload.RateLimit, time.Duration(config.GlobalConfig.Upload.RateWindow)*time.Second), uploadController.Upload)
 			authGroup.POST("/upload/avatar", uploadController.UploadAvatar)
 			authGroup.POST("/article/create", articleController.CreateArticle)
 			authGroup.POST("/article/update", articleController.UpdateArticle)

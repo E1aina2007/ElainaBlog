@@ -476,3 +476,27 @@ func (r *MySQLRepository) GetArticleAuthorInfo(id int64) (userID int64, title st
 	err = r.db.QueryRow("SELECT user_id, title FROM article WHERE id = ? AND is_deleted = 0", id).Scan(&userID, &title)
 	return
 }
+
+// GetAllActiveContents 获取所有未删除文章的 content（供图片清理服务使用）
+func (r *MySQLRepository) GetAllActiveContents() ([]string, error) {
+	rows, err := r.db.Query("SELECT content FROM article WHERE is_deleted = 0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contents []string
+	for rows.Next() {
+		var content string
+		if err := rows.Scan(&content); err != nil {
+			return nil, err
+		}
+		contents = append(contents, content)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return contents, nil
+}
