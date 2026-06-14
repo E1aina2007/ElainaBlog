@@ -17,20 +17,27 @@ type NotificationCreator interface {
 	CreateNotification(userID int64, nType, title, content string, targetID int64) error
 }
 
-type Service struct {
-	repo           Repository
-	articleInfo    ArticleInfoProvider
-	notifCreator   NotificationCreator
+// UserProvider 获取用户信息的接口
+type UserProvider interface {
+	GetUsernameByID(id int64) (string, error)
 }
 
-func NewService(repo Repository, articleInfo ArticleInfoProvider, notifCreator NotificationCreator) *Service {
-	return &Service{repo: repo, articleInfo: articleInfo, notifCreator: notifCreator}
+type Service struct {
+	repo         Repository
+	articleInfo  ArticleInfoProvider
+	notifCreator NotificationCreator
+	userProvider UserProvider
+}
+
+func NewService(repo Repository, articleInfo ArticleInfoProvider, notifCreator NotificationCreator, userProvider UserProvider) *Service {
+	return &Service{repo: repo, articleInfo: articleInfo, notifCreator: notifCreator, userProvider: userProvider}
 }
 
 type CreateCommentParams struct {
-	ArticleID int64
-	UserID    int64
-	Content   string
+	ArticleID     int64
+	UserID        int64
+	ReplyToUserID *int64
+	Content       string
 }
 
 type DeleteCommentParams struct {
@@ -94,18 +101,33 @@ func (s *Service) CreateComment(params *CreateCommentParams) (int64, error) {
 	if content == "" {
 		return 0, ErrInvalidParams
 	}
+	if len(content) > 2000 {
+		return 0, ErrInvalidParams
+	}
 
-	commentID, err := s.repo.CreateComment(&Comment{
+	comment := &Comment{
 		ArticleID: params.ArticleID,
 		UserID:    params.UserID,
 		Content:   content,
-	})
+	}
+
+	// 设置回复目标
+	if params.ReplyToUserID != nil && *params.ReplyToUserID > 0 {
+		username, err := s.userProvider.GetUsernameByID(*params.ReplyToUserID)
+		if err != nil {
+			return 0, ErrInvalidParams
+		}
+		comment.ReplyToUserID = params.ReplyToUserID
+		comment.ReplyToUsername = &username
+	}
+
+	commentID, err := s.repo.CreateComment(comment)
 	if err != nil {
 		return 0, err
 	}
 
-	// 异步通知文章作者（非阻塞）
-	go s.notifyArticleAuthor(params.ArticleID, params.UserID, content)
+	// 异步通知（非阻塞）
+	go s.notifyComment(params.ArticleID, params.UserID, params.ReplyToUserID, content)
 
 	return commentID, nil
 }
@@ -130,32 +152,44 @@ func (s *Service) DeleteComment(params *DeleteCommentParams) error {
 	return s.repo.DeleteComment(params.ID)
 }
 
-// notifyArticleAuthor 通知文章作者有新评论
-func (s *Service) notifyArticleAuthor(articleID, commentUserID int64, commentContent string) {
-	if s.notifCreator == nil || s.articleInfo == nil {
+// notifyComment 通知相关用户有新评论
+func (s *Service) notifyComment(articleID, commenterID int64, replyToUserID *int64, content string) {
+	if s.notifCreator == nil {
 		return
 	}
 
-	articleUserID, title, err := s.articleInfo.GetArticleAuthorInfo(articleID)
-	if err != nil {
-		return
-	}
-
-	// 不通知自己
-	if articleUserID == commentUserID {
-		return
-	}
-
-	summary := commentContent
+	summary := content
 	if len([]rune(summary)) > 50 {
 		summary = string([]rune(summary)[:50]) + "..."
 	}
 
-	s.notifCreator.CreateNotification(
-		articleUserID,
-		"comment",
-		fmt.Sprintf("你的文章《%s》有新评论", title),
-		summary,
-		articleID,
-	)
+	if replyToUserID != nil && *replyToUserID > 0 {
+		// 回复某用户 → 通知被回复的人
+		if *replyToUserID == commenterID {
+			return // 回复自己不通知
+		}
+		s.notifCreator.CreateNotification(
+			*replyToUserID,
+			"comment",
+			"你的评论有了新回复",
+			summary,
+			articleID,
+		)
+	} else {
+		// 普通评论 → 通知文章作者
+		if s.articleInfo == nil {
+			return
+		}
+		articleUserID, title, err := s.articleInfo.GetArticleAuthorInfo(articleID)
+		if err != nil || articleUserID == commenterID {
+			return
+		}
+		s.notifCreator.CreateNotification(
+			articleUserID,
+			"comment",
+			fmt.Sprintf("你的文章《%s》有新评论", title),
+			summary,
+			articleID,
+		)
+	}
 }

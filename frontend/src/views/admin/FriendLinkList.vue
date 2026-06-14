@@ -7,6 +7,7 @@ import {
   deleteFriendLink,
   type FriendLink,
 } from '@/api/friendlink'
+import { getFaviconUrl } from '@/utils/favicon'
 import toast from '@/utils/toast'
 
 const links = ref<FriendLink[]>([])
@@ -121,7 +122,12 @@ onMounted(fetchLinks)
           <tr v-for="link in links" :key="link.id">
             <td class="col-name">
               <div class="link-info">
-                <img v-if="link.avatar" :src="link.avatar" class="link-avatar" alt="" />
+                <img
+                  :src="link.avatar || getFaviconUrl(link.url)"
+                  class="link-avatar"
+                  alt=""
+                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                />
                 <span>{{ link.name }}</span>
               </div>
             </td>
@@ -154,7 +160,16 @@ onMounted(fetchLinks)
       </div>
       <div class="form-group">
         <label class="form-label">头像/Logo URL</label>
-        <input v-model="form.avatar" type="text" class="form-input" placeholder="https://example.com/avatar.png" />
+        <div class="avatar-input-row">
+          <input v-model="form.avatar" type="text" class="form-input" placeholder="留空则自动获取网站图标" />
+          <img
+            v-if="form.url"
+            :src="form.avatar || getFaviconUrl(form.url)"
+            class="avatar-preview"
+            alt=""
+            @error="($event.target as HTMLImageElement).style.display = 'none'"
+          />
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">站点描述</label>
@@ -380,6 +395,25 @@ onMounted(fetchLinks)
 
 .form-input:focus {
   border-color: var(--primary);
+}
+
+.avatar-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-input-row .form-input {
+  flex: 1;
+}
+
+.avatar-preview {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
 }
 
 .form-actions {

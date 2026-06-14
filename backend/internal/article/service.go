@@ -42,6 +42,7 @@ type DeleteArticleParams struct {
 // ArticleListParams 文章列表查询参数
 type ArticleListParams struct {
 	CategoryID *int64
+	SortBy     string // "latest"（默认） | "popular"
 	Page       int
 	PageSize   int
 }
@@ -78,7 +79,13 @@ func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult,
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.GetArticleList(params.CategoryID, page, pageSize)
+	// 校验排序参数
+	sortBy := params.SortBy
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+		sortBy = ""
+	}
+
+	articles, total, err := s.repo.GetArticleList(params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +110,12 @@ func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListRe
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.GetAdminArticleList(params.CategoryID, page, pageSize)
+	sortBy := params.SortBy
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+		sortBy = ""
+	}
+
+	articles, total, err := s.repo.GetAdminArticleList(params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +140,12 @@ func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.GetUserArticleList(userID, params.CategoryID, page, pageSize)
+	sortBy := params.SortBy
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+		sortBy = ""
+	}
+
+	articles, total, err := s.repo.GetUserArticleList(userID, params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -165,6 +182,34 @@ func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
 		return nil, err
 	}
 	return vo, nil
+}
+
+// SearchArticles 全文搜索文章
+func (s *Service) SearchArticles(keyword string, page, pageSize int) (*ArticleListResult, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrDBNotInitialized
+	}
+
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return nil, ErrInvalidParams
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 50 {
+		pageSize = 10
+	}
+
+	articles, total, err := s.repo.SearchArticleList(keyword, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ArticleListResult{
+		List:  articles,
+		Total: total,
+	}, nil
 }
 
 // IncrementViewCount 带 IP 去重的浏览量递增

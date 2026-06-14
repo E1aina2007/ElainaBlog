@@ -370,6 +370,20 @@ func (s *Service) GetUserEmailByID(userID int64) (string, error) {
 	return u.Email, nil
 }
 
+func (s *Service) GetUsernameByID(userID int64) (string, error) {
+	if s == nil || s.repo == nil {
+		return "", ErrDBNotInitialized
+	}
+	u, err := s.repo.GetUserByID(userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrUserNotFound
+		}
+		return "", err
+	}
+	return u.Username, nil
+}
+
 func (s *Service) SendVerificationCode(email string) error {
 	email = strings.TrimSpace(email)
 	if email == "" {

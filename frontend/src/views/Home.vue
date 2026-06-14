@@ -3,9 +3,10 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useSiteStore } from '@/stores/site'
-import { getArticleList, type Article } from '@/api/article'
+import { getArticleList, searchArticles, type Article } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
 import ArticleCard from '../components/ArticleCard.vue'
+import SearchBar from '../components/SearchBar.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -16,12 +17,15 @@ const categories = ref<Category[]>([])
 const totalArticles = ref(0)
 const totalViews = ref(0)
 const currentCategoryId = ref<number | null>(null)
+const sortBy = ref<'latest' | 'popular'>('latest')
 const allArticlesTotal = ref(0)
 const currentPage = ref(1)
 const pageSize = 12
 const isLoading = ref(false)
 const isInitialLoading = ref(true)
 const hasMore = ref(true)
+const searchKeyword = ref('')
+const sortDropdownOpen = ref(false)
 
 const greeting = computed(() => siteStore.get('greeting'))
 const heroTitle = computed(() => siteStore.get('hero_title'))
@@ -48,11 +52,20 @@ const fetchCategories = async () => {
 const fetchArticles = async (page: number, append = false) => {
   isLoading.value = true
   try {
-    const params: { page: number; pageSize: number; categoryId?: number } = { page, pageSize }
-    if (currentCategoryId.value !== null) {
-      params.categoryId = currentCategoryId.value
+    let res
+    if (searchKeyword.value) {
+      // 搜索模式
+      res = await searchArticles(searchKeyword.value, page, pageSize)
+    } else {
+      const params: { page: number; pageSize: number; categoryId?: number; sortBy?: 'latest' | 'popular' } = { page, pageSize }
+      if (currentCategoryId.value !== null) {
+        params.categoryId = currentCategoryId.value
+      }
+      if (sortBy.value !== 'latest') {
+        params.sortBy = sortBy.value
+      }
+      res = await getArticleList(params)
     }
-    const res = await getArticleList(params)
     const list = res.list || []
     if (append) {
       articles.value = [...articles.value, ...list]
@@ -87,6 +100,31 @@ const switchCategory = (categoryId: number | null) => {
   fetchArticles(1)
 }
 
+// 切换排序时重新加载
+const changeSort = (sort: 'latest' | 'popular') => {
+  sortBy.value = sort
+  currentPage.value = 1
+  hasMore.value = true
+  fetchArticles(1)
+}
+
+// 搜索文章
+const handleSearch = (kw: string) => {
+  searchKeyword.value = kw
+  currentCategoryId.value = null
+  currentPage.value = 1
+  hasMore.value = true
+  fetchArticles(1)
+}
+
+// 清除搜索
+const clearSearch = () => {
+  searchKeyword.value = ''
+  currentPage.value = 1
+  hasMore.value = true
+  fetchArticles(1)
+}
+
 // 无限滚动加载更多
 const loadMore = () => {
   if (isLoading.value || !hasMore.value) return
@@ -101,6 +139,25 @@ const goToWrite = () => {
     return
   }
   router.push('/write')
+}
+
+// 关闭排序下拉
+const closeSortDropdown = () => {
+  sortDropdownOpen.value = false
+}
+
+// 切换排序并关闭下拉
+const selectSort = (sort: 'latest' | 'popular') => {
+  sortDropdownOpen.value = false
+  changeSort(sort)
+}
+
+// 点击外部关闭排序下拉
+const handleSortDropdownOutside = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.sort-dropdown-wrapper')) {
+    sortDropdownOpen.value = false
+  }
 }
 
 // 滚动监听
@@ -118,6 +175,7 @@ onMounted(() => {
   fetchCategories()
   fetchArticles(1)
   window.addEventListener('scroll', handleScroll)
+  document.addEventListener('click', handleSortDropdownOutside)
   // 安全兜底：确保加载状态不会永远卡住
   setTimeout(() => {
     isInitialLoading.value = false
@@ -126,6 +184,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  document.removeEventListener('click', handleSortDropdownOutside)
 })
 </script>
 
@@ -216,16 +275,36 @@ onUnmounted(() => {
         <!-- 右侧：文章列表 -->
         <div class="articles-main">
           <div class="section-header">
-            <h2 class="section-title">{{ currentCategoryId === null ? '全部文章' : (categories.find(c => c.id === currentCategoryId)?.name ?? '') + '文章' }}</h2>
-            <div class="header-actions">
-              <span class="article-count">共 {{ totalArticles }} 篇</span>
-              <button class="btn-write" title="写新文章" @click="goToWrite">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                <span>写文章</span>
-              </button>
+            <div class="section-header-left">
+              <h2 v-if="!searchKeyword" class="section-title">{{ currentCategoryId === null ? '全部文章' : (categories.find(c => c.id === currentCategoryId)?.name ?? '') + '文章' }}</h2>
+              <h2 v-else class="section-title">
+                搜索：{{ searchKeyword }}
+                <button class="btn-clear-search" @click="clearSearch">清除</button>
+              </h2>
+              <!-- 排序下拉 -->
+              <div v-if="!searchKeyword" class="sort-dropdown-wrapper">
+                <button class="sort-dropdown-btn" @click="sortDropdownOpen = !sortDropdownOpen">
+                  {{ sortBy === 'popular' ? '最热' : '最新' }}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
+                  <button class="sort-dropdown-item" :class="{ active: sortBy === 'latest' }" @click="selectSort('latest')">🕐 最新</button>
+                  <button class="sort-dropdown-item" :class="{ active: sortBy === 'popular' }" @click="selectSort('popular')">🔥 最热</button>
+                </div>
+              </div>
+            </div>
+            <div class="header-right">
+              <SearchBar @search="handleSearch" />
+              <div class="header-actions">
+                <span class="article-count">共 {{ totalArticles }} 篇</span>
+                <button class="btn-write" title="写新文章" @click="goToWrite">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  <span>写文章</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -247,9 +326,9 @@ onUnmounted(() => {
 
           <!-- 空状态 -->
           <div v-if="!isInitialLoading && articles.length === 0" class="empty-state">
-            <p class="empty-text">这个分类下还没有文章哦</p>
-            <button class="btn-primary" @click="switchCategory(null)">
-              查看全部文章
+            <p class="empty-text">{{ searchKeyword ? '没有找到相关文章' : '这个分类下还没有文章哦' }}</p>
+            <button class="btn-primary" @click="searchKeyword ? clearSearch() : switchCategory(null)">
+              {{ searchKeyword ? '清除搜索' : '查看全部文章' }}
             </button>
           </div>
 
@@ -578,10 +657,115 @@ onUnmounted(() => {
   color: var(--text-primary);
 }
 
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.header-right :deep(.search-bar) {
+  width: 240px;
+  min-width: 180px;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.sort-dropdown-wrapper {
+  position: relative;
+}
+
+.sort-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.sort-dropdown-btn:hover {
+  border-color: var(--primary-light);
+  color: var(--text-primary);
+}
+
+.sort-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 50;
+  overflow: hidden;
+}
+
+.sort-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.sort-dropdown-item:hover {
+  background: var(--bg-secondary);
+}
+
+.sort-dropdown-item.active {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-clear-search {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s;
+  vertical-align: middle;
+}
+
+.btn-clear-search:hover {
+  color: var(--primary);
+  border-color: var(--primary-light);
 }
 
 .article-count {
@@ -743,6 +927,12 @@ onUnmounted(() => {
   }
 
   .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .section-header-left {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;

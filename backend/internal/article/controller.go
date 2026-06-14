@@ -151,7 +151,7 @@ func (ctl *Controller) DeleteArticle(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
 }
 
-// parseListParams 解析列表分页和分类筛选参数
+// parseListParams 解析列表分页、分类筛选和排序参数
 func parseListParams(c *gin.Context) (*ArticleListParams, error) {
 	page := 1
 	pageSize := 10
@@ -167,7 +167,8 @@ func parseListParams(c *gin.Context) (*ArticleListParams, error) {
 			categoryID = &catID
 		}
 	}
-	return &ArticleListParams{CategoryID: categoryID, Page: page, PageSize: pageSize}, nil
+	sortBy := c.DefaultQuery("sortBy", "latest")
+	return &ArticleListParams{CategoryID: categoryID, SortBy: sortBy, Page: page, PageSize: pageSize}, nil
 }
 
 // GetList 文章列表（公开），支持分页和分类筛选
@@ -307,6 +308,39 @@ func (ctl *Controller) GetMyByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(article))
+}
+
+// Search 文章全文搜索（公开）
+func (ctl *Controller) Search(c *gin.Context) {
+	keyword := c.Query("keyword")
+	if keyword == "" {
+		appErr := model.ErrInvalidParams.WithDetail("搜索关键词不能为空")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	page := 1
+	pageSize := 10
+	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
+		page = p
+	}
+	if ps, err := strconv.Atoi(c.Query("pageSize")); err == nil && ps > 0 {
+		pageSize = ps
+	}
+
+	result, err := ctl.service.SearchArticles(keyword, page, pageSize)
+	if err != nil {
+		switch err {
+		case ErrInvalidParams:
+			appErr := model.ErrInvalidParams.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(result))
 }
 
 // GetArticleUV 获取文章的独立访客数（管理员）

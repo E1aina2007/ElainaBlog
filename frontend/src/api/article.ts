@@ -25,6 +25,7 @@ interface ArticleListParams {
     page?: number
     pageSize?: number
     categoryId?: number
+    sortBy?: 'latest' | 'popular'
 }
 
 interface ArticleListResult {
@@ -75,4 +76,9 @@ export function updateArticle(data: Partial<Article> & { id: number }): Promise<
 // 删除文章（管理员）
 export function deleteArticle(id: number): Promise<void> {
     return request.post('/article/delete', { id })
+}
+
+// 全文搜索文章
+export function searchArticles(keyword: string, page = 1, pageSize = 10): Promise<ArticleListResult> {
+    return request.get('/article/search', { params: { keyword, page, pageSize } })
 }

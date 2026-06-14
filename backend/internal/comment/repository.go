@@ -6,22 +6,26 @@ import (
 )
 
 type Comment struct {
-	ID        int64     `json:"id"`
-	ArticleID int64     `json:"article_id"`
-	UserID    int64     `json:"user_id"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
+	ID              int64   `json:"id"`
+	ArticleID       int64   `json:"article_id"`
+	UserID          int64   `json:"user_id"`
+	ReplyToUserID   *int64  `json:"reply_to_user_id"`
+	ReplyToUsername *string `json:"reply_to_username"`
+	Content         string  `json:"content"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type CommentVO struct {
-	ID        int64     `json:"id"`
-	ArticleID int64     `json:"article_id"`
-	UserID    int64     `json:"user_id"`
-	Username  string    `json:"username"`
-	Avatar    string    `json:"avatar"`
-	IsAdmin   bool      `json:"is_admin"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
+	ID              int64   `json:"id"`
+	ArticleID       int64   `json:"article_id"`
+	UserID          int64   `json:"user_id"`
+	ReplyToUserID   *int64  `json:"reply_to_user_id"`
+	ReplyToUsername *string `json:"reply_to_username"`
+	Username        string  `json:"username"`
+	Avatar          string  `json:"avatar"`
+	IsAdmin         bool    `json:"is_admin"`
+	Content         string  `json:"content"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // MySQLRepository 实现 comment.Repository 接口，使用 MySQL 存储。
@@ -36,8 +40,8 @@ func NewRepository(db db.DBTX) *MySQLRepository {
 
 func (r *MySQLRepository) GetCommentByID(id int64) (*Comment, error) {
 	var comment Comment
-	err := r.db.QueryRow(`SELECT id, article_id, user_id, content, created_at
-    FROM comment WHERE id = ? AND is_deleted = 0`, id).Scan(&comment.ID, &comment.ArticleID, &comment.UserID, &comment.Content, &comment.CreatedAt)
+	err := r.db.QueryRow(`SELECT id, article_id, user_id, reply_to_user_id, reply_to_username, content, created_at
+    FROM comment WHERE id = ? AND is_deleted = 0`, id).Scan(&comment.ID, &comment.ArticleID, &comment.UserID, &comment.ReplyToUserID, &comment.ReplyToUsername, &comment.Content, &comment.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +51,8 @@ func (r *MySQLRepository) GetCommentByID(id int64) (*Comment, error) {
 
 func (r *MySQLRepository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, error) {
 	rows, err := r.db.Query(`
-    SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, u.is_admin, c.content, c.created_at
+    SELECT c.id, c.article_id, c.user_id, c.reply_to_user_id, c.reply_to_username,
+           u.username, u.avatar, u.is_admin, c.content, c.created_at
     FROM comment c
     LEFT JOIN `+"`user`"+` u ON c.user_id = u.id
     WHERE c.article_id = ? AND c.is_deleted = 0
@@ -60,7 +65,8 @@ func (r *MySQLRepository) GetCommentListByArticleID(articleID int64) ([]*Comment
 	comments := make([]*CommentVO, 0)
 	for rows.Next() {
 		var vo CommentVO
-		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt)
+		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.ReplyToUserID, &vo.ReplyToUsername,
+			&vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +81,8 @@ func (r *MySQLRepository) GetCommentListByArticleID(articleID int64) ([]*Comment
 
 func (r *MySQLRepository) GetAllCommentList() ([]*CommentVO, error) {
 	rows, err := r.db.Query(`
-    SELECT c.id, c.article_id, c.user_id, u.username, u.avatar, u.is_admin, c.content, c.created_at
+    SELECT c.id, c.article_id, c.user_id, c.reply_to_user_id, c.reply_to_username,
+           u.username, u.avatar, u.is_admin, c.content, c.created_at
     FROM comment c
     LEFT JOIN ` + "`user`" + ` u ON c.user_id = u.id
     LEFT JOIN article a ON c.article_id = a.id
@@ -89,7 +96,8 @@ func (r *MySQLRepository) GetAllCommentList() ([]*CommentVO, error) {
 	comments := make([]*CommentVO, 0)
 	for rows.Next() {
 		var vo CommentVO
-		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt)
+		err := rows.Scan(&vo.ID, &vo.ArticleID, &vo.UserID, &vo.ReplyToUserID, &vo.ReplyToUsername,
+			&vo.Username, &vo.Avatar, &vo.IsAdmin, &vo.Content, &vo.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +111,8 @@ func (r *MySQLRepository) GetAllCommentList() ([]*CommentVO, error) {
 }
 
 func (r *MySQLRepository) CreateComment(comment *Comment) (int64, error) {
-	result, err := r.db.Exec(`INSERT INTO comment (article_id, user_id, content) VALUES (?, ?, ?)`, comment.ArticleID, comment.UserID, comment.Content)
+	result, err := r.db.Exec(`INSERT INTO comment (article_id, user_id, reply_to_user_id, reply_to_username, content) VALUES (?, ?, ?, ?, ?)`,
+		comment.ArticleID, comment.UserID, comment.ReplyToUserID, comment.ReplyToUsername, comment.Content)
 	if err != nil {
 		return 0, err
 	}
