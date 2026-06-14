@@ -284,7 +284,7 @@ onUnmounted(() => {
               <!-- 排序下拉 -->
               <div v-if="!searchKeyword" class="sort-dropdown-wrapper">
                 <button class="sort-dropdown-btn" @click="sortDropdownOpen = !sortDropdownOpen">
-                  {{ sortBy === 'popular' ? '🔥 最热' : '🕐 最新' }}
+                  {{ sortBy === 'popular' ? '最热' : '最新' }}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
                 <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
@@ -667,6 +667,20 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
+}
+
+.header-right :deep(.search-bar) {
+  width: 240px;
+  min-width: 180px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .sort-dropdown-wrapper {
