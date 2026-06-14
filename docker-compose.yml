@@ -1,8 +1,6 @@
 services:
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-frontend:latest
     container_name: elainablog-frontend
     restart: unless-stopped
     ports:
@@ -15,9 +13,7 @@ services:
       - elainablog
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${DOCKER_REGISTRY:-registry.cn-hangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-backend:latest
     container_name: elainablog-backend
     restart: unless-stopped
     ports:

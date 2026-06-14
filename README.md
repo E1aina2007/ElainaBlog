@@ -76,7 +76,7 @@
 - 全局健康检查接口（`/health`）
 - 日志按级别分文件输出（Zap + Lumberjack 自动轮转）
 - 文件上传与静态资源托管
-- Docker Compose 一键部署
+- Docker Compose 一键部署，支持远程镜像 / 本地构建 / 交叉编译三种方式
 
 ## 前端视觉设计
 
@@ -113,6 +113,7 @@
 | 平台 | Linux |
 | 反向代理 | Nginx |
 | 容器化 | Docker Compose |
+| CI/CD | GitHub Actions + 远程容器仓库 |
 
 ### Docker 挂载目录
 
@@ -131,7 +132,17 @@
 
 ## 快速开始
 
-详见 【快速开始】[DEPLOY.md](DEPLOY.md)与【项目架构】[ARCHITECTURE.md](ARCHITECTURE.md)，涵盖本地开发与生产部署。
+详见 [DEPLOY.md](DEPLOY.md) 与 [ARCHITECTURE.md](ARCHITECTURE.md)，涵盖本地开发与生产部署。
+
+### 构建方式
+
+本项目通过不同的 Compose 覆盖文件支持三种构建方式：
+
+| 方式 | 适用场景 | 启动命令 |
+|------|---------|---------|
+| 远程镜像 | 服务器无需构建 | `docker compose up -d` |
+| 本地构建 | 服务器内存 ≥2GB | `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build` |
+| 本地编译上传 | 服务器内存 <2GB | `docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d` |
 
 ## 开源协议
 
