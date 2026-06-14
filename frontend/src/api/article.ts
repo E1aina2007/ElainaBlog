@@ -77,3 +77,8 @@ export function updateArticle(data: Partial<Article> & { id: number }): Promise<
 export function deleteArticle(id: number): Promise<void> {
     return request.post('/article/delete', { id })
 }
+
+// 全文搜索文章
+export function searchArticles(keyword: string, page = 1, pageSize = 10): Promise<ArticleListResult> {
+    return request.get('/article/search', { params: { keyword, page, pageSize } })
+}

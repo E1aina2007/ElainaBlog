@@ -184,6 +184,34 @@ func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
 	return vo, nil
 }
 
+// SearchArticles 全文搜索文章
+func (s *Service) SearchArticles(keyword string, page, pageSize int) (*ArticleListResult, error) {
+	if s == nil || s.repo == nil {
+		return nil, ErrDBNotInitialized
+	}
+
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return nil, ErrInvalidParams
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 50 {
+		pageSize = 10
+	}
+
+	articles, total, err := s.repo.SearchArticleList(keyword, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ArticleListResult{
+		List:  articles,
+		Total: total,
+	}, nil
+}
+
 // IncrementViewCount 带 IP 去重的浏览量递增
 func (s *Service) IncrementViewCount(id int64, clientIP string) error {
 	if s == nil || s.repo == nil {

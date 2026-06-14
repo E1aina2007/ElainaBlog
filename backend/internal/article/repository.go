@@ -280,6 +280,63 @@ func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, so
 	return articles, total, nil
 }
 
+// SearchArticleList 全文搜索文章列表，按相关性排序
+func (r *MySQLRepository) SearchArticleList(keyword string, page, pageSize int) ([]*ArticleVO, int, error) {
+	whereClause := "WHERE a.is_deleted = 0 AND a.is_draft = 0 AND MATCH(a.title, a.summary) AGAINST(? IN BOOLEAN MODE)"
+	args := []interface{}{keyword}
+
+	// 查询总数
+	var total int
+	countQuery := "SELECT COUNT(*) FROM article a " + whereClause
+	err := r.db.QueryRow(countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 分页查询数据，按相关性排序
+	query := `
+		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
+		       a.title, a.summary, a.content, a.is_top, a.is_draft, a.view_count,
+		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
+		       a.created_at
+		FROM article a
+		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
+		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
+		` + whereClause + `
+		ORDER BY MATCH(a.title, a.summary) AGAINST(? IN BOOLEAN MODE) DESC, a.created_at DESC
+		LIMIT ? OFFSET ?`
+
+	offset := (page - 1) * pageSize
+	args = append(args, keyword, pageSize, offset)
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	articles := make([]*ArticleVO, 0)
+	for rows.Next() {
+		var vo ArticleVO
+		var catID sql.NullInt64
+		var categoryName string
+		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
+			&vo.Title, &vo.Summary, &vo.Content, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+		if err != nil {
+			return nil, 0, err
+		}
+		if catID.Valid {
+			vo.CategoryID = &catID.Int64
+			vo.CategoryName = categoryName
+		}
+		articles = append(articles, &vo)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return articles, total, nil
+}
+
 // IncrementViewCount 增加文章浏览量（Redis 缓冲，定时同步到 MySQL）
 func (r *MySQLRepository) IncrementViewCount(id int64) error {
 	// Redis 可用时写入 Redis 缓冲

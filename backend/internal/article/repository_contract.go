@@ -8,6 +8,7 @@ type Repository interface {
 	GetArticleList(categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error)
 	GetAdminArticleList(categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error)
 	GetUserArticleList(userID int64, categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error)
+	SearchArticleList(keyword string, page, pageSize int) ([]*ArticleVO, int, error)
 	IncrementViewCount(id int64) error
 	IncrementViewCountUnique(id int64, clientIP string) error
 	GetViewCountDelta(id int64) int
