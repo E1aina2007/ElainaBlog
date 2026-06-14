@@ -13,7 +13,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   delete: [id: number]
+  reply: [comment: Comment]
 }>()
+
+const isLoggedIn = () => userStore.isLoggedIn
 
 const userStore = useUserStore()
 
@@ -69,9 +72,17 @@ function handleDelete(id: number) {
           </div>
           <time class="comment-time">{{ formatDate(comment.created_at) }}</time>
         </div>
-        <p class="comment-content">{{ comment.content }}</p>
-        <div v-if="canDelete(comment)" class="comment-actions">
-          <button class="delete-btn" @click="handleDelete(comment.id)">
+        <p class="comment-content">
+          <span v-if="comment.reply_to_username" class="reply-hint">
+            回复 <strong>{{ comment.reply_to_username }}</strong>：
+          </span>
+          {{ comment.content }}
+        </p>
+        <div class="comment-actions">
+          <button v-if="isLoggedIn()" class="reply-btn" @click="emit('reply', comment)">
+            回复
+          </button>
+          <button v-if="canDelete(comment)" class="delete-btn" @click="handleDelete(comment.id)">
             删除
           </button>
         </div>
@@ -193,10 +204,32 @@ function handleDelete(id: number) {
   word-break: break-word;
 }
 
+.reply-hint {
+  color: var(--primary);
+  font-size: 0.8125rem;
+  margin-right: 4px;
+}
+
 .comment-actions {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+.reply-btn {
+  font-size: 0.75rem;
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s ease;
+}
+
+.reply-btn:hover {
+  background: rgba(126, 215, 193, 0.15);
 }
 
 .delete-btn {

@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useUserStore } from '@/stores/user'
+import type { Comment } from '@/api/comment'
 
 interface Props {
   articleId: number
+  replyTo?: Comment | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  replyTo: null,
+})
 
 const emit = defineEmits<{
-  submit: [content: string]
+  submit: [data: { content: string; replyToUserId?: number }]
+  cancelReply: []
 }>()
 
 const userStore = useUserStore()
@@ -23,7 +28,10 @@ async function handleSubmit() {
 
   isSubmitting.value = true
   try {
-    emit('submit', content.value.trim())
+    emit('submit', {
+      content: content.value.trim(),
+      replyToUserId: props.replyTo?.user_id,
+    })
     content.value = ''
   } finally {
     isSubmitting.value = false
@@ -42,13 +50,18 @@ async function handleSubmit() {
 
     <!-- 评论表单 -->
     <template v-else>
+      <!-- 回复提示条 -->
+      <div v-if="replyTo" class="reply-hint-bar">
+        回复 <strong>{{ replyTo.username }}</strong>：{{ replyTo.content.slice(0, 50) }}{{ replyTo.content.length > 50 ? '...' : '' }}
+        <button class="cancel-reply" @click="emit('cancelReply')">取消</button>
+      </div>
       <div class="user-info">
         <span class="username">{{ userStore.userInfo?.username }}</span>
       </div>
       <textarea
         v-model="content"
         class="comment-input"
-        placeholder="写下你的评论..."
+        :placeholder="replyTo ? `回复 ${replyTo.username}...` : '写下你的评论...'"
         rows="4"
         v-tab-indent
         :disabled="isSubmitting"
@@ -104,6 +117,40 @@ async function handleSubmit() {
 
 .user-info {
   margin-bottom: 12px;
+}
+
+.reply-hint-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  border-left: 3px solid var(--primary);
+}
+
+.reply-hint-bar strong {
+  color: var(--primary);
+}
+
+.cancel-reply {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cancel-reply:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .username {

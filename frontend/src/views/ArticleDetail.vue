@@ -19,6 +19,7 @@ const article = ref<Article | null>(null)
 const comments = ref<Comment[]>([])
 const isLoading = ref(false)
 const isCommentLoading = ref(false)
+const replyTo = ref<Comment | null>(null)
 const error = ref('')
 const mdRenderer = ref<InstanceType<typeof MarkdownRenderer> | null>(null)
 
@@ -87,18 +88,30 @@ async function loadComments() {
 }
 
 // 提交评论
-async function handleSubmitComment(content: string) {
+async function handleSubmitComment(data: { content: string; replyToUserId?: number }) {
   try {
     await createComment({
       article_id: articleId.value,
-      content,
+      reply_to_user_id: data.replyToUserId,
+      content: data.content,
     })
-    // 重新加载评论
+    replyTo.value = null
     await loadComments()
     toast.success('评论发表成功')
   } catch (err: any) {
     toast.error(err?.message || '发表评论失败')
   }
+}
+
+// 回复评论
+function handleReply(comment: Comment) {
+  replyTo.value = comment
+  document.querySelector('.comment-form')?.scrollIntoView({ behavior: 'smooth' })
+}
+
+// 取消回复
+function cancelReply() {
+  replyTo.value = null
 }
 
 // 删除评论
@@ -291,11 +304,14 @@ onMounted(() => {
       <section v-if="article" class="comments-section">
         <CommentForm
           :article-id="articleId"
+          :reply-to="replyTo"
           @submit="handleSubmitComment"
+          @cancel-reply="cancelReply"
         />
         <CommentList
           :comments="comments"
           :loading="isCommentLoading"
+          @reply="handleReply"
           @delete="handleDeleteComment"
         />
       </section>

@@ -44,7 +44,7 @@ func RouterInit(r *gin.Engine) {
 	userService := user.NewService(userRepo, redis, tokenMgr)
 	categoryService := category.NewService(categoryRepo)
 	notificationService := notification.NewService(notificationRepo)
-	commentService := comment.NewService(commentRepo, articleRepo, notificationService)
+	commentService := comment.NewService(commentRepo, articleRepo, notificationService, userService)
 	articleService := article.NewService(articleRepo, commentRepo)
 	messageService := message.NewService(messageRepo, userRepo, notificationService)
 	siteService := site.NewService(siteRepo, redis)
