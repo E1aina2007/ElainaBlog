@@ -293,7 +293,7 @@ frontend/public/author/
 
 GitHub 推送到 main 分支时自动构建镜像并推送到远程仓库，服务器直接拉取。
 
-**前置条件：** 已配置 GitHub Actions + 远程容器仓库（详见 [GITHUB_ACTIONS_DOCKER.md](docs/GITHUB_ACTIONS_DOCKER.md)）。
+**前置条件：** 已配置 GitHub Actions + 远程容器仓库（详见 [远程镜像部署指南](docs/remote-image-deploy.md)）。
 
 在 `.env` 中配置镜像地址：
 
