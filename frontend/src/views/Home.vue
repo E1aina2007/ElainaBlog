@@ -57,7 +57,7 @@ const fetchArticles = async (page: number, append = false) => {
       // 搜索模式
       res = await searchArticles(searchKeyword.value, page, pageSize)
     } else {
-      const params: { page: number; pageSize: number; categoryId?: number; sortBy?: string } = { page, pageSize }
+      const params: { page: number; pageSize: number; categoryId?: number; sortBy?: 'latest' | 'popular' } = { page, pageSize }
       if (currentCategoryId.value !== null) {
         params.categoryId = currentCategoryId.value
       }
