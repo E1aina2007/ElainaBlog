@@ -58,6 +58,17 @@ func LoadConfigFromYml(path string) error {
 	if config.Upload.AvatarSize == 0 {
 		config.Upload.AvatarSize = 5
 	}
+	if config.Upload.RateLimit == 0 {
+		config.Upload.RateLimit = 20 // 每小时最多上传 20 张
+	}
+	if config.Upload.RateWindow == 0 {
+		config.Upload.RateWindow = 3600 // 默认 1 小时窗口
+	}
+	if config.Upload.CleanupCron == "" {
+		config.Upload.CleanupCron = "0 3 * * *" // 每天凌晨 3 点
+	}
+	// CleanupEnabled 默认为 true
+	config.Upload.CleanupEnabled = true
 
 	GlobalConfig = &config
 	return nil

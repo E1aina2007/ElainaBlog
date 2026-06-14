@@ -56,6 +56,12 @@ upload:
   path: uploads
   avatar_path: uploads/avatars
   avatar_size: 5
+  # 上传频率限制
+  rate_limit: 20            # 每小时最多上传图片数量
+  rate_window: 3600         # 频率限制时间窗口（秒）
+  # 孤儿图片清理
+  cleanup_enabled: true     # 是否启用孤儿图片清理
+  cleanup_cron: "0 3 * * *" # 清理任务 cron 表达式（每天凌晨3点）
 
 zap:
   level: info
