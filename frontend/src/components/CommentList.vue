@@ -72,6 +72,10 @@ function handleDelete(id: number) {
           </div>
           <time class="comment-time">{{ formatDate(comment.created_at) }}</time>
         </div>
+        <div v-if="comment.reply_to_username" class="reply-quote">
+          <span class="reply-quote-user">{{ comment.reply_to_username }}</span>：
+          <span class="reply-quote-content">{{ comment.reply_to_content && comment.reply_to_content.length > 100 ? comment.reply_to_content.slice(0, 100) + '...' : comment.reply_to_content }}</span>
+        </div>
         <p class="comment-content">
           <span v-if="comment.reply_to_username" class="reply-hint">
             回复 <strong>{{ comment.reply_to_username }}</strong>：
@@ -208,6 +212,24 @@ function handleDelete(id: number) {
   color: var(--primary);
   font-size: 0.8125rem;
   margin-right: 4px;
+}
+
+.reply-quote {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.reply-quote-user {
+  font-weight: 600;
+  font-style: normal;
+  color: var(--text-secondary);
 }
 
 .comment-actions {

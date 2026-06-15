@@ -7,8 +7,13 @@ import {
   deleteFriendLink,
   type FriendLink,
 } from '@/api/friendlink'
-import { getFaviconUrl } from '@/utils/favicon'
+import { getFaviconUrl, createFaviconErrorHandler } from '@/utils/favicon'
 import toast from '@/utils/toast'
+
+/** 隐藏加载失败的图片 */
+const hideImage = (e: Event) => {
+  ;(e.target as HTMLImageElement).style.display = 'none'
+}
 
 const links = ref<FriendLink[]>([])
 const loading = ref(false)
@@ -126,7 +131,7 @@ onMounted(fetchLinks)
                   :src="link.avatar || getFaviconUrl(link.url)"
                   class="link-avatar"
                   alt=""
-                  @error="($event.target as HTMLImageElement).style.display = 'none'"
+                  @error="link.avatar ? hideImage : createFaviconErrorHandler(link.url)"
                 />
                 <span>{{ link.name }}</span>
               </div>
@@ -167,7 +172,7 @@ onMounted(fetchLinks)
             :src="form.avatar || getFaviconUrl(form.url)"
             class="avatar-preview"
             alt=""
-            @error="($event.target as HTMLImageElement).style.display = 'none'"
+            @error="form.avatar ? hideImage : createFaviconErrorHandler(form.url)"
           />
         </div>
       </div>

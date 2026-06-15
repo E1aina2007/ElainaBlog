@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  submit: [data: { content: string; replyToUserId?: number }]
+  submit: [data: { content: string; replyToUserId?: number; replyToCommentId?: number }]
   cancelReply: []
 }>()
 
@@ -31,6 +31,7 @@ async function handleSubmit() {
     emit('submit', {
       content: content.value.trim(),
       replyToUserId: props.replyTo?.user_id,
+      replyToCommentId: props.replyTo?.id,
     })
     content.value = ''
   } finally {

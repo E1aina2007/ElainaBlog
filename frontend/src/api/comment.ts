@@ -7,6 +7,8 @@ export interface Comment {
     user_id: number
     reply_to_user_id: number | null
     reply_to_username: string | null
+    reply_to_comment_id: number | null
+    reply_to_content: string | null
     username: string
     avatar: string
     is_admin: boolean
@@ -20,7 +22,7 @@ export function getComments(articleId: number): Promise<Comment[]> {
 }
 
 // 创建评论
-export function createComment(data: { article_id: number; reply_to_user_id?: number | null; content: string }): Promise<{ id: number }> {
+export function createComment(data: { article_id: number; reply_to_user_id?: number | null; reply_to_comment_id?: number | null; content: string }): Promise<{ id: number }> {
     return request.post('/comment/create', data)
 }
 

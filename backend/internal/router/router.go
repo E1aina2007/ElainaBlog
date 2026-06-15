@@ -9,6 +9,7 @@ import (
 	"ElainaBlog/internal/category"
 	"ElainaBlog/internal/comment"
 	"ElainaBlog/internal/common"
+	"ElainaBlog/internal/favicon"
 	"ElainaBlog/internal/friendlink"
 	"ElainaBlog/internal/message"
 	"ElainaBlog/internal/middleware"
@@ -95,6 +96,7 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.GET("/author/profile", authorProfileController.Get)
 		apiGroup.GET("/message/list", messageController.GetList)
 		apiGroup.GET("/friend-link/list", friendLinkController.GetList)
+		apiGroup.GET("/favicon", rateLimiter.Limit("favicon", 30, time.Minute), favicon.Proxy)
 		apiGroup.POST("/visit", siteController.RecordVisit)
 
 		// 需要登录的接口
