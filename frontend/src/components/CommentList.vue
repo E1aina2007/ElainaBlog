@@ -72,15 +72,16 @@ function handleDelete(id: number) {
           </div>
           <time class="comment-time">{{ formatDate(comment.created_at) }}</time>
         </div>
+        <div v-if="comment.reply_to_username" class="reply-quote">
+          <span class="reply-quote-user">{{ comment.reply_to_username }}</span>：
+          <span class="reply-quote-content">{{ comment.reply_to_content && comment.reply_to_content.length > 100 ? comment.reply_to_content.slice(0, 100) + '...' : comment.reply_to_content }}</span>
+        </div>
         <p class="comment-content">
           <span v-if="comment.reply_to_username" class="reply-hint">
             回复 <strong>{{ comment.reply_to_username }}</strong>：
           </span>
           {{ comment.content }}
         </p>
-        <div v-if="comment.reply_to_content" class="reply-quote">
-          <span class="reply-quote-content">{{ comment.reply_to_content.length > 100 ? comment.reply_to_content.slice(0, 100) + '...' : comment.reply_to_content }}</span>
-        </div>
         <div class="comment-actions">
           <button v-if="isLoggedIn()" class="reply-btn" @click="emit('reply', comment)">
             回复
@@ -214,7 +215,7 @@ function handleDelete(id: number) {
 }
 
 .reply-quote {
-  margin-top: 8px;
+  margin-bottom: 8px;
   padding: 8px 12px;
   background: var(--bg-primary);
   border-left: 3px solid var(--primary);
@@ -223,6 +224,12 @@ function handleDelete(id: number) {
   color: var(--text-muted);
   line-height: 1.6;
   font-style: italic;
+}
+
+.reply-quote-user {
+  font-weight: 600;
+  font-style: normal;
+  color: var(--text-secondary);
 }
 
 .comment-actions {
