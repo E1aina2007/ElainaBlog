@@ -11,24 +11,58 @@ export function extractDomain(url: string): string {
 }
 
 /**
- * 获取网站的 favicon URL
- * 优先使用 Google favicon 服务，回退到直接构造的 favicon 路径
+ * 获取所有候选 favicon URL（按优先级排列）
+ * 顺序：后端代理(直连+Referer) → DuckDuckGo → Google
  */
-export function getFaviconUrl(url: string): string {
+export function getFaviconFallbacks(url: string): string[] {
   const domain = extractDomain(url)
-  if (!domain) return ''
+  if (!domain) return []
 
-  // 使用 Google favicon 服务（最可靠）
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+  return [
+    `/api/ui/favicon?domain=${domain}`,
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+  ]
 }
 
 /**
- * 获取备用 favicon URL（直接访问网站根目录的 favicon.ico）
+ * 获取主 favicon URL（第一个候选）
  */
-export function getFallbackFaviconUrl(url: string): string {
-  const domain = extractDomain(url)
-  if (!domain) return ''
+export function getFaviconUrl(url: string): string {
+  const fallbacks = getFaviconFallbacks(url)
+  return fallbacks[0] ?? ''
+}
 
-  const normalized = url.startsWith('http') ? url : `https://${url}`
-  return `${new URL(normalized).origin}/favicon.ico`
+/**
+ * 创建 favicon 加载失败时的回退处理器
+ * 用法：@error="createFaviconErrorHandler(url)"
+ *
+ * @param url - 目标网站 URL
+ * @param onAllFailed - 所有候选都失败时的回调（可选，默认隐藏图片）
+ * @returns onerror 事件处理函数
+ */
+export function createFaviconErrorHandler(
+  url: string,
+  onAllFailed?: (e: Event) => void
+) {
+  return (e: Event) => {
+    const img = e.target as HTMLImageElement
+    const fallbacks = getFaviconFallbacks(url)
+    const currentSrc = img.src
+    const currentIndex = fallbacks.indexOf(currentSrc)
+    const nextIndex = currentIndex + 1
+
+    const nextSrc = fallbacks[nextIndex]
+    if (nextSrc) {
+      // 还有候选，尝试下一个
+      img.src = nextSrc
+    } else {
+      // 全部失败
+      if (onAllFailed) {
+        onAllFailed(e)
+      } else {
+        img.style.display = 'none'
+      }
+    }
+  }
 }

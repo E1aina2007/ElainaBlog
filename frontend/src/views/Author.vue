@@ -5,11 +5,16 @@ import { useUserStore } from '@/stores/user'
 import { getAuthorStats, getMessageList, createMessage, deleteMessage } from '@/api/message'
 import { getAuthorProfile } from '@/api/authorProfile'
 import { getFriendLinkList } from '@/api/friendlink'
-import { getFaviconUrl } from '@/utils/favicon'
+import { getFaviconUrl, createFaviconErrorHandler } from '@/utils/favicon'
 import toast from '@/utils/toast'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+/** 隐藏加载失败的图片 */
+const hideImage = (e) => {
+  e.target.style.display = 'none'
+}
 const canComment = computed(() => userStore.isLoggedIn)
 
 const authorInfo = ref({
@@ -180,10 +185,6 @@ const formatDate = (date) => {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-const handleFaviconError = (e) => {
-  e.target.style.display = 'none'
 }
 
 onMounted(() => {
@@ -377,7 +378,7 @@ onUnmounted(() => {
               :src="link.avatar || getFaviconUrl(link.url)"
               class="friend-avatar"
               alt=""
-              @error="handleFaviconError"
+              @error="link.avatar ? hideImage : createFaviconErrorHandler(link.url)"
             />
             <span v-else class="friend-avatar-placeholder">{{ link.name.charAt(0) }}</span>
             <div class="friend-info">
