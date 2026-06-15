@@ -34,10 +34,11 @@ func NewService(repo Repository, articleInfo ArticleInfoProvider, notifCreator N
 }
 
 type CreateCommentParams struct {
-	ArticleID     int64
-	UserID        int64
-	ReplyToUserID *int64
-	Content       string
+	ArticleID        int64
+	UserID           int64
+	ReplyToUserID    *int64
+	ReplyToCommentID *int64
+	Content          string
 }
 
 type DeleteCommentParams struct {
@@ -119,6 +120,15 @@ func (s *Service) CreateComment(params *CreateCommentParams) (int64, error) {
 		}
 		comment.ReplyToUserID = params.ReplyToUserID
 		comment.ReplyToUsername = &username
+	}
+
+	// 设置回复目标评论内容
+	if params.ReplyToCommentID != nil && *params.ReplyToCommentID > 0 {
+		parentComment, err := s.repo.GetCommentByID(*params.ReplyToCommentID)
+		if err == nil && parentComment != nil {
+			comment.ReplyToCommentID = params.ReplyToCommentID
+			comment.ReplyToContent = &parentComment.Content
+		}
 	}
 
 	commentID, err := s.repo.CreateComment(comment)

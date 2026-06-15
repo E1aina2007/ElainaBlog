@@ -88,11 +88,12 @@ async function loadComments() {
 }
 
 // 提交评论
-async function handleSubmitComment(data: { content: string; replyToUserId?: number }) {
+async function handleSubmitComment(data: { content: string; replyToUserId?: number; replyToCommentId?: number }) {
   try {
     await createComment({
       article_id: articleId.value,
       reply_to_user_id: data.replyToUserId,
+      reply_to_comment_id: data.replyToCommentId,
       content: data.content,
     })
     replyTo.value = null

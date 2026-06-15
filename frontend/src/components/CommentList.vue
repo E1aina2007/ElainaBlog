@@ -78,6 +78,9 @@ function handleDelete(id: number) {
           </span>
           {{ comment.content }}
         </p>
+        <div v-if="comment.reply_to_content" class="reply-quote">
+          <span class="reply-quote-content">{{ comment.reply_to_content.length > 100 ? comment.reply_to_content.slice(0, 100) + '...' : comment.reply_to_content }}</span>
+        </div>
         <div class="comment-actions">
           <button v-if="isLoggedIn()" class="reply-btn" @click="emit('reply', comment)">
             回复
@@ -208,6 +211,18 @@ function handleDelete(id: number) {
   color: var(--primary);
   font-size: 0.8125rem;
   margin-right: 4px;
+}
+
+.reply-quote {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  font-style: italic;
 }
 
 .comment-actions {

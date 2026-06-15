@@ -24,9 +24,10 @@ func NewController(service *Service, adminChecker AdminChecker) *Controller {
 }
 
 type CreateCommentRequest struct {
-	ArticleID     int64  `json:"article_id"`
-	ReplyToUserID *int64 `json:"reply_to_user_id"`
-	Content       string `json:"content"`
+	ArticleID        int64  `json:"article_id"`
+	ReplyToUserID    *int64 `json:"reply_to_user_id"`
+	ReplyToCommentID *int64 `json:"reply_to_comment_id"`
+	Content          string `json:"content"`
 }
 
 type DeleteCommentRequest struct {
@@ -72,10 +73,11 @@ func (ctl *Controller) CreateComment(c *gin.Context) {
 
 	userID := c.GetInt64(common.CtxUserIDKey)
 	commentID, err := ctl.service.CreateComment(&CreateCommentParams{
-		ArticleID:     req.ArticleID,
-		UserID:        userID,
-		ReplyToUserID: req.ReplyToUserID,
-		Content:       req.Content,
+		ArticleID:        req.ArticleID,
+		UserID:           userID,
+		ReplyToUserID:    req.ReplyToUserID,
+		ReplyToCommentID: req.ReplyToCommentID,
+		Content:          req.Content,
 	})
 	if err != nil {
 		switch err {
