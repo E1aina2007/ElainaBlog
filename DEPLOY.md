@@ -293,7 +293,9 @@ frontend/public/author/
 
 GitHub 推送到 main 分支时自动构建镜像并推送到远程仓库，服务器直接拉取。
 
-**前置条件：** 已配置 GitHub Actions + 远程容器仓库（详见 [远程镜像部署指南](docs/remote-image-deploy.md)）。
+**前置条件：** 已配置阿里云 ACR + GitHub Secrets
+
+项目已包含工作流文件 `.github/workflows/docker-image.yml`，推送到 main 分支自动触发构建，推送 `latest` 和 commit SHA 两个标签。
 
 在 `.env` 中配置镜像地址：
 
