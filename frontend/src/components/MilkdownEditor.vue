@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { watch, ref, onUnmounted } from 'vue'
+import { watch, ref, onUnmounted, defineComponent, h } from 'vue'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/vue'
 import { Crepe, CrepeFeature } from '@milkdown/crepe'
 import { replaceAll } from '@milkdown/utils'
 import { useTheme } from '@/composables/useTheme'
+import { Editor } from '@milkdown/kit/core'
 
 // Common base styles (layout, toolbar, ProseMirror, etc.)
 import '@milkdown/crepe/theme/common/style.css'
@@ -30,66 +31,6 @@ const emit = defineEmits<{
 
 const { isDark } = useTheme()
 
-// ── v-model bridge ──────────────────────────────────────────
-let isInternalUpdate = false
-
-// Keep reference to Crepe for getMarkdown()
-let crepeRef: Crepe | null = null
-
-const editorRef = useEditor((root) => {
-  const featureConfigs: Record<string, unknown> = {}
-
-  if (props.placeholder) {
-    featureConfigs[CrepeFeature.Placeholder] = {
-      text: props.placeholder,
-      mode: 'doc' as const,
-    }
-  }
-
-  if (props.onUpload) {
-    featureConfigs[CrepeFeature.ImageBlock] = {
-      onUpload: props.onUpload,
-    }
-  }
-
-  const crepe = new Crepe({
-    root,
-    defaultValue: props.modelValue,
-    featureConfigs,
-  })
-
-  crepeRef = crepe
-
-  // Listen for user edits -> emit v-model
-  crepe.on((listener) => {
-    listener.markdownUpdated((_ctx, markdown) => {
-      if (!isInternalUpdate) {
-        emit('update:modelValue', markdown)
-      }
-    })
-  })
-
-  return crepe
-})
-
-// Watch external modelValue changes -> sync into editor
-watch(
-  () => props.modelValue,
-  (newVal) => {
-    if (!crepeRef) return
-    const ed = editorRef.get()
-    if (!ed) return
-    const currentMd = crepeRef.getMarkdown()
-    if (currentMd === newVal) return
-
-    isInternalUpdate = true
-    ed.action(replaceAll(newVal))
-    setTimeout(() => {
-      isInternalUpdate = false
-    }, 0)
-  }
-)
-
 // ── Theme CSS swapping ──────────────────────────────────────
 let themeStyleEl: HTMLStyleElement | null = null
 
@@ -109,12 +50,83 @@ watch(isDark, (dark) => applyTheme(dark), { immediate: true })
 onUnmounted(() => {
   themeStyleEl?.remove()
 })
+
+// ── v-model bridge refs (shared with inner component) ────────
+let isInternalUpdate = false
+let crepeRef: Crepe | null = null
+const editorGetter = ref<(() => Editor | undefined) | null>(null)
+
+// ── Inner editor component (must be child of MilkdownProvider) ──
+const MilkdownInner = defineComponent({
+  name: 'MilkdownInner',
+  setup() {
+    const editorRef = useEditor((root) => {
+      const featureConfigs: Record<string, unknown> = {}
+
+      if (props.placeholder) {
+        featureConfigs[CrepeFeature.Placeholder] = {
+          text: props.placeholder,
+          mode: 'doc' as const,
+        }
+      }
+
+      if (props.onUpload) {
+        featureConfigs[CrepeFeature.ImageBlock] = {
+          onUpload: props.onUpload,
+        }
+      }
+
+      const crepe = new Crepe({
+        root,
+        defaultValue: props.modelValue,
+        featureConfigs,
+      })
+
+      crepeRef = crepe
+
+      crepe.on((listener) => {
+        listener.markdownUpdated((_ctx, markdown) => {
+          if (!isInternalUpdate) {
+            emit('update:modelValue', markdown)
+          }
+        })
+      })
+
+      return crepe
+    })
+
+    // Expose the editor getter to the outer component
+    editorGetter.value = () => editorRef.get()
+
+    return () => h(Milkdown)
+  },
+})
+
+// ── Watch external modelValue changes -> sync into editor ──
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (!crepeRef) return
+    const getEditor = editorGetter.value
+    if (!getEditor) return
+    const ed = getEditor()
+    if (!ed) return
+    const currentMd = crepeRef.getMarkdown()
+    if (currentMd === newVal) return
+
+    isInternalUpdate = true
+    ed.action(replaceAll(newVal))
+    setTimeout(() => {
+      isInternalUpdate = false
+    }, 0)
+  }
+)
 </script>
 
 <template>
   <div class="milkdown-editor-wrapper" :style="{ height: editorHeight }">
     <MilkdownProvider>
-      <Milkdown />
+      <MilkdownInner />
     </MilkdownProvider>
   </div>
 </template>
