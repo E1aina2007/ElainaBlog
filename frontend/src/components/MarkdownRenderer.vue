@@ -275,37 +275,42 @@ defineExpose({ toc })
   line-height: 1.7;
 }
 
+/* ── 行内代码 ── */
 .markdown-body :deep(code) {
   font-family: 'Fira Code', 'Consolas', monospace;
   font-size: 0.875rem;
   background: var(--bg-secondary);
-  padding: 0.125rem 0.375rem;
+  padding: 0.15rem 0.4rem;
   border-radius: var(--radius-sm);
-  color: var(--primary-dark);
+  color: var(--color-danger);
 }
 
+/* ── 代码块容器 ── */
 .markdown-body :deep(.code-block-wrapper) {
   position: relative;
-  background: #0d1117;
   border-radius: var(--radius-md);
   margin: 1rem 0;
+  overflow: hidden;
 }
 
+/* ── 代码块语言标签头 ── */
 .markdown-body :deep(.code-block-header) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 4px 4px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 6px 12px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
 }
 
 .markdown-body :deep(.code-block-header .code-lang) {
-  font-size: 0.75rem;
-  color: #8b949e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #58a6ff;
   text-transform: uppercase;
   font-family: 'Fira Code', 'Consolas', monospace;
   user-select: none;
+  letter-spacing: 0.5px;
 }
 
 .markdown-body :deep(.code-block-header .code-copy-btn) {
@@ -329,18 +334,13 @@ defineExpose({ toc })
   color: #e6edf3;
 }
 
-.markdown-body :deep(.code-block-wrapper .hljs-code-block) {
-  margin: 0;
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  background: transparent;
-}
-
+/* ── 代码块内容区 ── */
 .markdown-body :deep(.hljs-code-block) {
-  background: transparent;
+  background: #0d1117;
   padding: 1rem;
-  border-radius: var(--radius-md);
   overflow-x: auto;
-  margin: 1rem 0;
+  margin: 0;
+  border-radius: 0;
 }
 
 .markdown-body :deep(.hljs-code-block code) {
@@ -393,4 +393,58 @@ defineExpose({ toc })
 .markdown-body :deep(input[type="checkbox"]) {
   margin-right: 0.375rem;
 }
+</style>
+
+<!-- 日间模式：代码块亮色覆盖 -->
+<style>
+html:not(.dark) .markdown-body .code-block-wrapper {
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+}
+
+html:not(.dark) .markdown-body .code-block-header {
+  background: #e8eaed;
+  border-bottom-color: #d0d7de;
+}
+
+html:not(.dark) .markdown-body .code-block-header .code-lang {
+  color: #57606a;
+}
+
+html:not(.dark) .markdown-body .code-block-header .code-copy-btn {
+  color: #57606a;
+}
+
+html:not(.dark) .markdown-body .code-block-header .code-copy-btn:hover {
+  background: #d0d7de;
+  color: #24292e;
+}
+
+html:not(.dark) .markdown-body .hljs-code-block {
+  background: #f6f8fa;
+}
+
+html:not(.dark) .markdown-body .hljs-code-block code {
+  color: #24292e;
+}
+
+/* 日间模式语法高亮色 */
+html:not(.dark) .markdown-body .hljs-keyword { color: #d73a49; }
+html:not(.dark) .markdown-body .hljs-string { color: #032f62; }
+html:not(.dark) .markdown-body .hljs-number { color: #005cc5; }
+html:not(.dark) .markdown-body .hljs-comment { color: #6a737d; }
+html:not(.dark) .markdown-body .hljs-function { color: #6f42c1; }
+html:not(.dark) .markdown-body .hljs-title { color: #6f42c1; }
+html:not(.dark) .markdown-body .hljs-built_in { color: #005cc5; }
+html:not(.dark) .markdown-body .hljs-type { color: #005cc5; }
+html:not(.dark) .markdown-body .hljs-literal { color: #005cc5; }
+html:not(.dark) .markdown-body .hljs-attr { color: #005cc5; }
+html:not(.dark) .markdown-body .hljs-variable { color: #e36209; }
+html:not(.dark) .markdown-body .hljs-params { color: #24292e; }
+html:not(.dark) .markdown-body .hljs-tag { color: #22863a; }
+html:not(.dark) .markdown-body .hljs-name { color: #22863a; }
+html:not(.dark) .markdown-body .hljs-selector-class { color: #6f42c1; }
+html:not(.dark) .markdown-body .hljs-meta { color: #6a737d; }
+html:not(.dark) .markdown-body .hljs-regexp { color: #032f62; }
+html:not(.dark) .markdown-body .hljs-subst { color: #24292e; }
 </style>
