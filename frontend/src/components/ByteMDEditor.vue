@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, onMounted, nextTick } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { Editor } from '@bytemd/vue-next'
 import 'bytemd/dist/index.css'
 import 'highlight.js/styles/github-dark.css'
@@ -30,25 +30,20 @@ function handleChange(value: string) {
 }
 
 // ── 为预览面板代码块注入语言标签 ──────────────────────────
-function injectCodeBlockHeaders() {
-  // ByteMD 预览面板
-  const preview = document.querySelector('.bytemd-preview')
-  if (!preview) return
+let observer: MutationObserver | null = null
 
-  const pres = preview.querySelectorAll('pre')
+function injectCodeBlockHeaders(previewEl: Element) {
+  const pres = previewEl.querySelectorAll('pre')
   pres.forEach((pre) => {
-    // 跳过已经处理过的
     if (pre.parentElement?.classList.contains('code-block-wrapper')) return
 
     const code = pre.querySelector('code')
     const langClass = code?.className.match(/language-(\w+)/)
     const lang = langClass?.[1] ?? ''
 
-    // 创建包裹容器
     const wrapper = document.createElement('div')
     wrapper.className = 'code-block-wrapper'
 
-    // 创建语言标签头
     const header = document.createElement('div')
     header.className = 'code-block-header'
     if (lang) {
@@ -58,19 +53,33 @@ function injectCodeBlockHeaders() {
       header.appendChild(langLabel)
     }
 
-    // 替换 DOM
     pre.parentNode?.insertBefore(wrapper, pre)
     wrapper.appendChild(header)
     wrapper.appendChild(pre)
   })
 }
 
-// 当内容变化时重新注入
-watch(() => props.modelValue, () => nextTick(injectCodeBlockHeaders))
+function setupObserver() {
+  const preview = document.querySelector('.bytemd-preview')
+  if (!preview) return
+
+  // 首次立即处理
+  injectCodeBlockHeaders(preview)
+
+  // 监听子节点变化
+  observer = new MutationObserver(() => {
+    injectCodeBlockHeaders(preview)
+  })
+  observer.observe(preview, { childList: true, subtree: true })
+}
 
 onMounted(() => {
-  // 首次渲染后注入
-  nextTick(injectCodeBlockHeaders)
+  // ByteMD 渲染是异步的，延迟启动观察者
+  setTimeout(setupObserver, 300)
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
 })
 </script>
 
