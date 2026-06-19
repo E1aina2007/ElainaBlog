@@ -142,8 +142,6 @@ onUnmounted(() => {
 }
 
 /* ── 暗黑模式 ── */
-:deep(.bytemd-dark.bytemd-editor-wrapper) .bytemd,
-.bytemd-editor-wrapper:deep(.bytemd-dark) .bytemd,
 .bytemd-dark :deep(.bytemd) {
   color: #c9d1d9;
   border-color: #30363d;
@@ -159,10 +157,7 @@ onUnmounted(() => {
   background-color: #30363d;
 }
 
-.bytemd-dark :deep(.bytemd-toolbar-tab-active) {
-  color: #58a6ff;
-}
-
+.bytemd-dark :deep(.bytemd-toolbar-tab-active),
 .bytemd-dark :deep(.bytemd-toolbar-icon-active) {
   color: #58a6ff;
 }
@@ -183,7 +178,6 @@ onUnmounted(() => {
 
 .bytemd-dark :deep(.bytemd-dropdown-title) {
   border-bottom-color: #30363d;
-  color: #c9d1d9;
 }
 
 .bytemd-dark :deep(.bytemd-dropdown-item:hover) {
@@ -194,16 +188,6 @@ onUnmounted(() => {
   color: #c9d1d9;
 }
 
-.bytemd-dark :deep(.bytemd-help) {
-  color: #8b949e;
-}
-
-.bytemd-dark :deep(.bytemd-toc-active) {
-  color: #58a6ff;
-  background-color: #161b22;
-}
-
-/* CodeMirror editor dark mode */
 .bytemd-dark :deep(.CodeMirror) {
   color: #c9d1d9;
   background-color: #0d1117;
@@ -218,11 +202,10 @@ onUnmounted(() => {
   border-left-color: #c9d1d9;
 }
 
-.bytemd-dark :deep(.CodeMirror-selected) {
-  background-color: #264f78;
-}
-
-.bytemd-dark :deep(.CodeMirror-focused .CodeMirror-selected) {
+.bytemd-dark :deep(.CodeMirror-selected),
+.bytemd-dark :deep(.CodeMirror-focused .CodeMirror-selected),
+.bytemd-dark :deep(.CodeMirror-line::selection),
+.bytemd-dark :deep(.CodeMirror-line > span::selection) {
   background-color: #264f78;
 }
 
@@ -230,51 +213,13 @@ onUnmounted(() => {
   background-color: #161b22;
 }
 
-.bytemd-dark :deep(.CodeMirror-line::selection),
-.bytemd-dark :deep(.CodeMirror-line > span::selection),
-.bytemd-dark :deep(.CodeMirror-line > span > span::selection) {
-  background-color: #264f78;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-comment) {
-  color: #8b949e;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-keyword) {
-  color: #ff7b72;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-string) {
-  color: #a5d6ff;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-number) {
-  color: #79c0ff;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-def) {
-  color: #d2a8ff;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-variable-2) {
-  color: #ffa657;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-tag) {
-  color: #7ee787;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-attribute) {
-  color: #79c0ff;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-header) {
-  color: #79c0ff;
-}
-
-.bytemd-dark :deep(.cm-s-default .cm-quote) {
-  color: #7ee787;
-}
+.bytemd-dark :deep(.cm-s-default .cm-comment) { color: #8b949e; }
+.bytemd-dark :deep(.cm-s-default .cm-keyword) { color: #ff7b72; }
+.bytemd-dark :deep(.cm-s-default .cm-string) { color: #a5d6ff; }
+.bytemd-dark :deep(.cm-s-default .cm-number) { color: #79c0ff; }
+.bytemd-dark :deep(.cm-s-default .cm-def) { color: #d2a8ff; }
+.bytemd-dark :deep(.cm-s-default .cm-tag) { color: #7ee787; }
+.bytemd-dark :deep(.cm-s-default .cm-attribute) { color: #79c0ff; }
 
 .bytemd-dark :deep(.CodeMirror pre.CodeMirror-placeholder) {
   color: #484f58;
