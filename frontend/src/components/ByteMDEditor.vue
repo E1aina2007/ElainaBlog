@@ -139,4 +139,15 @@ function handleChange(value: string) {
 .bytemd-dark :deep(.CodeMirror pre.CodeMirror-placeholder) {
   color: #484f58;
 }
+
+/* 暗黑模式预览区代码块：与背景色区分 */
+.bytemd-dark :deep(.markdown-body pre) {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+}
+
+.bytemd-dark :deep(.markdown-body code) {
+  background: #343941;
+}
 </style>
