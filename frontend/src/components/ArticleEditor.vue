@@ -67,6 +67,32 @@ const checkDirty = () => {
 
 const editorTheme = computed(() => isDark.value ? 'dark' : 'light')
 
+// 修复中文标点 IME 输入 bug：compositionend 可能不触发，导致 v-model 不同步
+// 通过 onChange 回调 + 短延迟兜底来检测并修复卡住的拼写状态
+const lastChangeContent = ref('')
+let imeSyncTimer: ReturnType<typeof setTimeout> | null = null
+
+const handleEditorChange = (value: string) => {
+  lastChangeContent.value = value
+  if (imeSyncTimer) clearTimeout(imeSyncTimer)
+  imeSyncTimer = setTimeout(() => {
+    if (form.value.content !== lastChangeContent.value) {
+      form.value.content = lastChangeContent.value
+    }
+    imeSyncTimer = null
+  }, 250)
+}
+
+// 当 v-model 正常更新时取消兜底定时器
+watch(() => form.value.content, (newVal) => {
+  if (newVal === lastChangeContent.value) {
+    if (imeSyncTimer) {
+      clearTimeout(imeSyncTimer)
+      imeSyncTimer = null
+    }
+  }
+})
+
 // 监听表单变化
 watch(form, checkDirty, { deep: true })
 
@@ -98,6 +124,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (imeSyncTimer) clearTimeout(imeSyncTimer)
 })
 
 // 标记为已保存（父组件调用）
@@ -253,6 +280,7 @@ onMounted(() => {
         :theme="editorTheme"
         :show-code-row-number="true"
         :on-upload-img="handleUploadImage"
+        :on-change="handleEditorChange"
         style="height: 500px"
         placeholder="请输入文章内容（支持 Markdown 语法）..."
       />
