@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
 import { Editor } from '@bytemd/vue-next'
+import { useTheme } from '@/composables/useTheme'
 import 'bytemd/dist/index.css'
 import 'highlight.js/styles/github-dark.css'
 import highlight from '@bytemd/plugin-highlight'
 import gfm from '@bytemd/plugin-gfm'
+
+const { isDark } = useTheme()
 
 const plugins = [highlight(), gfm()]
 
@@ -84,7 +87,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bytemd-editor-wrapper" :editor-height="editorHeight">
+  <div class="bytemd-editor-wrapper" :class="{ 'bytemd-dark': isDark }" :editor-height="editorHeight">
     <Editor
       :value="modelValue"
       :plugins="plugins"
@@ -111,27 +114,169 @@ onUnmounted(() => {
 :deep(.code-block-wrapper) {
   position: relative;
   margin: 1rem 0;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 :deep(.code-block-header) {
   display: flex;
   align-items: center;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px 6px 0 0;
+  padding: 6px 12px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
 }
 
 :deep(.code-lang) {
-  font-size: 0.75rem;
-  color: #8b949e;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #58a6ff;
   text-transform: uppercase;
   font-family: 'Fira Code', 'Consolas', monospace;
   user-select: none;
+  letter-spacing: 0.5px;
 }
 
 :deep(.code-block-wrapper pre) {
   margin: 0;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0;
+}
+
+/* ── 暗黑模式 ── */
+:deep(.bytemd-dark.bytemd-editor-wrapper) .bytemd,
+.bytemd-editor-wrapper:deep(.bytemd-dark) .bytemd,
+.bytemd-dark :deep(.bytemd) {
+  color: #c9d1d9;
+  border-color: #30363d;
+  background-color: #0d1117;
+}
+
+.bytemd-dark :deep(.bytemd-toolbar) {
+  background-color: #161b22;
+  border-bottom-color: #30363d;
+}
+
+.bytemd-dark :deep(.bytemd-toolbar-icon:hover) {
+  background-color: #30363d;
+}
+
+.bytemd-dark :deep(.bytemd-toolbar-tab-active) {
+  color: #58a6ff;
+}
+
+.bytemd-dark :deep(.bytemd-toolbar-icon-active) {
+  color: #58a6ff;
+}
+
+.bytemd-dark :deep(.bytemd-split .bytemd-preview) {
+  border-left-color: #30363d;
+}
+
+.bytemd-dark :deep(.bytemd-sidebar) {
+  border-left-color: #30363d;
+  background-color: #0d1117;
+}
+
+.bytemd-dark :deep(.bytemd-status) {
+  border-top-color: #30363d;
+  color: #8b949e;
+}
+
+.bytemd-dark :deep(.bytemd-dropdown-title) {
+  border-bottom-color: #30363d;
+  color: #c9d1d9;
+}
+
+.bytemd-dark :deep(.bytemd-dropdown-item:hover) {
+  background-color: #161b22;
+}
+
+.bytemd-dark :deep(.bytemd-preview .markdown-body) {
+  color: #c9d1d9;
+}
+
+.bytemd-dark :deep(.bytemd-help) {
+  color: #8b949e;
+}
+
+.bytemd-dark :deep(.bytemd-toc-active) {
+  color: #58a6ff;
+  background-color: #161b22;
+}
+
+/* CodeMirror editor dark mode */
+.bytemd-dark :deep(.CodeMirror) {
+  color: #c9d1d9;
+  background-color: #0d1117;
+}
+
+.bytemd-dark :deep(.CodeMirror-gutters) {
+  background-color: #0d1117;
+  border-right-color: #30363d;
+}
+
+.bytemd-dark :deep(.CodeMirror-cursor) {
+  border-left-color: #c9d1d9;
+}
+
+.bytemd-dark :deep(.CodeMirror-selected) {
+  background-color: #264f78;
+}
+
+.bytemd-dark :deep(.CodeMirror-focused .CodeMirror-selected) {
+  background-color: #264f78;
+}
+
+.bytemd-dark :deep(.CodeMirror-activeline-background) {
+  background-color: #161b22;
+}
+
+.bytemd-dark :deep(.CodeMirror-line::selection),
+.bytemd-dark :deep(.CodeMirror-line > span::selection),
+.bytemd-dark :deep(.CodeMirror-line > span > span::selection) {
+  background-color: #264f78;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-comment) {
+  color: #8b949e;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-keyword) {
+  color: #ff7b72;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-string) {
+  color: #a5d6ff;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-number) {
+  color: #79c0ff;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-def) {
+  color: #d2a8ff;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-variable-2) {
+  color: #ffa657;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-tag) {
+  color: #7ee787;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-attribute) {
+  color: #79c0ff;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-header) {
+  color: #79c0ff;
+}
+
+.bytemd-dark :deep(.cm-s-default .cm-quote) {
+  color: #7ee787;
+}
+
+.bytemd-dark :deep(.CodeMirror pre.CodeMirror-placeholder) {
+  color: #484f58;
 }
 </style>
