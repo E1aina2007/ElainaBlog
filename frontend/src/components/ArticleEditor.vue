@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { getArticleDetail, getAdminArticleDetail, getMyArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
-import { useTheme } from '@/composables/useTheme'
 import { uploadImage } from '@/api/upload'
-import { MdEditor } from 'md-editor-v3'
-import 'md-editor-v3/lib/style.css'
-import { ViewPlugin, EditorView } from '@codemirror/view'
-import type { Extension } from '@codemirror/state'
+import MilkdownEditor from '@/components/MilkdownEditor.vue'
 import toast from '@/utils/toast'
 
 export interface ArticleSubmitData {
@@ -36,7 +32,6 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
-const { isDark } = useTheme()
 
 const isEdit = ref(false)
 const articleId = ref<number | null>(null)
@@ -65,118 +60,6 @@ const saveSnapshot = () => {
 const checkDirty = () => {
   const currentSnapshot = JSON.stringify(form.value)
   isDirty.value = currentSnapshot !== initialFormSnapshot
-}
-
-const editorTheme = computed(() => isDark.value ? 'dark' : 'light')
-
-// ========== 修复中文标点 IME 输入 bug ==========
-// 根因：某些 IME（如微软拼音）输入中文标点时，compositionstart 触发
-// 但 compositionupdate 从未触发（无中间态拼音），随后 compositionend
-// 也可能不触发。md-editor-v3 的 spelling 标记卡在 true，导致
-// updateListener 跳过 updateModelValue 调用，v-model 不同步。
-//
-// 修复：通过 ViewPlugin 监听编辑器 DOM 的 composition 事件，
-// 当检测到 compositionstart 后出现 input 事件但从未有过
-// compositionupdate（说明是直接字符输入如中文标点），
-// 在短延迟后合成 compositionend 事件强制 CodeMirror 提交更改。
-
-/**
- * 创建 IME fix CodeMirror 扩展
- * @param syncModel 回调：将编辑器最新内容同步到 Vue model
- */
-function createIMEFix(syncModel: (content: string) => void): Extension {
-  return ViewPlugin.fromClass(
-    class {
-      private composing = false
-      private hadUpdate = false
-      private timer: ReturnType<typeof setTimeout> | null = null
-      private view: EditorView
-
-      constructor(view: EditorView) {
-        this.view = view
-        const dom = view.dom
-
-        dom.addEventListener('compositionstart', this.onCompositionStart, true)
-        dom.addEventListener('compositionupdate', this.onCompositionUpdate, true)
-        dom.addEventListener('compositionend', this.onCompositionEnd, true)
-        dom.addEventListener('input', this.onInput, true)
-      }
-
-      private onCompositionStart = () => {
-        this.composing = true
-        this.hadUpdate = false
-        if (this.timer) {
-          clearTimeout(this.timer)
-          this.timer = null
-        }
-      }
-
-      private onCompositionUpdate = () => {
-        this.hadUpdate = true
-      }
-
-      private onCompositionEnd = () => {
-        this.composing = false
-        this.hadUpdate = false
-        if (this.timer) {
-          clearTimeout(this.timer)
-          this.timer = null
-        }
-        // 确保 compositionend 后 model 同步
-        syncModel(this.view.state.doc.toString())
-      }
-
-      private onInput = () => {
-        if (this.composing && !this.hadUpdate) {
-          // 进入了 composition 但从未有过 compositionupdate
-          // 这是直接字符输入（如中文标点、日文假名直接输入等）
-          // compositionend 可能不会触发，需要兜底
-          if (this.timer) clearTimeout(this.timer)
-          this.timer = setTimeout(() => {
-            if (this.composing && !this.hadUpdate) {
-              // 合成 compositionend 强制 CodeMirror 提交
-              this.view.dom.dispatchEvent(
-                new CompositionEvent('compositionend', {
-                  data: '',
-                  bubbles: true,
-                })
-              )
-              this.composing = false
-              // compositionend handler 会调用 syncModel
-            }
-            this.timer = null
-          }, 80) // 80ms 足够让浏览器处理完当前 input
-        }
-      }
-
-      destroy() {
-        const dom = this.view.dom
-        dom.removeEventListener('compositionstart', this.onCompositionStart, true)
-        dom.removeEventListener('compositionupdate', this.onCompositionUpdate, true)
-        dom.removeEventListener('compositionend', this.onCompositionEnd, true)
-        dom.removeEventListener('input', this.onInput, true)
-        if (this.timer) clearTimeout(this.timer)
-      }
-    }
-  )
-}
-
-// 兜底 model 同步回调（给 ViewPlugin 内部使用）
-const syncModelCallback = (content: string) => {
-  if (form.value.content !== content) {
-    form.value.content = content
-  }
-}
-
-// codeMirrorExtensions：注入 IME fix 扩展
-const imeFixExtension = createIMEFix(syncModelCallback)
-
-const handleCodeMirrorExtensions = (exts: any[]) => {
-  // 在扩展列表末尾追加我们的 IME fix
-  return [
-    ...exts,
-    { type: 'imeFix', extension: imeFixExtension },
-  ]
 }
 
 // 监听表单变化
@@ -274,20 +157,10 @@ const handleCancel = () => {
   emit('cancel')
 }
 
-// 编辑器图片上传
-const handleUploadImage = async (files: File[], callback: (urls: string[]) => void) => {
-  const urls = await Promise.all(
-    files.map(async (file) => {
-      try {
-        const res = await uploadImage(file)
-        return res.url
-      } catch {
-        toast.error(`图片 ${file.name} 上传失败`)
-        return ''
-      }
-    })
-  )
-  callback(urls.filter(Boolean))
+// 编辑器图片上传（适配 Milkdown onUpload: (file: File) => Promise<string>）
+const handleImageUpload = async (file: File): Promise<string> => {
+  const res = await uploadImage(file)
+  return res.url
 }
 
 // 暴露给父组件
@@ -359,14 +232,11 @@ onMounted(() => {
         <span>置顶文章</span>
       </label>
 
-      <!-- Markdown 编辑器（内置 CodeMirror 语法高亮 + 实时预览） -->
-      <MdEditor
+      <!-- Markdown 编辑器（Milkdown WYSIWYG） -->
+      <MilkdownEditor
         v-model="form.content"
-        :theme="editorTheme"
-        :show-code-row-number="true"
-        :on-upload-img="handleUploadImage"
-        :code-mirror-extensions="handleCodeMirrorExtensions"
-        style="height: 500px"
+        :on-upload="handleImageUpload"
+        editor-height="500px"
         placeholder="请输入文章内容（支持 Markdown 语法）..."
       />
     </div>
@@ -555,7 +425,7 @@ button:disabled {
 }
 
 /* 编辑器圆角适配 */
-.editor-body :deep(.md-editor) {
+.editor-body :deep(.milkdown-editor-wrapper) {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
