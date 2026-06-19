@@ -356,6 +356,7 @@ onUnmounted(() => {
 /* ===== 英雄区域 ===== */
 .hero-section {
   position: relative;
+  width: 100%;
   min-height: 70vh;
   display: flex;
   flex-direction: column;

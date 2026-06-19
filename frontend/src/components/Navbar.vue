@@ -387,6 +387,7 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 100;
+  width: 100%;
   background: var(--bg-glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -394,6 +395,7 @@ onUnmounted(() => {
 }
 
 .navbar-container {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
