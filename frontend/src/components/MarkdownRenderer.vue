@@ -63,8 +63,17 @@ function extractToc(content: string): TocItem[] {
   const lines = content.split('\n')
   const items: TocItem[] = []
   const slugCount: Record<string, number> = {}
+  let inCodeBlock = false
 
   for (const line of lines) {
+    // 检测围栏代码块边界（``` 或 ~~~）
+    if (/^\s*`{3,}\s*$/.test(line) || /^\s*~{3,}\s*$/.test(line)) {
+      inCodeBlock = !inCodeBlock
+      continue
+    }
+    // 跳过代码块内的行
+    if (inCodeBlock) continue
+
     const match = line.match(/^(#{1,6})\s+(.+)$/)
     if (!match || !match[1] || !match[2]) continue
     const level = match[1].length
