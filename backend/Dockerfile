@@ -7,12 +7,8 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go env -w GOPROXY=https://goproxy.cn,direct && go mod download
 
-# 复制源码并构建
-# -s -w: 去除调试符号和 DWARF 信息，减少链接器内存和二进制体积
-# -p 1: 限制编译并行度为单核，大幅降低峰值内存（牺牲编译速度）
-# GOMEMLIMIT=384MiB: 限制 Go 运行时堆内存
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOMEMLIMIT=384MiB go build -p 1 -ldflags="-s -w" -o /elainablog ./cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /elainablog ./cmd
 
 # 运行阶段
 FROM alpine:3.21

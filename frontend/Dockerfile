@@ -3,18 +3,10 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# 限制 Node.js 堆内存为 384MB（实际 RSS 约 1.5 倍，~576MB）
-ENV NODE_OPTIONS=--max-old-space-size=384
-
 # 先复制依赖文件，利用 Docker 缓存
 COPY package.json package-lock.json ./
 RUN npm config set registry https://registry.npmmirror.com && npm ci
 
-# 复制源码并分步构建
-# 拆分为独立 RUN 以降低峰值内存：
-#   npm ci 峰值 ~500MB，进程退出后释放
-#   vue-tsc 峰值 ~400MB（384MB 堆 + 运行时开销）
-#   vite build 峰值 ~300MB
 COPY . .
 RUN npx vue-tsc --build
 RUN npx vite build

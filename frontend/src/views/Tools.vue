@@ -1,11 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { MdEditor } from 'md-editor-v3'
-import 'md-editor-v3/lib/style.css'
-import { useTheme } from '@/composables/useTheme'
-
-const { isDark } = useTheme()
-const editorTheme = computed(() => isDark.value ? 'dark' : 'light')
+import { ref } from 'vue'
+import ByteMDEditor from '@/components/ByteMDEditor.vue'
 
 const activeTab = ref('random')
 
@@ -314,11 +309,10 @@ function fallbackCopy(text: string) {
       <!-- Markdown 预览 -->
       <section v-show="activeTab === 'markdown'" class="tool-card">
         <h2 class="tool-title">Markdown 在线预览</h2>
-        <MdEditor
+        <ByteMDEditor
           v-model="mdText"
-          :theme="editorTheme"
-          :show-code-row-number="true"
-          style="height: 450px"
+          editor-height="450px"
+          placeholder="输入 Markdown 内容进行预览..."
         />
       </section>
 
@@ -640,7 +634,7 @@ function fallbackCopy(text: string) {
 }
 
 /* Markdown 编辑器圆角适配 */
-.tool-card :deep(.md-editor) {
+.tool-card :deep(.bytemd-editor-wrapper) {
   border-radius: var(--radius-md);
   overflow: hidden;
 }

@@ -1,7 +1,7 @@
-// favicon 代理接口：解析网页 HTML 获取真实图标 URL，带 Referer 头请求，绕过防盗链
-package favicon
+package util
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,54 +12,111 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var client = &http.Client{
+var httpClient = &http.Client{
 	Timeout: 5 * time.Second,
 }
 
 // 匹配 <link rel="icon" href="..."> 或 <link rel="shortcut icon" href="...">
 var linkRe = regexp.MustCompile(`(?i)<link[^>]+rel=["'](?:shortcut )?icon["'][^>]+href=["']([^"']+)["']`)
+
 // 匹配 <link href="..." rel="icon"> （href 在 rel 前面的情况）
 var linkRe2 = regexp.MustCompile(`(?i)<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:shortcut )?icon["']`)
+
 // 匹配 <meta property="og:image" content="...">
 var ogImageRe = regexp.MustCompile(`(?i)<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']`)
 
-// Proxy 处理 GET /api/ui/favicon?domain=example.com
-func Proxy(c *gin.Context) {
+// FaviconProxy 处理 GET /api/ui/favicon?domain=example.com
+func FaviconProxy(c *gin.Context) {
 	domain := c.Query("domain")
 	if domain == "" {
 		c.String(http.StatusBadRequest, "missing domain parameter")
 		return
 	}
 
+	iconURL, err := FetchIconURL(c.Request.Context(), domain)
+	if err != nil {
+		c.String(http.StatusNotFound, "favicon not found")
+		return
+	}
+
+	body, contentType, err := DownloadIcon(c.Request.Context(), iconURL, domain)
+	if err != nil {
+		c.String(http.StatusNotFound, "favicon not found")
+		return
+	}
+	defer body.Close()
+
+	c.Header("Content-Type", contentType)
+	c.Header("Cache-Control", "public, max-age=86400")
+	io.Copy(c.Writer, body)
+}
+
+// FetchIconURL 根据域名获取最佳 favicon URL，按优先级尝试多种策略
+func FetchIconURL(ctx context.Context, domain string) (string, error) {
 	// 策略1：解析 HTML 中的 <link rel="icon"> 标签（最准确）
-	if iconURL, err := extractIconFromHTML(c, domain); err == nil && iconURL != "" {
-		if serveIcon(c, iconURL, domain) {
-			return
-		}
+	if iconURL, err := extractIconFromHTML(ctx, domain); err == nil && iconURL != "" {
+		return iconURL, nil
 	}
 
 	// 策略2：直接请求常见路径
 	paths := []string{"/favicon.ico", "/apple-touch-icon.png"}
 	for _, path := range paths {
 		iconURL := fmt.Sprintf("https://%s%s", domain, path)
-		if serveIcon(c, iconURL, domain) {
-			return
+		req, err := http.NewRequestWithContext(ctx, http.MethodHead, iconURL, nil)
+		if err != nil {
+			continue
+		}
+		req.Header.Set("Referer", fmt.Sprintf("https://%s/", domain))
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return iconURL, nil
 		}
 	}
 
-	c.String(http.StatusNotFound, "favicon not found")
+	return "", fmt.Errorf("favicon not found for %s", domain)
+}
+
+// DownloadIcon 下载图标并返回 body 和 Content-Type
+func DownloadIcon(ctx context.Context, iconURL, domain string) (io.ReadCloser, string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, iconURL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("Referer", fmt.Sprintf("https://%s/", domain))
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, "", fmt.Errorf("status %d", resp.StatusCode)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "image/x-icon"
+	}
+	return resp.Body, contentType, nil
 }
 
 // extractIconFromHTML 请求首页 HTML，提取 <link rel="icon"> 中的图标 URL
-func extractIconFromHTML(c *gin.Context, domain string) (string, error) {
+func extractIconFromHTML(ctx context.Context, domain string) (string, error) {
 	homeURL := fmt.Sprintf("https://%s/", domain)
-	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, homeURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, homeURL, nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -104,33 +161,4 @@ func resolveURL(domain, href string) string {
 		return fmt.Sprintf("https://%s%s", domain, href)
 	}
 	return fmt.Sprintf("https://%s/%s", domain, href)
-}
-
-// serveIcon 请求图标并写入响应，成功返回 true
-func serveIcon(c *gin.Context, iconURL, domain string) bool {
-	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, iconURL, nil)
-	if err != nil {
-		return false
-	}
-	req.Header.Set("Referer", fmt.Sprintf("https://%s/", domain))
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "image/x-icon"
-	}
-	c.Header("Content-Type", contentType)
-	c.Header("Cache-Control", "public, max-age=86400")
-	io.Copy(c.Writer, resp.Body)
-	return true
 }

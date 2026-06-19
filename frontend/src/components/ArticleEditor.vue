@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { getArticleDetail, getAdminArticleDetail, getMyArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
-import { useTheme } from '@/composables/useTheme'
 import { uploadImage } from '@/api/upload'
-import { MdEditor } from 'md-editor-v3'
-import 'md-editor-v3/lib/style.css'
+import ByteMDEditor from '@/components/ByteMDEditor.vue'
 import toast from '@/utils/toast'
 
 export interface ArticleSubmitData {
@@ -34,7 +32,6 @@ const emit = defineEmits<{
 }>()
 
 const route = useRoute()
-const { isDark } = useTheme()
 
 const isEdit = ref(false)
 const articleId = ref<number | null>(null)
@@ -64,8 +61,6 @@ const checkDirty = () => {
   const currentSnapshot = JSON.stringify(form.value)
   isDirty.value = currentSnapshot !== initialFormSnapshot
 }
-
-const editorTheme = computed(() => isDark.value ? 'dark' : 'light')
 
 // 监听表单变化
 watch(form, checkDirty, { deep: true })
@@ -162,20 +157,22 @@ const handleCancel = () => {
   emit('cancel')
 }
 
-// 编辑器图片上传
-const handleUploadImage = async (files: File[], callback: (urls: string[]) => void) => {
-  const urls = await Promise.all(
+// 编辑器图片上传（ByteMD: (files: File[]) => Promise<{url: string}[]>）
+const handleImageUpload = async (files: File[]): Promise<{ url: string }[]> => {
+  const results = await Promise.allSettled(
     files.map(async (file) => {
-      try {
-        const res = await uploadImage(file)
-        return res.url
-      } catch {
-        toast.error(`图片 ${file.name} 上传失败`)
-        return ''
-      }
+      const res = await uploadImage(file)
+      return { url: res.url }
     })
   )
-  callback(urls.filter(Boolean))
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      toast.error(`图片 ${files[i]?.name ?? '未知'} 上传失败`)
+    }
+  })
+  return results
+    .filter((r): r is PromiseFulfilledResult<{ url: string }> => r.status === 'fulfilled')
+    .map((r) => r.value)
 }
 
 // 暴露给父组件
@@ -247,13 +244,11 @@ onMounted(() => {
         <span>置顶文章</span>
       </label>
 
-      <!-- Markdown 编辑器（内置 CodeMirror 语法高亮 + 实时预览） -->
-      <MdEditor
+      <!-- Markdown 编辑器（ByteMD 分屏预览） -->
+      <ByteMDEditor
         v-model="form.content"
-        :theme="editorTheme"
-        :show-code-row-number="true"
-        :on-upload-img="handleUploadImage"
-        style="height: 500px"
+        :upload-images="handleImageUpload"
+        editor-height="500px"
         placeholder="请输入文章内容（支持 Markdown 语法）..."
       />
     </div>
@@ -442,7 +437,7 @@ button:disabled {
 }
 
 /* 编辑器圆角适配 */
-.editor-body :deep(.md-editor) {
+.editor-body :deep(.bytemd-editor-wrapper) {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
