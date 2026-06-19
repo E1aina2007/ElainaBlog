@@ -219,7 +219,12 @@ onUnmounted(() => {
 
         <!-- 通知铃铛（已登录） -->
         <div v-if="isLoggedIn" class="notif-wrapper">
-          <button class="notif-btn" title="通知" @click.stop="handleToggleNotifications">
+          <button
+            class="notif-btn"
+            :class="{ 'has-unread': unreadCount > 0 }"
+            title="通知"
+            @click.stop="handleToggleNotifications"
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -802,6 +807,57 @@ onUnmounted(() => {
   background: var(--bg-secondary);
 }
 
+/* 有新通知时的醒目样式 */
+.notif-btn.has-unread {
+  color: var(--primary);
+}
+
+.notif-btn.has-unread:hover {
+  color: var(--primary-dark);
+}
+
+/* 铃铛图标呼吸动画 */
+.notif-btn.has-unread svg {
+  animation: bell-ring 2s ease-in-out infinite;
+}
+
+@keyframes bell-ring {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  5%, 15% {
+    transform: rotate(12deg);
+  }
+  10%, 20% {
+    transform: rotate(-12deg);
+  }
+  25%, 45% {
+    transform: rotate(0);
+  }
+}
+
+/* 光晕效果 */
+.notif-btn.has-unread::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  box-shadow: 0 0 8px var(--primary-light);
+  opacity: 0.6;
+  animation: glow-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .notif-badge {
   position: absolute;
   top: 2px;
@@ -818,6 +874,16 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  animation: badge-pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes badge-pop {
+  0% {
+    transform: scale(0);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .notif-dropdown {
