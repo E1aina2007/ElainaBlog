@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import MilkdownEditor from '@/components/MilkdownEditor.vue'
+import ByteMDEditor from '@/components/ByteMDEditor.vue'
 
 const activeTab = ref('random')
 
@@ -309,7 +309,7 @@ function fallbackCopy(text: string) {
       <!-- Markdown 预览 -->
       <section v-show="activeTab === 'markdown'" class="tool-card">
         <h2 class="tool-title">Markdown 在线预览</h2>
-        <MilkdownEditor
+        <ByteMDEditor
           v-model="mdText"
           editor-height="450px"
           placeholder="输入 Markdown 内容进行预览..."
@@ -634,7 +634,7 @@ function fallbackCopy(text: string) {
 }
 
 /* Markdown 编辑器圆角适配 */
-.tool-card :deep(.milkdown-editor-wrapper) {
+.tool-card :deep(.bytemd-editor-wrapper) {
   border-radius: var(--radius-md);
   overflow: hidden;
 }
