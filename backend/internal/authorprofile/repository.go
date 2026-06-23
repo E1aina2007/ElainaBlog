@@ -1,7 +1,7 @@
 package authorprofile
 
 import (
-	"ElainaBlog/config/db"
+	"gorm.io/gorm"
 )
 
 type AuthorProfile struct {
@@ -24,28 +24,21 @@ type AuthorProfile struct {
 	SocialBilibili       string `json:"social_bilibili"`
 }
 
-// MySQLRepository 实现 authorprofile.Repository 接口，使用 MySQL 存储。
+// MySQLRepository 实现 authorprofile.Repository 接口，使用 GORM 存储。
 type MySQLRepository struct {
-	db db.DBTX
+	db *gorm.DB
 }
 
 // NewRepository 创建作者信息仓储实例。
-func NewRepository(db db.DBTX) *MySQLRepository {
+func NewRepository(db *gorm.DB) *MySQLRepository {
 	return &MySQLRepository{db: db}
 }
 
 func (r *MySQLRepository) Get() (*AuthorProfile, error) {
 	var p AuthorProfile
-	err := r.db.QueryRow(`
-		SELECT id, nickname, avatar, background, signature, location, occupation, school, major,
-		       email, wechat, bio, tech_stack_frontend, tech_stack_backend, tech_stack_engineering,
-		       social_github, social_bilibili
-		FROM author_profile WHERE is_deleted = 0 LIMIT 1
-	`).Scan(
-		&p.ID, &p.Nickname, &p.Avatar, &p.Background, &p.Signature, &p.Location, &p.Occupation,
-		&p.School, &p.Major, &p.Email, &p.Wechat, &p.Bio, &p.TechStackFrontend,
-		&p.TechStackBackend, &p.TechStackEngineering, &p.SocialGithub, &p.SocialBilibili,
-	)
+	err := r.db.Table("author_profile").
+		Where("is_deleted = 0").
+		First(&p).Error
 	if err != nil {
 		return nil, err
 	}
@@ -53,30 +46,31 @@ func (r *MySQLRepository) Get() (*AuthorProfile, error) {
 }
 
 func (r *MySQLRepository) Create(p *AuthorProfile) (int64, error) {
-	result, err := r.db.Exec(`
-		INSERT INTO author_profile (nickname, avatar, background, signature, location, occupation,
-			school, major, email, wechat, bio, tech_stack_frontend, tech_stack_backend,
-			tech_stack_engineering, social_github, social_bilibili)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, p.Nickname, p.Avatar, p.Background, p.Signature, p.Location, p.Occupation,
-		p.School, p.Major, p.Email, p.Wechat, p.Bio, p.TechStackFrontend,
-		p.TechStackBackend, p.TechStackEngineering, p.SocialGithub, p.SocialBilibili)
-	if err != nil {
+	if err := r.db.Table("author_profile").Create(p).Error; err != nil {
 		return 0, err
 	}
-	return result.LastInsertId()
+	return p.ID, nil
 }
 
 func (r *MySQLRepository) Update(p *AuthorProfile) error {
-	_, err := r.db.Exec(`
-		UPDATE author_profile SET
-			nickname = ?, avatar = ?, background = ?, signature = ?, location = ?,
-			occupation = ?, school = ?, major = ?, email = ?, wechat = ?, bio = ?,
-			tech_stack_frontend = ?, tech_stack_backend = ?, tech_stack_engineering = ?,
-			social_github = ?, social_bilibili = ?
-		WHERE id = ? AND is_deleted = 0
-	`, p.Nickname, p.Avatar, p.Background, p.Signature, p.Location, p.Occupation,
-		p.School, p.Major, p.Email, p.Wechat, p.Bio, p.TechStackFrontend,
-		p.TechStackBackend, p.TechStackEngineering, p.SocialGithub, p.SocialBilibili, p.ID)
-	return err
+	return r.db.Table("author_profile").
+		Where("id = ? AND is_deleted = 0", p.ID).
+		Updates(map[string]any{
+			"nickname":              p.Nickname,
+			"avatar":                p.Avatar,
+			"background":            p.Background,
+			"signature":             p.Signature,
+			"location":              p.Location,
+			"occupation":            p.Occupation,
+			"school":                p.School,
+			"major":                 p.Major,
+			"email":                 p.Email,
+			"wechat":                p.Wechat,
+			"bio":                   p.Bio,
+			"tech_stack_frontend":   p.TechStackFrontend,
+			"tech_stack_backend":    p.TechStackBackend,
+			"tech_stack_engineering": p.TechStackEngineering,
+			"social_github":         p.SocialGithub,
+			"social_bilibili":       p.SocialBilibili,
+		}).Error
 }
