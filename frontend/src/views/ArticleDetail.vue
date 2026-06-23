@@ -7,7 +7,7 @@ import type { TocItem } from '@/components/MarkdownRenderer.vue'
 import TableOfContents from '@/components/TableOfContents.vue'
 import CommentForm from '@/components/CommentForm.vue'
 import CommentList from '@/components/CommentList.vue'
-import { getArticleDetail, getMyArticleDetail, deleteArticle, updateArticle, type Article } from '@/api/article'
+import { getArticleDetail, getMyArticleDetail, deleteArticle, toggleArticleTop, type Article } from '@/api/article'
 import { getComments, createComment, deleteComment, type Comment } from '@/api/comment'
 import toast from '@/utils/toast'
 
@@ -161,15 +161,7 @@ function handleEditArticle() {
 async function handleTogglePin() {
   if (!article.value) return
   try {
-    await updateArticle({
-      id: article.value.id,
-      title: article.value.title,
-      summary: article.value.summary,
-      content: article.value.content,
-      category_id: article.value.category_id,
-      is_top: !article.value.is_top,
-      is_draft: article.value.is_draft,
-    })
+    await toggleArticleTop(article.value.id, !article.value.is_top)
     article.value.is_top = !article.value.is_top
     toast.success(article.value.is_top ? '已置顶' : '已取消置顶')
   } catch (err) {
