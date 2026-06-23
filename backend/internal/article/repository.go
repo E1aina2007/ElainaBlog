@@ -14,11 +14,11 @@ import (
 type ArticleVO struct {
 	ID           int64     `json:"id"`
 	UserID       int64     `json:"user_id"`
-	Username     string    `json:"author_name"`
-	Avatar       string    `json:"author_avatar"`
-	IsAdmin      bool      `json:"author_is_admin"`
+	Username     string    `json:"author_name" gorm:"column:username"`
+	Avatar       string    `json:"author_avatar" gorm:"column:author_avatar"`
+	IsAdmin      bool      `json:"author_is_admin" gorm:"column:author_is_admin"`
 	CategoryID   *int64    `json:"category_id"`
-	CategoryName string    `json:"category_name"`
+	CategoryName string    `json:"category_name" gorm:"column:category_name"`
 	Title        string    `json:"title"`
 	Summary      string    `json:"summary"`
 	Content      string    `json:"content"`
@@ -27,7 +27,7 @@ type ArticleVO struct {
 	IsDraft      bool      `json:"is_draft"`
 	ViewCount    int       `json:"view_count"`
 	UVCount      int64     `json:"uv_count"`
-	CommentCount int       `json:"comment_count"`
+	CommentCount int       `json:"comment_count" gorm:"column:comment_count"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
