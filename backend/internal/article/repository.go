@@ -72,7 +72,7 @@ func (r *MySQLRepository) getArticleByID(id int64, filterDraft bool) (*ArticleVO
 	if filterDraft {
 		query = query.Where("a.is_draft = 0")
 	}
-	if err := query.Scan(&vo).Error; err != nil {
+	if err := query.First(&vo).Error; err != nil {
 		return nil, err
 	}
 	// 叠加 Redis 中的浏览量增量
