@@ -12,8 +12,6 @@ backend/log/
 # ===== air 热重载临时目录 =====
 backend/cmd/tmp/
 
-# ===== 数据库外部脚本 =====
-backend/config/db/foreign/
 
 # ===== Claude AI =====
 .claude/
@@ -33,7 +31,6 @@ frontend/.vite/
 .vite/
 backend/tmp/
 backend/elainablog
-backend/cmd.exe
 
 # ===== 作者静态资源（通过 scp/rsync 手动上传到服务器）=====
 frontend/public/author/
@@ -54,7 +51,3 @@ frontend/public/author/
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-# ===== 临时文件 =====
-under-construction.html
-DEPLOY_UNDER_CONSTRUCTION.md
