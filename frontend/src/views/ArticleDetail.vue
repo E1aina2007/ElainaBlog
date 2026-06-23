@@ -233,9 +233,6 @@ onMounted(() => {
                 <span class="meta-item category">{{ article.category_name }}</span>
               </template>
             </div>
-            <div v-if="tagList.length > 0" class="article-tags">
-              <span v-for="(tag, i) in tagList" :key="i" class="article-tag">{{ tag }}</span>
-            </div>
             <div class="article-actions">
               <button class="share-article-btn" @click="handleShare">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -279,6 +276,9 @@ onMounted(() => {
                 </button>
               </template>
             </div>
+          </div>
+          <div v-if="tagList.length > 0" class="article-tags">
+            <span v-for="(tag, i) in tagList" :key="i" class="article-tag">{{ tag }}</span>
           </div>
         </header>
 
