@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Article {
   id: number
   title: string
   summary: string
+  tags?: string
   category_name?: string
   author_name?: string
   author_avatar?: string
@@ -18,8 +21,14 @@ interface Props {
   index?: number
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   index: 0,
+})
+
+// 解析关键词标签
+const tagList = computed(() => {
+  if (!props.article.tags) return []
+  return props.article.tags.split('|').map(t => t.trim()).filter(Boolean)
 })
 
 const formatDate = (date?: string) => {
@@ -51,7 +60,7 @@ const formatDate = (date?: string) => {
           <time class="publish-time">{{ formatDate(article.created_at) }}</time>
         </div>
 
-        <!-- 标题 + 置顶标记 -->
+        <!-- 标题 + 置顶标记 + 分类标签 -->
         <div class="title-row">
           <h3 class="card-title">{{ article.title }}</h3>
           <span v-if="article.is_top" class="pin-badge">
@@ -60,11 +69,16 @@ const formatDate = (date?: string) => {
             </svg>
             <span>置顶</span>
           </span>
+          <span class="category-tag">{{ article.category_name }}</span>
         </div>
 
-        <!-- 分类标签 + 统计 -->
+        <!-- 关键词标签 + 统计 -->
         <div class="card-category">
-          <span class="category-tag">{{ article.category_name }}</span>
+          <div class="tags-row">
+            <template v-if="tagList.length > 0">
+              <span v-for="(tag, i) in tagList" :key="i" class="keyword-tag">{{ tag }}</span>
+            </template>
+          </div>
           <div class="card-stats">
             <span class="stat-item">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -215,7 +229,21 @@ const formatDate = (date?: string) => {
   color: var(--primary);
 }
 
-/* 分类标签 + 统计 */
+/* 分类标签（标题行内） */
+.category-tag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--primary-lighter);
+  color: var(--primary-dark);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  margin-top: 2px;
+}
+
+/* 关键词标签 + 统计 */
 .card-category {
   display: flex;
   align-items: center;
@@ -223,10 +251,32 @@ const formatDate = (date?: string) => {
   margin-bottom: 12px;
 }
 
+.tags-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.keyword-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
 .card-stats {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .card-stats .stat-item {
@@ -235,17 +285,6 @@ const formatDate = (date?: string) => {
   gap: 4px;
   font-size: 12px;
   color: var(--text-muted);
-}
-
-.category-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 12px;
-  background: var(--primary-lighter);
-  color: var(--primary-dark);
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
 }
 
 /* 摘要 */

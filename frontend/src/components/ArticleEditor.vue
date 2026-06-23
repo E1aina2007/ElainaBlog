@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { getArticleDetail, getAdminArticleDetail, getMyArticleDetail } from '@/api/article'
 import { getCategoryList, type Category } from '@/api/category'
@@ -11,6 +11,7 @@ export interface ArticleSubmitData {
   title: string
   summary: string
   content: string
+  tags: string
   category_id: number | null
   is_top: boolean
   is_draft: boolean
@@ -46,6 +47,12 @@ const form = ref({
   is_top: false,
 })
 
+// 关键词标签（内部用数组，提交时转 | 分隔字符串）
+const tags = ref<string[]>([])
+const tagInput = ref('')
+const showTagInput = ref(false)
+const tagInputRef = ref<HTMLInputElement | null>(null)
+
 // 离开确认相关状态
 const isDirty = ref(false)
 const isSubmitting = ref(false)
@@ -53,17 +60,18 @@ let initialFormSnapshot = ''
 
 // 保存当前表单快照
 const saveSnapshot = () => {
-  initialFormSnapshot = JSON.stringify(form.value)
+  initialFormSnapshot = JSON.stringify({ ...form.value, tags: tags.value })
 }
 
 // 检查表单是否有变化
 const checkDirty = () => {
-  const currentSnapshot = JSON.stringify(form.value)
+  const currentSnapshot = JSON.stringify({ ...form.value, tags: tags.value })
   isDirty.value = currentSnapshot !== initialFormSnapshot
 }
 
-// 监听表单变化
+// 监听表单和标签变化
 watch(form, checkDirty, { deep: true })
+watch(tags, checkDirty, { deep: true })
 
 // 路由离开拦截
 onBeforeRouteLeave((_to, _from, next) => {
@@ -128,9 +136,52 @@ const fetchArticle = async (id: number) => {
       category_id: article.category_id || null,
       is_top: article.is_top || false,
     }
+    // 解析关键词标签
+    if (article.tags) {
+      tags.value = article.tags.split('|').map(t => t.trim()).filter(Boolean)
+    }
     saveSnapshot()
   } catch {
     toast.error('获取文章失败')
+  }
+}
+
+// 点击 + 按钮展开输入框
+const openTagInput = () => {
+  showTagInput.value = true
+  nextTick(() => {
+    tagInputRef.value?.focus()
+  })
+}
+
+// 确认添加关键词标签
+const confirmTag = () => {
+  const val = tagInput.value.trim()
+  if (val && !tags.value.includes(val)) {
+    tags.value.push(val)
+  }
+  tagInput.value = ''
+  showTagInput.value = false
+}
+
+// 取消添加
+const cancelTag = () => {
+  tagInput.value = ''
+  showTagInput.value = false
+}
+
+// 删除关键词标签
+const removeTag = (index: number) => {
+  tags.value.splice(index, 1)
+}
+
+// 标签输入框回车确认
+const handleTagKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    confirmTag()
+  } else if (e.key === 'Escape') {
+    cancelTag()
   }
 }
 
@@ -146,6 +197,7 @@ const handleSubmit = (publish: boolean) => {
   }
   emit('submit', {
     ...form.value,
+    tags: tags.value.join('|'),
     is_draft: !publish,
     category_id: form.value.category_id || null,
   })
@@ -227,6 +279,34 @@ onMounted(() => {
             {{ cat.name }}
           </option>
         </select>
+      </div>
+
+      <!-- 关键词标签 -->
+      <div class="tags-input-row">
+        <div class="tags-list">
+          <div v-for="(tag, index) in tags" :key="index" class="tag-card">
+            <span class="tag-card-text">{{ tag }}</span>
+            <button type="button" class="tag-card-remove" @click="removeTag(index)">×</button>
+          </div>
+          <button v-if="!showTagInput" type="button" class="tag-add-btn" @click="openTagInput" title="添加关键词">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            <span>添加关键词</span>
+          </button>
+        </div>
+        <div v-if="showTagInput" class="tag-input-wrapper">
+          <input
+            ref="tagInputRef"
+            v-model="tagInput"
+            type="text"
+            class="tag-input"
+            placeholder="输入关键词"
+            @keydown="handleTagKeydown"
+          />
+          <button type="button" class="tag-confirm-btn" @click="confirmTag">确定</button>
+          <button type="button" class="tag-cancel-btn" @click="cancelTag">取消</button>
+        </div>
       </div>
 
       <!-- 摘要 -->
@@ -392,6 +472,149 @@ button:disabled {
 
 .meta-select:focus {
   border-color: var(--primary);
+}
+
+/* 关键词标签输入 */
+.tags-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--primary-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  transition: all 0.2s;
+}
+
+.tag-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(126, 215, 193, 0.25);
+}
+
+.tag-card-text {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-card-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.tag-card-remove:hover {
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+}
+
+.tag-input-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-input {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.tag-input:focus {
+  border-color: var(--primary);
+}
+
+.tag-input::placeholder {
+  color: var(--text-muted);
+}
+
+.tag-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.tag-add-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(126, 215, 193, 0.4);
+}
+
+.tag-confirm-btn {
+  padding: 8px 14px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.tag-confirm-btn:hover {
+  background: var(--primary-dark);
+}
+
+.tag-cancel-btn {
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tag-cancel-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--primary-light);
 }
 
 /* 摘要 */
