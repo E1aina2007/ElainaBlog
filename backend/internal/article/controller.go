@@ -28,6 +28,7 @@ type CreateArticleRequest struct {
 	Title      string `json:"title"`
 	Summary    string `json:"summary"`
 	Content    string `json:"content"`
+	Tags       string `json:"tags"`
 	CategoryID *int64 `json:"category_id"` // nil 表示未分类
 	IsTop      bool   `json:"is_top"`
 	IsDraft    bool   `json:"is_draft"`
@@ -38,6 +39,7 @@ type UpdateArticleRequest struct {
 	Title      string `json:"title"`
 	Summary    string `json:"summary"`
 	Content    string `json:"content"`
+	Tags       string `json:"tags"`
 	CategoryID *int64 `json:"category_id"`
 	IsTop      bool   `json:"is_top"`
 	IsDraft    bool   `json:"is_draft"`
@@ -45,6 +47,11 @@ type UpdateArticleRequest struct {
 
 type DeleteArticleRequest struct {
 	ID int64 `json:"id"`
+}
+
+type ToggleTopRequest struct {
+	ID    int64 `json:"id"`
+	IsTop bool  `json:"is_top"`
 }
 
 func (ctl *Controller) CreateArticle(c *gin.Context) {
@@ -62,6 +69,7 @@ func (ctl *Controller) CreateArticle(c *gin.Context) {
 		Title:      req.Title,
 		Summary:    req.Summary,
 		Content:    req.Content,
+		Tags:       req.Tags,
 		IsTop:      req.IsTop,
 		IsDraft:    req.IsDraft,
 	})
@@ -96,6 +104,7 @@ func (ctl *Controller) UpdateArticle(c *gin.Context) {
 		Title:      req.Title,
 		Summary:    req.Summary,
 		Content:    req.Content,
+		Tags:       req.Tags,
 		IsTop:      req.IsTop,
 		IsDraft:    req.IsDraft,
 	}, userID, isAdmin)
@@ -131,6 +140,39 @@ func (ctl *Controller) DeleteArticle(c *gin.Context) {
 	isAdmin, _ := ctl.adminChecker.CheckIsAdmin(userID)
 
 	err := ctl.service.DeleteArticle(&DeleteArticleParams{ID: req.ID}, userID, isAdmin)
+	if err != nil {
+		switch err {
+		case ErrInvalidParams:
+			appErr := model.ErrInvalidParams.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case ErrArticleNotFound:
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case ErrNoPermission:
+			appErr := model.ErrForbidden.WithDetail("无权限")
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+}
+
+// ToggleTop 切换文章置顶状态（仅管理员），只修改 is_top 字段不影响其他字段
+func (ctl *Controller) ToggleTop(c *gin.Context) {
+	var req ToggleTopRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	userID := c.GetInt64(common.CtxUserIDKey)
+	isAdmin, _ := ctl.adminChecker.CheckIsAdmin(userID)
+
+	err := ctl.service.ToggleTop(req.ID, req.IsTop, isAdmin)
 	if err != nil {
 		switch err {
 		case ErrInvalidParams:
@@ -299,9 +341,10 @@ func (ctl *Controller) GetMyByID(c *gin.Context) {
 		return
 	}
 
-	// 校验文章归属：只能查看自己的文章
+	// 校验文章归属：非管理员只能查看自己的文章
 	userID := c.GetInt64(common.CtxUserIDKey)
-	if article.UserID != userID {
+	isAdmin, _ := ctl.adminChecker.CheckIsAdmin(userID)
+	if !isAdmin && article.UserID != userID {
 		appErr := model.ErrForbidden.WithDetail("无权限访问此文章")
 		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return

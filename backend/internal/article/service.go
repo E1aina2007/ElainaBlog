@@ -21,6 +21,7 @@ type CreateArticleParams struct {
 	Title      string
 	Summary    string
 	Content    string
+	Tags       string
 	IsTop      bool
 	IsDraft    bool
 }
@@ -31,6 +32,7 @@ type UpdateArticleParams struct {
 	Title      string
 	Summary    string
 	Content    string
+	Tags       string
 	IsTop      bool
 	IsDraft    bool
 }
@@ -81,7 +83,7 @@ func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult,
 
 	// 校验排序参数
 	sortBy := params.SortBy
-	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" && sortBy != "comment" {
 		sortBy = ""
 	}
 
@@ -111,7 +113,7 @@ func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListRe
 	}
 
 	sortBy := params.SortBy
-	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" && sortBy != "comment" {
 		sortBy = ""
 	}
 
@@ -141,7 +143,7 @@ func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*
 	}
 
 	sortBy := params.SortBy
-	if sortBy != "" && sortBy != "latest" && sortBy != "popular" {
+	if sortBy != "" && sortBy != "latest" && sortBy != "popular" && sortBy != "comment" {
 		sortBy = ""
 	}
 
@@ -260,7 +262,7 @@ func (s *Service) CreateArticle(params *CreateArticleParams) (int64, error) {
 
 	return s.repo.CreateArticle(
 		params.UserID, params.CategoryID,
-		title, strings.TrimSpace(params.Summary), content,
+		title, strings.TrimSpace(params.Summary), content, strings.TrimSpace(params.Tags),
 		params.IsTop, params.IsDraft,
 	)
 }
@@ -300,9 +302,30 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 
 	return s.repo.UpdateArticle(
 		params.ID, params.CategoryID,
-		title, strings.TrimSpace(params.Summary), content,
+		title, strings.TrimSpace(params.Summary), content, strings.TrimSpace(params.Tags),
 		params.IsTop, params.IsDraft,
 	)
+}
+
+// ToggleTop 单独切换文章置顶状态（仅管理员）
+func (s *Service) ToggleTop(id int64, isTop bool, isAdmin bool) error {
+	if s == nil || s.repo == nil {
+		return ErrDBNotInitialized
+	}
+	if id <= 0 {
+		return ErrInvalidParams
+	}
+	if !isAdmin {
+		return ErrNoPermission
+	}
+	// 校验文章存在
+	if _, err := s.repo.GetArticleByIDIncludeDraft(id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrArticleNotFound
+		}
+		return err
+	}
+	return s.repo.ToggleArticleTop(id, isTop)
 }
 
 func (s *Service) DeleteArticle(params *DeleteArticleParams, userID int64, isAdmin bool) error {

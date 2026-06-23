@@ -14,7 +14,8 @@ type Repository interface {
 	GetViewCountDelta(id int64) int
 	GetArticleUV(id int64) (int64, error)
 	FlushViewCounts() (int, error)
-	CreateArticle(userID int64, categoryID *int64, title, summary, content string, isTop, isDraft bool) (int64, error)
-	UpdateArticle(id int64, categoryID *int64, title, summary, content string, isTop, isDraft bool) error
+	CreateArticle(userID int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) (int64, error)
+	UpdateArticle(id int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) error
+	ToggleArticleTop(id int64, isTop bool) error
 	DeleteArticle(id int64) error
 }

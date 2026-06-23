@@ -132,6 +132,7 @@ func RouterInit(r *gin.Engine) {
 			adminGroup.GET("/article/admin-list", articleController.GetAdminList)
 			adminGroup.GET("/article/admin/:id", articleController.GetAdminByID)
 			adminGroup.GET("/article/:id/uv", articleController.GetArticleUV)
+			adminGroup.POST("/article/toggle-top", articleController.ToggleTop)
 			adminGroup.POST("/category/create", categoryController.Create)
 			adminGroup.POST("/category/update", categoryController.Update)
 			adminGroup.POST("/category/delete", categoryController.Delete)

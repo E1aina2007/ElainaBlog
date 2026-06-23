@@ -22,6 +22,7 @@ type ArticleVO struct {
 	Title        string    `json:"title"`
 	Summary      string    `json:"summary"`
 	Content      string    `json:"content"`
+	Tags         string    `json:"tags"`          // 逗号分隔的关键词
 	IsTop        bool      `json:"is_top"`
 	IsDraft      bool      `json:"is_draft"`
 	ViewCount    int       `json:"view_count"`
@@ -56,7 +57,7 @@ func (r *MySQLRepository) getArticleByID(id int64, filterDraft bool) (*ArticleVO
 	var categoryName string
 	query := `
 		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
-		       a.title, a.summary, a.content, a.is_top, a.is_draft, a.view_count, a.created_at
+		       a.title, a.summary, a.content, COALESCE(a.tags,''), a.is_top, a.is_draft, a.view_count, a.created_at
 		FROM article a
 		LEFT JOIN ` + "`user`" + ` u ON a.user_id = u.id
 		LEFT JOIN category c ON a.category_id = c.id AND c.is_deleted = 0
@@ -66,7 +67,7 @@ func (r *MySQLRepository) getArticleByID(id int64, filterDraft bool) (*ArticleVO
 	}
 	err := r.db.QueryRow(query, id).Scan(
 		&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &categoryID, &categoryName,
-		&vo.Title, &vo.Summary, &vo.Content, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CreatedAt)
+		&vo.Title, &vo.Summary, &vo.Content, &vo.Tags, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +85,8 @@ func buildOrderBy(sortBy string) string {
 	switch sortBy {
 	case "popular":
 		return "a.is_top DESC, a.view_count DESC"
+	case "comment":
+		return "a.is_top DESC, (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) DESC"
 	default:
 		return "a.is_top DESC, a.created_at DESC"
 	}
@@ -111,7 +114,7 @@ func (r *MySQLRepository) GetArticleList(categoryID *int64, sortBy string, page,
 	// 分页查询数据
 	query := `
 		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
-		       a.title, a.summary, a.content, a.is_top, a.is_draft, a.view_count,
+		       a.title, a.summary, a.content, COALESCE(a.tags,''), a.is_top, a.is_draft, a.view_count,
 		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
 		       a.created_at
 		FROM article a
@@ -136,7 +139,7 @@ func (r *MySQLRepository) GetArticleList(categoryID *int64, sortBy string, page,
 		var catID sql.NullInt64
 		var categoryName string
 		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
-			&vo.Title, &vo.Summary, &vo.Content, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+			&vo.Title, &vo.Summary, &vo.Content, &vo.Tags, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -171,7 +174,7 @@ func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, sortBy string, 
 
 	query := `
 		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
-		       a.title, a.summary, a.content, a.is_top, a.is_draft, a.view_count,
+		       a.title, a.summary, a.content, COALESCE(a.tags,''), a.is_top, a.is_draft, a.view_count,
 		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
 		       a.created_at
 		FROM article a
@@ -196,7 +199,7 @@ func (r *MySQLRepository) GetAdminArticleList(categoryID *int64, sortBy string, 
 		var catID sql.NullInt64
 		var categoryName string
 		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
-			&vo.Title, &vo.Summary, &vo.Content, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+			&vo.Title, &vo.Summary, &vo.Content, &vo.Tags, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -239,7 +242,7 @@ func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, so
 
 	query := `
 		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
-		       a.title, a.summary, a.content, a.is_top, a.is_draft, a.view_count,
+		       a.title, a.summary, a.content, COALESCE(a.tags,''), a.is_top, a.is_draft, a.view_count,
 		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
 		       a.created_at
 		FROM article a
@@ -264,7 +267,7 @@ func (r *MySQLRepository) GetUserArticleList(userID int64, categoryID *int64, so
 		var catID sql.NullInt64
 		var categoryName string
 		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
-			&vo.Title, &vo.Summary, &vo.Content, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+			&vo.Title, &vo.Summary, &vo.Content, &vo.Tags, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -296,7 +299,7 @@ func (r *MySQLRepository) SearchArticleList(keyword string, page, pageSize int) 
 	// 分页查询数据，按相关性排序
 	query := `
 		SELECT a.id, a.user_id, u.username, COALESCE(u.avatar,''), u.is_admin, a.category_id, COALESCE(c.name,''),
-		       a.title, a.summary, a.content, a.is_top, a.is_draft, a.view_count,
+		       a.title, a.summary, a.content, COALESCE(a.tags,''), a.is_top, a.is_draft, a.view_count,
 		       (SELECT COUNT(*) FROM comment ct WHERE ct.article_id = a.id AND ct.is_deleted = 0) AS comment_count,
 		       a.created_at
 		FROM article a
@@ -321,7 +324,7 @@ func (r *MySQLRepository) SearchArticleList(keyword string, page, pageSize int) 
 		var catID sql.NullInt64
 		var categoryName string
 		err := rows.Scan(&vo.ID, &vo.UserID, &vo.Username, &vo.Avatar, &vo.IsAdmin, &catID, &categoryName,
-			&vo.Title, &vo.Summary, &vo.Content, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
+			&vo.Title, &vo.Summary, &vo.Content, &vo.Tags, &vo.IsTop, &vo.IsDraft, &vo.ViewCount, &vo.CommentCount, &vo.CreatedAt)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -451,18 +454,24 @@ func (r *MySQLRepository) FlushViewCounts() (int, error) {
 	return flushed, nil
 }
 
-func (r *MySQLRepository) CreateArticle(userID int64, categoryID *int64, title, summary, content string, isTop, isDraft bool) (int64, error) {
-	result, err := r.db.Exec("INSERT INTO article (user_id, category_id, title, summary, content, is_top, is_draft) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		userID, categoryID, title, summary, content, isTop, isDraft)
+func (r *MySQLRepository) CreateArticle(userID int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) (int64, error) {
+	result, err := r.db.Exec("INSERT INTO article (user_id, category_id, title, summary, content, tags, is_top, is_draft) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		userID, categoryID, title, summary, content, tags, isTop, isDraft)
 	if err != nil {
 		return 0, err
 	}
 	return result.LastInsertId()
 }
 
-func (r *MySQLRepository) UpdateArticle(id int64, categoryID *int64, title, summary, content string, isTop, isDraft bool) error {
-	_, err := r.db.Exec("UPDATE article SET category_id = ?, title = ?, summary = ?, content = ?, is_top = ?, is_draft = ? WHERE id = ? AND is_deleted = 0",
-		categoryID, title, summary, content, isTop, isDraft, id)
+func (r *MySQLRepository) UpdateArticle(id int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) error {
+	_, err := r.db.Exec("UPDATE article SET category_id = ?, title = ?, summary = ?, content = ?, tags = ?, is_top = ?, is_draft = ? WHERE id = ? AND is_deleted = 0",
+		categoryID, title, summary, content, tags, isTop, isDraft, id)
+	return err
+}
+
+// ToggleArticleTop 单独切换文章置顶状态，不影响其他字段
+func (r *MySQLRepository) ToggleArticleTop(id int64, isTop bool) error {
+	_, err := r.db.Exec("UPDATE article SET is_top = ? WHERE id = ? AND is_deleted = 0", isTop, id)
 	return err
 }
 
