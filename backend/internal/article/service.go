@@ -1,9 +1,10 @@
 package article
 
 import (
-	"database/sql"
 	"errors"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 type CommentDeleter interface {
@@ -164,7 +165,7 @@ func (s *Service) GetArticleByID(id int64) (*ArticleVO, error) {
 	}
 	vo, err := s.repo.GetArticleByID(id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrArticleNotFound
 		}
 		return nil, err
@@ -178,7 +179,7 @@ func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
 	}
 	vo, err := s.repo.GetArticleByIDIncludeDraft(id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrArticleNotFound
 		}
 		return nil, err
@@ -284,7 +285,7 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 	// 检查文章是否存在（包含草稿）
 	article, err := s.repo.GetArticleByIDIncludeDraft(params.ID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrArticleNotFound
 		}
 		return err
@@ -320,7 +321,7 @@ func (s *Service) ToggleTop(id int64, isTop bool, isAdmin bool) error {
 	}
 	// 校验文章存在
 	if _, err := s.repo.GetArticleByIDIncludeDraft(id); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrArticleNotFound
 		}
 		return err
@@ -339,7 +340,7 @@ func (s *Service) DeleteArticle(params *DeleteArticleParams, userID int64, isAdm
 	// 检查文章是否存在（包含草稿）
 	article, err := s.repo.GetArticleByIDIncludeDraft(params.ID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrArticleNotFound
 		}
 		return err
