@@ -1,8 +1,9 @@
 package notification
 
 import (
-	"ElainaBlog/config/db"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // Notification 通知实体
@@ -27,78 +28,59 @@ type NotificationVO struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// MySQLRepository 实现 notification.Repository 接口，使用 MySQL 存储。
+// MySQLRepository 实现 notification.Repository 接口，使用 GORM 存储。
 type MySQLRepository struct {
-	db db.DBTX
+	db *gorm.DB
 }
 
 // NewRepository 创建通知仓储实例。
-func NewRepository(db db.DBTX) *MySQLRepository {
+func NewRepository(db *gorm.DB) *MySQLRepository {
 	return &MySQLRepository{db: db}
 }
 
 func (r *MySQLRepository) Create(n *Notification) (int64, error) {
-	result, err := r.db.Exec(`INSERT INTO notification (user_id, type, title, content, target_id)
-		VALUES (?, ?, ?, ?, ?)`, n.UserID, n.Type, n.Title, n.Content, n.TargetID)
-	if err != nil {
+	if err := r.db.Table("notification").Create(n).Error; err != nil {
 		return 0, err
 	}
-	return result.LastInsertId()
+	return n.ID, nil
 }
 
 func (r *MySQLRepository) GetByUserID(userID int64, onlyUnread bool) ([]*NotificationVO, error) {
-	query := `SELECT id, type, title, content, target_id, is_read, created_at
-		FROM notification WHERE user_id = ? AND is_deleted = 0`
-	args := []interface{}{userID}
+	query := r.db.Table("notification").
+		Select("id", "type", "title", "content", "target_id", "is_read", "created_at").
+		Where("user_id = ? AND is_deleted = 0", userID)
 
 	if onlyUnread {
-		query += " AND is_read = 0"
+		query = query.Where("is_read = 0")
 	}
 
-	query += " ORDER BY created_at DESC LIMIT 50"
-
-	rows, err := r.db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	notifications := make([]*NotificationVO, 0)
-	for rows.Next() {
-		var vo NotificationVO
-		err := rows.Scan(&vo.ID, &vo.Type, &vo.Title, &vo.Content, &vo.TargetID, &vo.IsRead, &vo.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
-		notifications = append(notifications, &vo)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return notifications, nil
+	var notifications []*NotificationVO
+	err := query.Order("created_at DESC").Limit(50).Scan(&notifications).Error
+	return notifications, err
 }
 
 func (r *MySQLRepository) GetUnreadCount(userID int64) (int, error) {
-	var count int
-	err := r.db.QueryRow(`SELECT COUNT(*) FROM notification
-		WHERE user_id = ? AND is_read = 0 AND is_deleted = 0`, userID).Scan(&count)
-	return count, err
+	var count int64
+	err := r.db.Table("notification").
+		Where("user_id = ? AND is_read = 0 AND is_deleted = 0", userID).
+		Count(&count).Error
+	return int(count), err
 }
 
 func (r *MySQLRepository) MarkAsRead(id int64, userID int64) error {
-	_, err := r.db.Exec(`UPDATE notification SET is_read = 1
-		WHERE id = ? AND user_id = ? AND is_deleted = 0`, id, userID)
-	return err
+	return r.db.Table("notification").
+		Where("id = ? AND user_id = ? AND is_deleted = 0", id, userID).
+		Update("is_read", 1).Error
 }
 
 func (r *MySQLRepository) MarkAllAsRead(userID int64) error {
-	_, err := r.db.Exec(`UPDATE notification SET is_read = 1
-		WHERE user_id = ? AND is_read = 0 AND is_deleted = 0`, userID)
-	return err
+	return r.db.Table("notification").
+		Where("user_id = ? AND is_read = 0 AND is_deleted = 0", userID).
+		Update("is_read", 1).Error
 }
 
 func (r *MySQLRepository) Delete(id int64, userID int64) error {
-	_, err := r.db.Exec(`UPDATE notification SET is_deleted = 1
-		WHERE id = ? AND user_id = ? AND is_deleted = 0`, id, userID)
-	return err
+	return r.db.Table("notification").
+		Where("id = ? AND user_id = ? AND is_deleted = 0", id, userID).
+		Update("is_deleted", 1).Error
 }

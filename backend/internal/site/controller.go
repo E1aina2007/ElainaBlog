@@ -1,11 +1,11 @@
 package site
 
 import (
-	"ElainaBlog/config/db"
 	"ElainaBlog/internal/common/model"
 	"ElainaBlog/pkg/rdb"
 	"bufio"
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,16 +16,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Controller struct {
 	service *Service
-	db      db.DBTX
 	rdb     rdb.RedisClient
+	sqlDB   *sql.DB // 用于 Ping 等原生操作
 }
 
-func NewController(service *Service, db db.DBTX, redis rdb.RedisClient) *Controller {
-	return &Controller{service: service, db: db, rdb: redis}
+func NewController(service *Service, gormDB *gorm.DB, redis rdb.RedisClient) *Controller {
+	sqlDB, _ := gormDB.DB()
+	return &Controller{service: service, rdb: redis, sqlDB: sqlDB}
 }
 
 // GetDashboardStats 获取仪表盘统计数据（管理员）
@@ -48,7 +50,6 @@ func (ctl *Controller) RecordVisit(c *gin.Context) {
 		return
 	}
 
-	// 只统计公开页面
 	allowedPrefixes := []string{"/", "/article/", "/author", "/tools"}
 	valid := false
 	for _, prefix := range allowedPrefixes {
@@ -88,14 +89,12 @@ type SystemStatusResponse struct {
 	Uptime       string  `json:"uptime"`
 }
 
-// cpuTimes 存储上一次 CPU 时间快照
 var (
-	lastCPUTimes  [4]uint64
-	lastCPULock   sync.Mutex
-	lastCPUUsage  float64
+	lastCPUTimes [4]uint64
+	lastCPULock  sync.Mutex
+	lastCPUUsage float64
 )
 
-// readCPUTimes 从 /proc/stat 读取 CPU 时间（user, nice, system, idle）
 func readCPUTimes() ([4]uint64, error) {
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -125,7 +124,6 @@ func readCPUTimes() ([4]uint64, error) {
 	return [4]uint64{}, fmt.Errorf("cpu line not found in /proc/stat")
 }
 
-// getCPUUsage 计算 CPU 使用率（两次采样取差值）
 func getCPUUsage() float64 {
 	times, err := readCPUTimes()
 	if err != nil {
@@ -156,7 +154,6 @@ func getCPUUsage() float64 {
 	return lastCPUUsage
 }
 
-// readMemInfo 从 /proc/meminfo 读取系统内存信息
 func readMemInfo() (totalMB, usedMB uint64, usagePercent float64) {
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {
@@ -172,13 +169,13 @@ func readMemInfo() (totalMB, usedMB uint64, usagePercent float64) {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {
 				v, _ := strconv.ParseUint(fields[1], 10, 64)
-				memTotal = v // kB
+				memTotal = v
 			}
 		} else if strings.HasPrefix(line, "MemAvailable:") {
 			fields := strings.Fields(line)
 			if len(fields) >= 2 {
 				v, _ := strconv.ParseUint(fields[1], 10, 64)
-				memAvailable = v // kB
+				memAvailable = v
 			}
 		}
 		if memTotal > 0 && memAvailable > 0 {
@@ -196,13 +193,15 @@ func readMemInfo() (totalMB, usedMB uint64, usagePercent float64) {
 
 // GetSystemStatus 获取系统运行状态（管理员）
 func (ctl *Controller) GetSystemStatus(c *gin.Context) {
-	// 检查数据库连接
 	dbStatus := "connected"
-	if err := ctl.db.Ping(); err != nil {
-		dbStatus = "error"
+	if ctl.sqlDB != nil {
+		if err := ctl.sqlDB.Ping(); err != nil {
+			dbStatus = "error"
+		}
+	} else {
+		dbStatus = "not_initialized"
 	}
 
-	// 检查 Redis 连接并获取缓存命中率
 	redisStatus := "connected"
 	cacheHitRate := float64(-1)
 	if ctl.rdb == nil {
@@ -213,12 +212,8 @@ func (ctl *Controller) GetSystemStatus(c *gin.Context) {
 		cacheHitRate = ctl.getRedisCacheHitRate()
 	}
 
-	// CPU 使用率（从 /proc/stat 读取）
 	cpuUsage := getCPUUsage()
-
-	// 内存使用率（从 /proc/meminfo 读取）
 	memTotal, memUsed, memUsage := readMemInfo()
-	// 回退到 Go 运行时内存
 	if memTotal == 0 {
 		var m runtime.MemStats
 		runtime.ReadMemStats(&m)
@@ -245,7 +240,15 @@ func (ctl *Controller) GetSystemStatus(c *gin.Context) {
 
 // ClearCache 清理缓存（管理员）
 func (ctl *Controller) ClearCache(c *gin.Context) {
-	// 清理 Go 内存缓存
+	ctx := context.Background()
+
+	if ctl.rdb != nil {
+		if err := ctl.rdb.FlushDB(ctx).Err(); err != nil {
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, "Redis 缓存清理失败", nil))
+			return
+		}
+	}
+
 	runtime.GC()
 
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"message": "缓存已清理"}))
@@ -253,11 +256,10 @@ func (ctl *Controller) ClearCache(c *gin.Context) {
 
 // ExportBackup 导出数据库备份（管理员）
 func (ctl *Controller) ExportBackup(c *gin.Context) {
-	// 使用 mysqldump 命令导出数据库
-	// 简单实现：查询所有表数据并返回
 	backup, err := ctl.service.ExportDatabaseBackup()
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		appErr := model.ErrInternal.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
@@ -291,10 +293,8 @@ func (ctl *Controller) UnbanIP(c *gin.Context) {
 	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"message": "IP已解封"}))
 }
 
-// startTime 记录服务启动时间
 var startTime = time.Now()
 
-// getRedisCacheHitRate 从 Redis INFO stats 中计算缓存命中率
 func (ctl *Controller) getRedisCacheHitRate() float64 {
 	info, err := ctl.rdb.Info(context.Background(), "stats").Result()
 	if err != nil {
@@ -318,7 +318,6 @@ func (ctl *Controller) getRedisCacheHitRate() float64 {
 	return float64(int(hits/total*10000+0.5)) / 100
 }
 
-// formatUptime 格式化运行时间，只显示分及以上单位
 func formatUptime(d time.Duration) string {
 	totalMinutes := int(d.Minutes())
 	days := totalMinutes / (24 * 60)

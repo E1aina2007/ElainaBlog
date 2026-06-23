@@ -50,7 +50,7 @@ func initSystem() {
 		adminEmail = "admin@admin.com"
 	}
 
-	userService := user.NewService(user.NewRepository(db.DBPool), rdb.DefaultClient, common.JwtAuth)
+	userService := user.NewService(user.NewRepository(db.DB), rdb.DefaultClient, common.JwtAuth)
 	adminUserID, err := userService.CreateUser(user.CreateUserParams{
 		Username: adminUsername,
 		Password: adminPassword,
@@ -79,7 +79,7 @@ func migrateAvatars() {
 		uploadDir = "uploads/avatars"
 	}
 
-	userRepo := user.NewRepository(db.DBPool)
+	userRepo := user.NewRepository(db.DB)
 	users, err := userRepo.GetUserList()
 	if err != nil {
 		log.Fatalf("获取用户列表失败: %v", err)
@@ -168,7 +168,7 @@ func runServer() error {
 	router.RouterInit(r)
 
 	// 启动浏览量定时同步（每 5 分钟将 Redis 缓冲写入 MySQL）
-	articleRepo := article.NewRepository(db.DBPool, rdb.DefaultClient)
+	articleRepo := article.NewRepository(db.DB, rdb.DefaultClient)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()

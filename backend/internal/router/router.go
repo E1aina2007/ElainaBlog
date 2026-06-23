@@ -9,7 +9,6 @@ import (
 	"ElainaBlog/internal/category"
 	"ElainaBlog/internal/comment"
 	"ElainaBlog/internal/common"
-	"ElainaBlog/pkg/util"
 	"ElainaBlog/internal/friendlink"
 	"ElainaBlog/internal/message"
 	"ElainaBlog/internal/middleware"
@@ -19,6 +18,7 @@ import (
 	"ElainaBlog/internal/upload"
 	"ElainaBlog/internal/user"
 	"ElainaBlog/pkg/rdb"
+	"ElainaBlog/pkg/util"
 	"net/http"
 	"time"
 
@@ -27,29 +27,29 @@ import (
 
 func RouterInit(r *gin.Engine) {
 	// 获取依赖实例
-	dbPool := db.DBPool
+	gormDB := db.DB
 	redis := rdb.DefaultClient
 	tokenMgr := common.JwtAuth
 
 	// 创建仓储层
-	userRepo := user.NewRepository(dbPool)
-	categoryRepo := category.NewRepository(dbPool)
-	commentRepo := comment.NewRepository(dbPool)
-	articleRepo := article.NewRepository(dbPool, redis)
-	messageRepo := message.NewRepository(dbPool)
-	siteRepo := site.NewRepository(dbPool)
-	friendLinkRepo := friendlink.NewRepository(dbPool)
-	notificationRepo := notification.NewRepository(dbPool)
+	userRepo := user.NewRepository(gormDB)
+	categoryRepo := category.NewRepository(gormDB)
+	commentRepo := comment.NewRepository(gormDB)
+	articleRepo := article.NewRepository(gormDB, redis)
+	messageRepo := message.NewRepository(gormDB)
+	siteRepo := site.NewRepository(gormDB)
+	friendLinkRepo := friendlink.NewRepository(gormDB)
+	notificationRepo := notification.NewRepository(gormDB)
 
 	// 创建服务层
 	userService := user.NewService(userRepo, redis, tokenMgr)
-	categoryService := category.NewService(categoryRepo)
+	categoryService := category.NewService(categoryRepo, redis)
 	notificationService := notification.NewService(notificationRepo)
 	commentService := comment.NewService(commentRepo, articleRepo, notificationService, userService)
 	articleService := article.NewService(articleRepo, commentRepo)
 	messageService := message.NewService(messageRepo, userRepo, notificationService)
-	siteService := site.NewService(siteRepo, redis)
-	friendLinkService := friendlink.NewService(friendLinkRepo)
+	siteService := site.NewService(siteRepo, redis, gormDB)
+	friendLinkService := friendlink.NewService(friendLinkRepo, redis)
 
 	// 创建中间件
 	auth := middleware.NewJwtAuthMiddleware(tokenMgr)
@@ -65,10 +65,10 @@ func RouterInit(r *gin.Engine) {
 	uploadStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.Path)
 	avatarStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.AvatarPath)
 	uploadController := upload.NewController(uploadStorage, config.GlobalConfig.Upload.Size, avatarStorage, config.GlobalConfig.Upload.AvatarSize, userService)
-	siteController := site.NewController(siteService, dbPool, redis)
+	siteController := site.NewController(siteService, gormDB, redis)
 	messageController := message.NewController(messageService, userService)
-	siteConfigController := siteconfig.NewController(siteconfig.NewService(siteconfig.NewRepository(dbPool)))
-	authorProfileController := authorprofile.NewController(authorprofile.NewService(authorprofile.NewRepository(dbPool)))
+	siteConfigController := siteconfig.NewController(siteconfig.NewService(siteconfig.NewRepository(gormDB), redis))
+	authorProfileController := authorprofile.NewController(authorprofile.NewService(authorprofile.NewRepository(gormDB), redis))
 	friendLinkController := friendlink.NewController(friendLinkService)
 	notificationController := notification.NewController(notificationService)
 

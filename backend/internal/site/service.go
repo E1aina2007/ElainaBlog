@@ -3,21 +3,23 @@ package site
 import (
 	"ElainaBlog/config"
 	"ElainaBlog/pkg/rdb"
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
+	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Service struct {
 	repo Repository
-	rdb  rdb.RedisClient // 可选，用于 IP 封禁等操作
+	rdb  rdb.RedisClient
+	db   *gorm.DB
 }
 
-func NewService(repo Repository, redis rdb.RedisClient) *Service {
-	return &Service{repo: repo, rdb: redis}
+func NewService(repo Repository, redis rdb.RedisClient, gormDB *gorm.DB) *Service {
+	return &Service{repo: repo, rdb: redis, db: gormDB}
 }
 
 var (
@@ -34,7 +36,6 @@ func (s *Service) GetDashboardStats() (*DashboardStats, error) {
 		return nil, err
 	}
 
-	// 从 Redis 读取 PV/UV 统计
 	ctx := context.Background()
 	today := time.Now().Format("2006-01-02")
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
@@ -60,12 +61,10 @@ func (s *Service) RecordVisit(clientIP string) {
 	ctx := context.Background()
 	today := time.Now().Format("2006-01-02")
 
-	// PV: 累加计数，TTL 48h
 	pvKey := "pv:" + today
 	s.rdb.Incr(ctx, pvKey)
 	s.rdb.Expire(ctx, pvKey, 48*time.Hour)
 
-	// UV: 记录 IP 到集合，TTL 48h
 	uvKey := "uv:" + today
 	s.rdb.SAdd(ctx, uvKey, clientIP)
 	s.rdb.Expire(ctx, uvKey, 48*time.Hour)
@@ -79,36 +78,94 @@ func (s *Service) GetAuthorStats() (*AuthorStats, error) {
 	return s.repo.GetAuthorStats()
 }
 
-// ExportDatabaseBackup 通过 mysqldump 导出数据库备份
+// ExportDatabaseBackup 通过 GORM 导出数据库备份
 func (s *Service) ExportDatabaseBackup() ([]byte, error) {
-	if s == nil || s.repo == nil {
+	if s == nil || s.db == nil {
 		return nil, ErrDBNotInitialized
 	}
 
-	dbCfg := config.GlobalConfig.Db
+	var out strings.Builder
+	dbName := config.GlobalConfig.Db.DBName
 
-	cmd := exec.Command("mysqldump",
-		"-h", dbCfg.Host,
-		"-P", fmt.Sprintf("%d", dbCfg.Port),
-		"-u", dbCfg.Username,
-		fmt.Sprintf("-p%s", dbCfg.Password),
-		"--single-transaction",
-		"--routines",
-		"--triggers",
-		"--set-gtid-purged=OFF",
-		dbCfg.DBName,
-	)
+	out.WriteString("-- ElainaBlog Database Backup\n")
+	out.WriteString(fmt.Sprintf("-- Database: %s\n", dbName))
+	out.WriteString(fmt.Sprintf("-- Time: %s\n\n", time.Now().Format("2006-01-02 15:04:05")))
+	out.WriteString("SET FOREIGN_KEY_CHECKS=0;\n\n")
 
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
+	// 获取所有表名
+	rows, err := s.db.Raw("SHOW TABLES").Rows()
+	if err != nil {
+		return nil, fmt.Errorf("获取表列表失败: %w", err)
+	}
+	defer rows.Close()
 
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("mysqldump 执行失败: %s", stderr.String())
+	var tables []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		tables = append(tables, name)
 	}
 
-	return out.Bytes(), nil
+	for _, table := range tables {
+		// 获取建表 DDL
+		var tableName, ddl string
+		if err := s.db.Raw(fmt.Sprintf("SHOW CREATE TABLE `%s`", table)).Row().Scan(&tableName, &ddl); err != nil {
+			return nil, fmt.Errorf("获取表 %s 结构失败: %w", table, err)
+		}
+		out.WriteString(fmt.Sprintf("-- Table: %s\n", table))
+		out.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;\n", table))
+		out.WriteString(ddl + ";\n\n")
+
+		// 读取表数据
+		dataRows, err := s.db.Raw(fmt.Sprintf("SELECT * FROM `%s`", table)).Rows()
+		if err != nil {
+			return nil, fmt.Errorf("读取表 %s 数据失败: %w", table, err)
+		}
+
+		cols, _ := dataRows.Columns()
+		vals := make([]any, len(cols))
+		ptrs := make([][]byte, len(cols))
+		for i := range vals {
+			vals[i] = &ptrs[i]
+		}
+
+		hasData := false
+		for dataRows.Next() {
+			if err := dataRows.Scan(vals...); err != nil {
+				dataRows.Close()
+				return nil, fmt.Errorf("扫描表 %s 行数据失败: %w", table, err)
+			}
+			if !hasData {
+				out.WriteString(fmt.Sprintf("INSERT INTO `%s` VALUES\n", table))
+				hasData = true
+			} else {
+				out.WriteString(",\n")
+			}
+			out.WriteString("(")
+			for i, ptr := range ptrs {
+				if i > 0 {
+					out.WriteString(",")
+				}
+				if ptr == nil {
+					out.WriteString("NULL")
+				} else {
+					out.WriteString(fmt.Sprintf("'%s'", strings.ReplaceAll(string(ptr), "'", "\\'")))
+				}
+			}
+			out.WriteString(")")
+		}
+		dataRows.Close()
+
+		if hasData {
+			out.WriteString(";\n")
+		}
+		out.WriteString("\n")
+	}
+
+	out.WriteString("SET FOREIGN_KEY_CHECKS=1;\n")
+	return []byte(out.String()), nil
 }
 
 // GetBannedIPs 获取被封禁的IP列表
@@ -124,4 +181,3 @@ func (s *Service) GetBannedIPs() []string {
 func (s *Service) UnbanIP(ip string) error {
 	return rdb.UnbanIP(s.rdb, ip)
 }
-

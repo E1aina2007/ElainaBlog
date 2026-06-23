@@ -6,10 +6,13 @@ import (
 	"ElainaBlog/pkg/mail"
 	"ElainaBlog/pkg/rdb"
 	"ElainaBlog/pkg/util"
-	"database/sql"
+	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,6 +22,11 @@ type Service struct {
 	rdb      rdb.RedisClient     // 可选，用于验证码存储
 	tokenMgr common.TokenManager // 可选，用于 JWT 签发
 }
+
+const (
+	cacheKeyAdminPrefix = "cache:user:admin:"
+	cacheTTLAdmin       = time.Hour
+)
 
 func NewService(repo Repository, redis rdb.RedisClient, tokenMgr common.TokenManager) *Service {
 	return &Service{repo: repo, rdb: redis, tokenMgr: tokenMgr}
@@ -108,7 +116,7 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 
 	// 检查用户名是否已存在
 	existing, err := s.repo.GetUserByUsername(username)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return 0, err
 	}
 	if existing != nil {
@@ -117,7 +125,7 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 
 	// 检查邮箱是否已注册
 	existing, err = s.repo.GetUserByEmail(email)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return 0, err
 	}
 	if existing != nil {
@@ -159,7 +167,7 @@ func (s *Service) Login(params LoginParams) (*LoginResult, error) {
 	// 通过邮箱查询用户
 	u, err := s.repo.GetUserByEmail(email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
@@ -200,7 +208,7 @@ func (s *Service) GetByID(id int64) (*User, error) {
 
 	u, err := s.repo.GetUserByID(id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
 		return nil, err
@@ -239,7 +247,7 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 	// 检查用户是否存在
 	_, err := s.repo.GetUserByID(params.UserID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err
@@ -247,7 +255,7 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 
 	// 检查用户名是否被其他人占用
 	existing, err := s.repo.GetUserByUsername(username)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
 	if existing != nil && existing.ID != params.UserID {
@@ -256,7 +264,7 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 
 	// 检查邮箱是否被其他人占用
 	existing, err = s.repo.GetUserByEmail(email)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
 	if existing != nil && existing.ID != params.UserID {
@@ -285,7 +293,7 @@ func (s *Service) UpdatePassword(userID int64, oldPassword, newPassword string) 
 	// 查询用户
 	u, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err
@@ -321,7 +329,7 @@ func (s *Service) DeleteUser(operatorID, targetID int64) error {
 	// 校验操作者是否为管理员
 	operator, err := s.repo.GetUserByID(operatorID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err
@@ -333,7 +341,7 @@ func (s *Service) DeleteUser(operatorID, targetID int64) error {
 	// 校验目标用户是否存在
 	_, err = s.repo.GetUserByID(targetID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err
@@ -342,17 +350,40 @@ func (s *Service) DeleteUser(operatorID, targetID int64) error {
 	return s.repo.DeleteUser(targetID)
 }
 
+// CheckIsAdmin 检查用户是否为管理员（优先查 Redis 缓存）
 func (s *Service) CheckIsAdmin(userID int64) (bool, error) {
 	if s == nil || s.repo == nil {
 		return false, ErrDBNotInitialized
 	}
+
+	ctx := context.Background()
+
+	// 尝试从 Redis 读取
+	if s.rdb != nil {
+		val, err := s.rdb.Get(ctx, cacheKeyAdminPrefix+fmt.Sprintf("%d", userID)).Result()
+		if err == nil {
+			return val == "1", nil
+		}
+	}
+
+	// 缓存未命中，查库
 	u, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, ErrUserNotFound
 		}
 		return false, err
 	}
+
+	// 写入缓存
+	if s.rdb != nil {
+		v := "0"
+		if u.IsAdmin {
+			v = "1"
+		}
+		s.rdb.Set(ctx, cacheKeyAdminPrefix+fmt.Sprintf("%d", userID), v, cacheTTLAdmin)
+	}
+
 	return u.IsAdmin, nil
 }
 
@@ -362,7 +393,7 @@ func (s *Service) GetUserEmailByID(userID int64) (string, error) {
 	}
 	u, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrUserNotFound
 		}
 		return "", err
@@ -376,7 +407,7 @@ func (s *Service) GetUsernameByID(userID int64) (string, error) {
 	}
 	u, err := s.repo.GetUserByID(userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrUserNotFound
 		}
 		return "", err
@@ -450,7 +481,7 @@ func (s *Service) ResetPassword(email, code, newPassword string) error {
 	// 查询用户
 	u, err := s.repo.GetUserByEmail(email)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
 		}
 		return err

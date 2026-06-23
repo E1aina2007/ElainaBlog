@@ -1,8 +1,9 @@
 package user
 
 import (
-	"ElainaBlog/config/db"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -37,21 +38,21 @@ func (u *User) ToVO() *UserVO {
 	}
 }
 
-// MySQLRepository 实现 user.Repository 接口，使用 MySQL 存储。
+// MySQLRepository 实现 user.Repository 接口，使用 GORM 存储。
 type MySQLRepository struct {
-	db db.DBTX
+	db *gorm.DB
 }
 
 // NewRepository 创建用户仓储实例。
-func NewRepository(db db.DBTX) *MySQLRepository {
+func NewRepository(db *gorm.DB) *MySQLRepository {
 	return &MySQLRepository{db: db}
 }
 
 func (r *MySQLRepository) GetUserByUsername(username string) (*User, error) {
-	row := r.db.QueryRow("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE username = ? AND is_deleted = 0", username)
-
 	var user User
-	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Avatar, &user.IsAdmin, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.Table("`user`").
+		Where("username = ? AND is_deleted = 0", username).
+		First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -59,10 +60,10 @@ func (r *MySQLRepository) GetUserByUsername(username string) (*User, error) {
 }
 
 func (r *MySQLRepository) GetUserByEmail(email string) (*User, error) {
-	row := r.db.QueryRow("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE email = ? AND is_deleted = 0", email)
-
 	var user User
-	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Avatar, &user.IsAdmin, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.Table("`user`").
+		Where("email = ? AND is_deleted = 0", email).
+		First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -70,10 +71,10 @@ func (r *MySQLRepository) GetUserByEmail(email string) (*User, error) {
 }
 
 func (r *MySQLRepository) GetUserByID(id int64) (*User, error) {
-	row := r.db.QueryRow("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE id = ? AND is_deleted = 0", id)
-
 	var user User
-	err := row.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Avatar, &user.IsAdmin, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.Table("`user`").
+		Where("id = ? AND is_deleted = 0", id).
+		First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -81,66 +82,50 @@ func (r *MySQLRepository) GetUserByID(id int64) (*User, error) {
 }
 
 func (r *MySQLRepository) GetUserList() ([]*User, error) {
-	rows, err := r.db.Query("SELECT id, username, password, email, avatar, is_admin, created_at, updated_at FROM `user` WHERE is_deleted = 0")
+	var users []*User
+	err := r.db.Table("`user`").
+		Where("is_deleted = 0").
+		Find(&users).Error
 	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	users := make([]*User, 0)
-	for rows.Next() {
-		var user User
-		err := rows.Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Avatar, &user.IsAdmin, &user.CreatedAt, &user.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, &user)
-	}
-	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	return users, nil
 }
 
 func (r *MySQLRepository) CreateUser(user *User) (int64, error) {
-	result, err := r.db.Exec("INSERT INTO `user` (username, password, email, avatar, is_admin) VALUES (?, ?, ?, ?, ?)", user.Username, user.Password, user.Email, user.Avatar, user.IsAdmin)
-	if err != nil {
+	if err := r.db.Table("`user`").Create(user).Error; err != nil {
 		return 0, err
 	}
-	return result.LastInsertId()
+	return user.ID, nil
 }
 
 func (r *MySQLRepository) UpdateProfile(id int64, username, email, avatar string) error {
-	_, err := r.db.Exec("UPDATE `user` SET username = ?, email = ?, avatar = ? WHERE id = ? AND is_deleted = 0", username, email, avatar, id)
-	return err
+	return r.db.Table("`user`").
+		Where("id = ? AND is_deleted = 0", id).
+		Updates(map[string]any{
+			"username": username,
+			"email":    email,
+			"avatar":   avatar,
+		}).Error
 }
 
 func (r *MySQLRepository) UpdatePassword(id int64, newPassword string) error {
-	_, err := r.db.Exec("UPDATE `user` SET password = ? WHERE id = ? AND is_deleted = 0", newPassword, id)
-	return err
+	return r.db.Table("`user`").
+		Where("id = ? AND is_deleted = 0", id).
+		Update("password", newPassword).Error
 }
 
 func (r *MySQLRepository) DeleteUser(id int64) error {
-	_, err := r.db.Exec("UPDATE `user` SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id)
-	return err
+	return r.db.Table("`user`").
+		Where("id = ? AND is_deleted = 0", id).
+		Update("is_deleted", 1).Error
 }
 
 // GetAdminUserIDs 获取所有管理员用户的 ID 列表
 func (r *MySQLRepository) GetAdminUserIDs() ([]int64, error) {
-	rows, err := r.db.Query("SELECT id FROM `user` WHERE is_admin = 1 AND is_deleted = 0")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	err := r.db.Table("`user`").
+		Where("is_admin = 1 AND is_deleted = 0").
+		Pluck("id", &ids).Error
+	return ids, err
 }
-

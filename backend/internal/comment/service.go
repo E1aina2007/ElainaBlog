@@ -1,10 +1,11 @@
 package comment
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 // ArticleInfoProvider 获取文章信息的接口，避免直接依赖 article 模块
@@ -60,7 +61,7 @@ func (s *Service) GetCommentByID(id int64) (*Comment, error) {
 	}
 	c, err := s.repo.GetCommentByID(id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrCommentNotFound
 		}
 		return nil, err
@@ -153,7 +154,7 @@ func (s *Service) DeleteComment(params *DeleteCommentParams) error {
 	// 检查评论是否存在
 	_, err := s.repo.GetCommentByID(params.ID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCommentNotFound
 		}
 		return err
