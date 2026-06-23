@@ -113,6 +113,10 @@ function doRefresh(): Promise<void> {
 request.interceptors.response.use(
     (response) => {
         const data = response.data
+        // blob 响应（如文件下载）直接透传
+        if (data instanceof Blob) {
+            return data
+        }
         // 后端返回 { code: 0, data: ..., message: ... }
         if (data.code === 0) {
             return data.data

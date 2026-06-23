@@ -27,4 +27,5 @@ type RedisClient interface {
 	SMembers(ctx context.Context, key string) *redis.StringSliceCmd
 	Ping(ctx context.Context) *redis.StatusCmd
 	Info(ctx context.Context, sections ...string) *redis.StringCmd
+	FlushDB(ctx context.Context) *redis.StatusCmd
 }
