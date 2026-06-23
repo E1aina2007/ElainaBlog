@@ -45,17 +45,20 @@
 - Markdown 在线预览（左右分栏，支持代码高亮）
 - 正则表达式测试（实时匹配、高亮预览、语法速查表）
 
-### 安全与限流
+### 安全设计
 
-- 基于 IP 的请求频率限制（防刷）
-- Redis 滑动窗口限流中间件（应用于登录、注册、刷新、发码等敏感接口）
-- 验证码发送间隔限制
-- IP 封禁机制
-- 密码 bcrypt 加密存储
-- 角色权限控制（普通用户 / 管理员）
-- JWT Token 吊销机制（JTI + Redis 黑名单，Refresh Token 一次性使用）
-- 上传文件 MIME 魔数检测（防止伪造扩展名绕过）
-- 细分错误码体系（20+ 错误码覆盖用户、验证码、资源、上传等场景）
+**网络层**：Cloudflare CDN 代理隐藏源站 IP，WAF 规则拦截 SQL 注入 / XSS / 敏感文件访问，UFW 防火墙仅开放 22/80/443 端口。
+
+**应用层**：
+- GORM 参数化查询防 SQL 注入
+- 密码 bcrypt 加盐哈希，JWT 双 Token 认证 + Redis 黑名单吊销
+- Redis 滑动窗口限流（登录 / 注册 / 刷新 / 发码等敏感接口），IP 封禁机制
+- 上传白名单 + MIME 魔数检测 + 随机文件名 + 大小限制
+- 角色权限控制（普通用户 / 管理员），细分错误码体系（20+）
+
+**服务端**：Nginx 安全头（`X-Frame-Options` / `X-Content-Type-Options` / `X-XSS-Protection` / `Referrer-Policy`），禁止访问隐藏文件。Docker 容器隔离，MySQL / Redis 仅绑定 `127.0.0.1`。HTTPS 由 Let's Encrypt + Certbot 自动管理。
+
+**数据安全**：敏感配置通过环境变量注入，配置文件已加入 `.gitignore`，示例文件仅含占位符。
 
 ### 缓存架构
 
