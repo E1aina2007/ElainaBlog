@@ -30,6 +30,11 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '')
 }
 
+// 清洗标题文本（去除 markdown 格式字符），与 extractToc 和 heading_open 渲染器共用同一逻辑
+function cleanHeadingText(raw: string): string {
+  return raw.replace(/[*_`~[\]()]/g, '').trim()
+}
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
@@ -66,8 +71,8 @@ function extractToc(content: string): TocItem[] {
   let inCodeBlock = false
 
   for (const line of lines) {
-    // 检测围栏代码块边界（``` 或 ~~~）
-    if (/^\s*`{3,}\s*$/.test(line) || /^\s*~{3,}\s*$/.test(line)) {
+    // 检测围栏代码块边界（``` 或 ~~~），允许后面跟随语言标识等 info string
+    if (/^\s*`{3,}/.test(line) || /^\s*~{3,}/.test(line)) {
       inCodeBlock = !inCodeBlock
       continue
     }
@@ -77,7 +82,7 @@ function extractToc(content: string): TocItem[] {
     const match = line.match(/^(#{1,6})\s+(.+)$/)
     if (!match || !match[1] || !match[2]) continue
     const level = match[1].length
-    const text = match[2].replace(/[*_`~[\]()]/g, '').trim()
+    const text = cleanHeadingText(match[2])
     let id = slugify(text)
     if (!id) continue
     if (slugCount[id] !== undefined) {
@@ -121,10 +126,12 @@ md.renderer.rules.heading_open = function (tokens, idx, options, env, self) {
   if (!token) return defaultHeadingOpen(tokens, idx, options, env, self)
   const nextToken = tokens[idx + 1]
   if (nextToken && nextToken.type === 'inline') {
-    const text = nextToken.children
-      ?.filter((t) => t.type === 'text')
+    // 收集所有可见文本（包括 code_inline），与 extractToc 的文本提取保持一致
+    const rawText = nextToken.children
+      ?.filter((t) => t.type === 'text' || t.type === 'code_inline')
       .map((t) => t.content)
       .join('') || ''
+    const text = cleanHeadingText(rawText)
     const id = headingIdMap.value[text]
     if (id) {
       token.attrSet('id', id)
