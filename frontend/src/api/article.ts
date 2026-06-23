@@ -6,6 +6,7 @@ export interface Article {
     title: string
     summary: string
     content: string
+    tags?: string
     category_id?: number
     category_name?: string
     user_id?: number
@@ -25,7 +26,7 @@ interface ArticleListParams {
     page?: number
     pageSize?: number
     categoryId?: number
-    sortBy?: 'latest' | 'popular'
+    sortBy?: 'latest' | 'popular' | 'comment'
 }
 
 interface ArticleListResult {
@@ -81,4 +82,9 @@ export function deleteArticle(id: number): Promise<void> {
 // 全文搜索文章
 export function searchArticles(keyword: string, page = 1, pageSize = 10): Promise<ArticleListResult> {
     return request.get('/article/search', { params: { keyword, page, pageSize } })
+}
+
+// 切换文章置顶状态（管理员，只改 is_top 不影响其他字段）
+export function toggleArticleTop(id: number, isTop: boolean): Promise<void> {
+    return request.post('/article/toggle-top', { id, is_top: isTop })
 }
