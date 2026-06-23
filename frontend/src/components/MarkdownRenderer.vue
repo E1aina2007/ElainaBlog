@@ -45,10 +45,10 @@ const md = new MarkdownIt({
     if (lang && hljs.getLanguage(lang)) {
       try {
         const result = hljs.highlight(str, { language: lang, ignoreIllegals: true })
-        return `<div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${lang}</span>${copyBtn}</div><pre class="hljs-code-block"><code class="hljs language-${lang}">${result.value}</code></pre></div>`
+        return `<pre class="hljs-code-block"><div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${lang}</span>${copyBtn}</div><code class="hljs language-${lang}">${result.value}</code></div></pre>`
       } catch (_) {}
     }
-    return `<div class="code-block-wrapper"><div class="code-block-header">${copyBtn}</div><pre class="hljs-code-block"><code class="hljs">${escapedContent}</code></pre></div>`
+    return `<pre class="hljs-code-block"><div class="code-block-wrapper"><div class="code-block-header">${copyBtn}</div><code class="hljs">${escapedContent}</code></div></pre>`
   },
 })
 
@@ -292,12 +292,18 @@ defineExpose({ toc })
   color: var(--color-danger);
 }
 
-/* ── 代码块容器 ── */
+/* ── 代码块容器（pre 包裹整个代码块） ── */
+.markdown-body :deep(.hljs-code-block) {
+  background: #0d1117;
+  margin: 1rem 0;
+  padding: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* ── 代码块内部 wrapper ── */
 .markdown-body :deep(.code-block-wrapper) {
   position: relative;
-  border-radius: var(--radius-md);
-  margin: 1rem 0;
-  overflow: hidden;
 }
 
 /* ── 代码块语言标签头 ── */
@@ -342,21 +348,16 @@ defineExpose({ toc })
 }
 
 /* ── 代码块内容区 ── */
-.markdown-body :deep(.hljs-code-block) {
-  background: #0d1117;
-  padding: 1rem;
-  overflow-x: auto;
-  margin: 0;
-  border-radius: 0;
-}
-
 .markdown-body :deep(.hljs-code-block code) {
+  display: block;
   background: transparent;
-  padding: 0;
+  padding: 1rem;
+  margin: 0;
   border-radius: 0;
   color: #e6edf3;
   line-height: 1.6;
   font-size: 0.875rem;
+  overflow-x: auto;
 }
 
 .markdown-body :deep(img) {
@@ -404,7 +405,7 @@ defineExpose({ toc })
 
 <!-- 日间模式：代码块亮色覆盖 -->
 <style>
-html:not(.dark) .markdown-body .code-block-wrapper {
+html:not(.dark) .markdown-body .hljs-code-block {
   background: #f6f8fa;
   border: 1px solid #d0d7de;
 }
@@ -425,10 +426,6 @@ html:not(.dark) .markdown-body .code-block-header .code-copy-btn {
 html:not(.dark) .markdown-body .code-block-header .code-copy-btn:hover {
   background: #d0d7de;
   color: #24292e;
-}
-
-html:not(.dark) .markdown-body .hljs-code-block {
-  background: #f6f8fa;
 }
 
 html:not(.dark) .markdown-body .hljs-code-block code {
