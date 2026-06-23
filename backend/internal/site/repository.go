@@ -1,18 +1,18 @@
 package site
 
 import (
-	"ElainaBlog/config/db"
-	"database/sql"
 	"time"
+
+	"gorm.io/gorm"
 )
 
-// MySQLRepository 实现 site.Repository 接口，使用 MySQL 存储。
+// MySQLRepository 实现 site.Repository 接口，使用 GORM 存储。
 type MySQLRepository struct {
-	db db.DBTX
+	db *gorm.DB
 }
 
 // NewRepository 创建站点仓储实例。
-func NewRepository(db db.DBTX) *MySQLRepository {
+func NewRepository(db *gorm.DB) *MySQLRepository {
 	return &MySQLRepository{db: db}
 }
 
@@ -31,21 +31,13 @@ type DashboardStats struct {
 func (r *MySQLRepository) GetDashboardStats() (*DashboardStats, error) {
 	var stats DashboardStats
 
-	// 文章数（不包含草稿和已删除）
-	err := r.db.QueryRow("SELECT COUNT(*) FROM article WHERE is_deleted = 0 AND is_draft = 0").Scan(&stats.ArticleCount)
-	if err != nil {
+	if err := r.db.Table("article").Where("is_deleted = 0 AND is_draft = 0").Count(&stats.ArticleCount).Error; err != nil {
 		return nil, err
 	}
-
-	// 评论数（不包含已删除）
-	err = r.db.QueryRow("SELECT COUNT(*) FROM comment WHERE is_deleted = 0").Scan(&stats.CommentCount)
-	if err != nil {
+	if err := r.db.Table("comment").Where("is_deleted = 0").Count(&stats.CommentCount).Error; err != nil {
 		return nil, err
 	}
-
-	// 用户数（不包含已删除）
-	err = r.db.QueryRow("SELECT COUNT(*) FROM `user` WHERE is_deleted = 0").Scan(&stats.UserCount)
-	if err != nil {
+	if err := r.db.Table("`user`").Where("is_deleted = 0").Count(&stats.UserCount).Error; err != nil {
 		return nil, err
 	}
 
@@ -64,29 +56,23 @@ type AuthorStats struct {
 func (r *MySQLRepository) GetAuthorStats() (*AuthorStats, error) {
 	var stats AuthorStats
 
-	err := r.db.QueryRow("SELECT COUNT(*) FROM article WHERE is_deleted = 0 AND is_draft = 0").Scan(&stats.ArticleCount)
-	if err != nil {
+	if err := r.db.Table("article").Where("is_deleted = 0 AND is_draft = 0").Count(&stats.ArticleCount).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Table("comment").Where("is_deleted = 0").Count(&stats.CommentCount).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Table("article").Where("is_deleted = 0 AND is_draft = 0").Select("COALESCE(SUM(view_count), 0)").Scan(&stats.TotalViews).Error; err != nil {
 		return nil, err
 	}
 
-	err = r.db.QueryRow("SELECT COUNT(*) FROM comment WHERE is_deleted = 0").Scan(&stats.CommentCount)
-	if err != nil {
+	// 建站天数
+	var earliest *time.Time
+	if err := r.db.Table("article").Where("is_deleted = 0").Select("MIN(created_at)").Scan(&earliest).Error; err != nil {
 		return nil, err
 	}
-
-	err = r.db.QueryRow("SELECT COALESCE(SUM(view_count), 0) FROM article WHERE is_deleted = 0 AND is_draft = 0").Scan(&stats.TotalViews)
-	if err != nil {
-		return nil, err
-	}
-
-	// 建站天数：取最早一篇文章的创建时间距今天数，无文章则为 0
-	var earliest sql.NullTime
-	err = r.db.QueryRow("SELECT MIN(created_at) FROM article WHERE is_deleted = 0").Scan(&earliest)
-	if err != nil {
-		return nil, err
-	}
-	if earliest.Valid {
-		stats.DaysSince = int(time.Since(earliest.Time).Hours() / 24)
+	if earliest != nil {
+		stats.DaysSince = int(time.Since(*earliest).Hours() / 24)
 		if stats.DaysSince < 1 {
 			stats.DaysSince = 1
 		}
