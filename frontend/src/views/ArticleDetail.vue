@@ -25,6 +25,11 @@ const mdRenderer = ref<InstanceType<typeof MarkdownRenderer> | null>(null)
 
 const tocItems = computed<TocItem[]>(() => mdRenderer.value?.toc ?? [])
 
+const tagList = computed(() => {
+  if (!article.value?.tags) return []
+  return article.value.tags.split('|').map(t => t.trim()).filter(Boolean)
+})
+
 const articleId = computed(() => {
   const id = Number(route.params.id)
   return isNaN(id) ? 0 : id
@@ -271,6 +276,9 @@ onMounted(() => {
                 </button>
               </template>
             </div>
+          </div>
+          <div v-if="tagList.length > 0" class="article-tags">
+            <span v-for="(tag, i) in tagList" :key="i" class="article-tag">{{ tag }}</span>
           </div>
         </header>
 
@@ -547,6 +555,25 @@ onMounted(() => {
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.article-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.article-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 
 /* 文章内容 */
