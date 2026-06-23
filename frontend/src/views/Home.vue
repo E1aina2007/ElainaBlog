@@ -17,7 +17,7 @@ const categories = ref<Category[]>([])
 const totalArticles = ref(0)
 const totalViews = ref(0)
 const currentCategoryId = ref<number | null>(null)
-const sortBy = ref<'latest' | 'popular'>('latest')
+const sortBy = ref<'latest' | 'popular' | 'comment'>('latest')
 const allArticlesTotal = ref(0)
 const currentPage = ref(1)
 const pageSize = 12
@@ -57,7 +57,7 @@ const fetchArticles = async (page: number, append = false) => {
       // 搜索模式
       res = await searchArticles(searchKeyword.value, page, pageSize)
     } else {
-      const params: { page: number; pageSize: number; categoryId?: number; sortBy?: 'latest' | 'popular' } = { page, pageSize }
+      const params: { page: number; pageSize: number; categoryId?: number; sortBy?: 'latest' | 'popular' | 'comment' } = { page, pageSize }
       if (currentCategoryId.value !== null) {
         params.categoryId = currentCategoryId.value
       }
@@ -101,7 +101,7 @@ const switchCategory = (categoryId: number | null) => {
 }
 
 // 切换排序时重新加载
-const changeSort = (sort: 'latest' | 'popular') => {
+const changeSort = (sort: 'latest' | 'popular' | 'comment') => {
   sortBy.value = sort
   currentPage.value = 1
   hasMore.value = true
@@ -147,7 +147,7 @@ const closeSortDropdown = () => {
 }
 
 // 切换排序并关闭下拉
-const selectSort = (sort: 'latest' | 'popular') => {
+const selectSort = (sort: 'latest' | 'popular' | 'comment') => {
   sortDropdownOpen.value = false
   changeSort(sort)
 }
@@ -284,12 +284,13 @@ onUnmounted(() => {
               <!-- 排序下拉 -->
               <div v-if="!searchKeyword" class="sort-dropdown-wrapper">
                 <button class="sort-dropdown-btn" @click="sortDropdownOpen = !sortDropdownOpen">
-                  {{ sortBy === 'popular' ? '最热' : '最新' }}
+                  {{ sortBy === 'popular' ? '最热' : sortBy === 'comment' ? '最多评论' : '最新' }}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
                 <div v-if="sortDropdownOpen" class="sort-dropdown-menu">
                   <button class="sort-dropdown-item" :class="{ active: sortBy === 'latest' }" @click="selectSort('latest')">🕐 最新</button>
                   <button class="sort-dropdown-item" :class="{ active: sortBy === 'popular' }" @click="selectSort('popular')">🔥 最热</button>
+                  <button class="sort-dropdown-item" :class="{ active: sortBy === 'comment' }" @click="selectSort('comment')">💬 最多评论</button>
                 </div>
               </div>
             </div>
