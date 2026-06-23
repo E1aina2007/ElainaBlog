@@ -8,5 +8,6 @@ type Repository interface {
 	GetCategoryList() ([]*CategoryVO, error)
 	CreateCategory(name string) (*CategoryVO, error)
 	UpdateCategory(id int64, name string) (*CategoryVO, error)
+	ToggleCategoryTop(id int64, isTop bool) error
 	DeleteCategory(id int64) error
 }

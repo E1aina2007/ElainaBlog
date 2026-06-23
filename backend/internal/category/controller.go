@@ -28,6 +28,11 @@ type DeleteCategoryRequest struct {
 	ID int64 `json:"id"`
 }
 
+type ToggleTopRequest struct {
+	ID    int64 `json:"id"`
+	IsTop bool  `json:"is_top"`
+}
+
 // GetList 获取所有分类
 func (ctl *Controller) GetList(c *gin.Context) {
 	list, err := ctl.service.GetCategoryList()
@@ -106,6 +111,33 @@ func (ctl *Controller) Delete(c *gin.Context) {
 	}
 
 	err := ctl.service.DeleteCategory(req.ID)
+	if err != nil {
+		switch err {
+		case ErrInvalidParams:
+			appErr := model.ErrInvalidParams.WithDetail(err.Error())
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case ErrCategoryNotFound:
+			appErr := model.ErrNotFound.WithDetail("资源不存在")
+			c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		default:
+			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+}
+
+// ToggleTop 切换分类置顶状态（管理员）
+func (ctl *Controller) ToggleTop(c *gin.Context) {
+	var req ToggleTopRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	err := ctl.service.ToggleTop(req.ID, req.IsTop)
 	if err != nil {
 		switch err {
 		case ErrInvalidParams:
