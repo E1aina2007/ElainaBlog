@@ -4,6 +4,7 @@ import request from './request'
 export interface Category {
     id: number
     name: string
+    is_top: boolean
     article_count: number
     created_at?: string
     updated_at?: string
@@ -27,4 +28,9 @@ export function updateCategory(id: number, name: string): Promise<Category> {
 // 删除分类（管理员）
 export function deleteCategory(id: number): Promise<void> {
     return request.post('/category/delete', { id })
+}
+
+// 切换分类置顶状态（管理员）
+export function toggleCategoryTop(id: number, isTop: boolean): Promise<void> {
+    return request.post('/category/toggle-top', { id, is_top: isTop })
 }

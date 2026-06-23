@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getCategoryList, createCategory, updateCategory, deleteCategory, type Category } from '@/api/category'
+import { getCategoryList, createCategory, updateCategory, deleteCategory, toggleCategoryTop, type Category } from '@/api/category'
 import toast from '@/utils/toast'
 
 const categories = ref<Category[]>([])
@@ -71,6 +71,16 @@ const cancelEdit = () => {
   editName.value = ''
 }
 
+const handleToggleTop = async (category: Category) => {
+  try {
+    await toggleCategoryTop(category.id, !category.is_top)
+    fetchCategories()
+    toast.success(category.is_top ? '已取消置顶' : '已置顶')
+  } catch (error) {
+    toast.error('操作失败')
+  }
+}
+
 onMounted(fetchCategories)
 </script>
 
@@ -132,10 +142,24 @@ onMounted(fetchCategories)
                   </svg>
                 </button>
               </div>
-              <span v-else class="category-name">{{ category.name }}</span>
+              <span v-else class="category-name">
+                {{ category.name }}
+                <span v-if="category.is_top" class="top-badge">置顶</span>
+              </span>
             </td>
             <td>{{ category.created_at ? new Date(category.created_at).toLocaleDateString('zh-CN') : '-' }}</td>
             <td class="actions">
+              <button
+                v-if="editingId !== category.id"
+                class="action-btn"
+                :class="{ pinned: category.is_top }"
+                @click="handleToggleTop(category)"
+                :title="category.is_top ? '取消置顶' : '置顶'"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" :fill="category.is_top ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"></path>
+                </svg>
+              </button>
               <button
                 v-if="editingId !== category.id"
                 class="action-btn edit"
@@ -348,6 +372,27 @@ onMounted(fetchCategories)
 .action-btn.delete:hover {
   background: color-mix(in srgb, var(--color-danger) 10%, transparent);
   color: var(--color-danger);
+}
+
+.action-btn.pinned {
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+}
+
+.action-btn.pinned:hover {
+  background: color-mix(in srgb, var(--color-warning) 25%, transparent);
+}
+
+.top-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  border-radius: 4px;
+  vertical-align: middle;
 }
 
 .empty-cell {
