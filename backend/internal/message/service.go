@@ -1,9 +1,10 @@
 package message
 
 import (
-	"database/sql"
 	"errors"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 // AdminUserProvider 获取管理员用户列表的接口
@@ -76,7 +77,7 @@ func (s *Service) GetByID(id int64) (*Message, error) {
 	}
 	msg, err := s.repo.GetByID(id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrMessageNotFound
 		}
 		return nil, err
@@ -93,7 +94,7 @@ func (s *Service) Delete(id int64) error {
 	}
 	_, err := s.repo.GetByID(id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrMessageNotFound
 		}
 		return err
