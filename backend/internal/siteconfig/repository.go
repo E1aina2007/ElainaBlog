@@ -34,7 +34,7 @@ func (r *MySQLRepository) GetByKey(key string) (*SiteConfig, error) {
 	err := r.db.Table("site_config").
 		Select("id", "key_name", "value").
 		Where("key_name = ? AND is_deleted = 0", key).
-		Scan(&c).Error
+		First(&c).Error
 	if err != nil {
 		return nil, err
 	}

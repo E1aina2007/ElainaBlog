@@ -39,7 +39,7 @@ func (r *MySQLRepository) GetByID(id int64) (*FriendLinkVO, error) {
 	err := r.db.Table("friend_link").
 		Select("id", "name", "url", "avatar", "description", "sort_order").
 		Where("id = ? AND is_deleted = 0", id).
-		Scan(&vo).Error
+		First(&vo).Error
 	if err != nil {
 		return nil, err
 	}

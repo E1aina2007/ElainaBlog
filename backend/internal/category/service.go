@@ -175,6 +175,30 @@ func (s *Service) DeleteCategory(id int64) error {
 	return nil
 }
 
+// ToggleTop 切换分类置顶状态（仅管理员）
+func (s *Service) ToggleTop(id int64, isTop bool) error {
+	if s == nil || s.repo == nil {
+		return ErrDBNotInitialized
+	}
+	if id <= 0 {
+		return ErrInvalidParams
+	}
+
+	_, err := s.repo.GetCategoryByID(id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrCategoryNotFound
+		}
+		return err
+	}
+
+	if err := s.repo.ToggleCategoryTop(id, isTop); err != nil {
+		return err
+	}
+	s.invalidateCache()
+	return nil
+}
+
 func (s *Service) invalidateCache() {
 	if s.rdb != nil {
 		s.rdb.Del(context.Background(), cacheKeyCategoryList)

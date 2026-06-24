@@ -7,6 +7,7 @@ import (
 type CategoryVO struct {
 	ID           int64  `json:"id" gorm:"column:id"`
 	Name         string `json:"name" gorm:"column:name"`
+	IsTop        bool   `json:"is_top" gorm:"column:is_top"`
 	ArticleCount int    `json:"article_count" gorm:"column:article_count"`
 }
 
@@ -23,9 +24,9 @@ func NewRepository(db *gorm.DB) *MySQLRepository {
 func (r *MySQLRepository) GetCategoryByID(id int64) (*CategoryVO, error) {
 	var category CategoryVO
 	err := r.db.Table("category").
-		Select("id", "name").
+		Select("id", "name", "is_top").
 		Where("id = ? AND is_deleted = 0", id).
-		Scan(&category).Error
+		First(&category).Error
 	if err != nil {
 		return nil, err
 	}
@@ -35,9 +36,9 @@ func (r *MySQLRepository) GetCategoryByID(id int64) (*CategoryVO, error) {
 func (r *MySQLRepository) GetCategoryByName(name string) (*CategoryVO, error) {
 	var category CategoryVO
 	err := r.db.Table("category").
-		Select("id", "name").
+		Select("id", "name", "is_top").
 		Where("name = ? AND is_deleted = 0", name).
-		Scan(&category).Error
+		First(&category).Error
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +48,11 @@ func (r *MySQLRepository) GetCategoryByName(name string) (*CategoryVO, error) {
 func (r *MySQLRepository) GetCategoryList() ([]*CategoryVO, error) {
 	var categories []*CategoryVO
 	err := r.db.Table("category c").
-		Select("c.id", "c.name", "COUNT(a.id) AS article_count").
+		Select("c.id", "c.name", "c.is_top", "COUNT(a.id) AS article_count").
 		Joins("LEFT JOIN article a ON a.category_id = c.id AND a.is_deleted = 0 AND a.is_draft = 0").
 		Where("c.is_deleted = 0").
-		Group("c.id, c.name").
+		Group("c.id, c.name, c.is_top").
+		Order("c.is_top DESC, c.name ASC").
 		Scan(&categories).Error
 	if err != nil {
 		return nil, err
@@ -74,6 +76,11 @@ func (r *MySQLRepository) UpdateCategory(id int64, name string) (*CategoryVO, er
 		return nil, err
 	}
 	return r.GetCategoryByID(id)
+}
+
+// ToggleCategoryTop 单独切换分类置顶状态
+func (r *MySQLRepository) ToggleCategoryTop(id int64, isTop bool) error {
+	return r.db.Exec("UPDATE category SET is_top = ? WHERE id = ? AND is_deleted = 0", isTop, id).Error
 }
 
 func (r *MySQLRepository) DeleteCategory(id int64) error {

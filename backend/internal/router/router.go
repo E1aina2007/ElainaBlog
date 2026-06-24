@@ -136,6 +136,7 @@ func RouterInit(r *gin.Engine) {
 			adminGroup.POST("/category/create", categoryController.Create)
 			adminGroup.POST("/category/update", categoryController.Update)
 			adminGroup.POST("/category/delete", categoryController.Delete)
+			adminGroup.POST("/category/toggle-top", categoryController.ToggleTop)
 			adminGroup.GET("/user/list", userController.GetList)
 			adminGroup.GET("/comment/list", commentController.GetAllList)
 			adminGroup.GET("/system/status", siteController.GetSystemStatus)
