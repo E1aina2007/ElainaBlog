@@ -276,7 +276,7 @@ onUnmounted(() => {
         <div class="articles-main">
           <div class="section-header">
             <div class="section-header-left">
-              <h2 v-if="!searchKeyword" class="section-title">{{ currentCategoryId === null ? '全部文章' : (categories.find(c => c.id === currentCategoryId)?.name ?? '') + '文章' }}</h2>
+              <h2 v-if="!searchKeyword" class="section-title">{{ currentCategoryId === null ? '全部' : (categories.find(c => c.id === currentCategoryId)?.name ?? '')}}</h2>
               <h2 v-else class="section-title">
                 搜索：{{ searchKeyword }}
                 <button class="btn-clear-search" @click="clearSearch">清除</button>
