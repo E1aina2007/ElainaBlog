@@ -48,6 +48,9 @@ jobs:
         with:
           context: ./${{ matrix.service }}
           push: true
+          # 关闭 OCI 证明信息，避免阿里云 ACR 拒绝推送（unknown manifest class）
+          provenance: false
+          sbom: false
           # 两个仓库各打 latest 与 commit 哈希标签
           tags: |
             ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/elainablog-${{ matrix.service }}:latest
