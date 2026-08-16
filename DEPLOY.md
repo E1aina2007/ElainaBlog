@@ -277,25 +277,19 @@ frontend/public/author/
 └── background.jpg  # 作者页顶部背景图
 ```
 
-### 4. 构建镜像
+### 4. 拉取镜像
 
-项目通过不同的 Compose 覆盖文件支持三种构建方式，按需选择：
-
-| 方式 | 适用场景 | 启动命令 |
-|------|---------|---------|
-| 远程镜像 | 服务器无需构建，直接拉取 | `docker compose up -d` |
-| 本地构建 | 服务器内存 ≥2GB | `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build` |
-| 本地编译上传 | 服务器内存 <2GB | `docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d` |
+镜像由 GitHub Actions 在推送到 main 分支时构建并推送到远程仓库，服务器无需构建。
 
 > MySQL 和 Redis 使用官方镜像（`mysql:8.0`、`redis:7-alpine`），无需构建，会在 `docker compose up` 时自动拉取。如未提前配置镜像加速，请先完成「环境准备」中的镜像加速配置。
 
-#### 方式一：远程镜像（推荐，适合 CI/CD 流程）
+#### 远程镜像（推荐）
 
 GitHub 推送到 main 分支时自动构建镜像并推送到远程仓库，服务器直接拉取。
 
-**前置条件：** 已配置阿里云 ACR + GitHub Secrets
+**前置条件：** 已配置阿里云 ACR 与 Docker Hub 的 GitHub Secrets
 
-项目已包含工作流文件 `.github/workflows/docker-image.yml`，推送到 main 分支自动触发构建，推送 `latest` 和 commit SHA 两个标签。
+项目已包含工作流文件 `.github/workflows/docker-image.yml`，推送到 main 分支自动触发构建，同时向两个仓库推送 `latest` 和 commit SHA 标签。
 
 在 `.env` 中配置镜像地址：
 
@@ -309,74 +303,6 @@ DOCKER_NAMESPACE=<命名空间>
 docker compose pull
 docker compose up -d
 ```
-
-#### 方式二：服务器本地构建（适合内存 ≥2GB 的服务器）
-
-```bash
-# 顺序构建前后端镜像并启动（--parallel=false 防止同时构建导致内存不足）
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
-```
-
-> ⚠️ 不要省略 `--parallel=false`。前后端同时构建可能因内存不足（OOM）导致构建卡死或失败，尤其在 ≤2GB 内存的服务器上。
-
-```bash
-# 确认镜像构建成功
-docker images | grep elainablog
-```
-
-预期输出：
-
-```
-elainablog-frontend   latest   ...   ...
-elainablog-backend    latest   ...   ...
-```
-
-#### 方式三：本地编译后上传（适合内存 <2GB 的服务器）
-
-服务器内存不足时，可在本地编译前后端产物，上传到服务器后构建镜像，跳过服务器上的编译过程。
-
-**Step 1：本地编译**
-
-后端交叉编译（在本地开发机器上执行）：
-
-```bash
-cd backend
-
-# Windows (PowerShell)
-$env:CGO_ENABLED="0"; $env:GOOS="linux"; $env:GOARCH="amd64"
-go build -ldflags="-s -w" -o elainablog ./cmd
-
-# macOS / Linux
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o elainablog ./cmd
-```
-
-前端构建：
-
-```bash
-cd frontend
-npm run build
-```
-
-**Step 2：上传文件到服务器**
-
-```bash
-# 上传后端二进制和迁移脚本
-scp backend/elainablog user@your-server-ip:~/ElainaBlog/backend/
-scp -r backend/config/db/SQLscript user@your-server-ip:~/ElainaBlog/backend/config/db/
-
-# 上传前端构建产物和 nginx 配置
-scp -r frontend/dist user@your-server-ip:~/ElainaBlog/frontend/
-scp frontend/nginx.conf user@your-server-ip:~/ElainaBlog/frontend/
-```
-
-**Step 3：构建并启动**
-
-```bash
-cd ~/ElainaBlog
-docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d
-```
-
-> 💡 更新时只需重复 Step 1 → Step 2 → Step 3，无需重新克隆项目。
 
 ### 5. 启动数据库
 
@@ -623,50 +549,29 @@ cd ElainaBlog
 git pull
 ```
 
-#### 远程镜像模式
+#### 更新全部服务
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-#### 本地构建模式
+#### 仅更新前端或后端
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+docker compose pull frontend
+docker compose up -d frontend
 ```
 
-#### 交叉编译模式
-
 ```bash
-# 上传新编译的二进制后
-scp backend/elainablog server:~/ElainaBlog/backend/
-docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d
+docker compose pull backend
+docker compose up -d backend
+docker compose logs backend
 ```
 
 ```bash
 # 确认所有容器均为 running
 docker compose ps
-```
-
-```bash
-# 查看后端日志，确认启动正常
-docker compose logs backend
-```
-
-#### 仅更新前端（本地构建模式）
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build frontend
-```
-
-#### 仅更新后端（本地构建模式）
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build backend
-docker compose build backend
-docker compose up -d backend
-docker compose logs backend
 ```
 
 ---

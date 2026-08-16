@@ -78,7 +78,7 @@
 - 全局健康检查接口（`/health`）
 - 日志按级别分文件输出（Zap + Lumberjack 自动轮转）
 - 文件上传与静态资源托管
-- Docker Compose 一键部署，支持远程镜像 / 本地构建 / 交叉编译三种方式
+- Docker Compose 一键部署（CI 构建镜像，服务器远程拉取）
 
 ## 前端视觉设计
 
@@ -139,13 +139,12 @@
 
 ### 构建方式
 
-本项目通过不同的 Compose 覆盖文件支持三种构建方式：
+推送到 `main` 分支时，GitHub Actions 会自动构建前后端镜像并推送到阿里云 ACR 与 Docker Hub，服务器直接拉取运行：
 
-| 方式 | 适用场景 | 启动命令 |
-|------|---------|---------|
-| 远程镜像 | 服务器无需构建 | `docker compose up -d` |
-| 本地构建 | 服务器内存 ≥2GB | `docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build` |
-| 本地编译上传 | 服务器内存 <2GB | `docker compose -f docker-compose.yml -f docker-compose.cross.yml up -d` |
+```bash
+docker compose pull
+docker compose up -d
+```
 
 ## 开源协议
 
