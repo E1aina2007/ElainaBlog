@@ -39,9 +39,9 @@ jobs:
       - name: Test
         run: go test ./...
 
-      # 构建参数与 Dockerfile 保持一致
+      # 显式指定输出文件，避免与 cmd 目录重名
       - name: Build
-        run: go build -trimpath -ldflags="-s -w" ./cmd
+        run: go build -trimpath -ldflags="-s -w" -o /tmp/elainablog ./cmd
 
   frontend:
     name: Frontend checks
