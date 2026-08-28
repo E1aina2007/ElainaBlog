@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { margin:0; padding:0; background:#f4f7fa; font-family:'Microsoft YaHei','PingFang SC',sans-serif; }
+    .container { max-width:480px; margin:40px auto; background:#ffffff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.08); overflow:hidden; }
+    .header { background:linear-gradient(135deg,#7ED7C1,#5BC4AD); padding:28px 32px; text-align:center; }
+    .brand { color:#fff; margin:0; font-size:20px; font-weight:600; }
+    .subtitle { color:rgba(255,255,255,0.85); margin:8px 0 0; font-size:13px; }
+    .content { padding:32px; }
+    .intro { color:#333; font-size:15px; line-height:1.6; margin:0 0 20px; }
+    .code-wrap { text-align:center; margin:24px 0; }
+    .code { display:inline-block; background:#f0f7f4; border:2px dashed #7ED7C1; border-radius:8px; padding:14px 32px; font-size:32px; font-weight:700; color:#2d8a6e; letter-spacing:6px; }
+    .hint { color:#888; font-size:13px; line-height:1.6; margin:0 0 8px; }
+    .hint strong { color:#555; }
+    .note { color:#aaa; font-size:12px; line-height:1.6; margin:0; }
+    .footer { background:#f9fafb; padding:16px 32px; text-align:center; border-top:1px solid #eee; }
+    .footer p { color:#bbb; font-size:11px; margin:0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="brand">ElainaBlog</h1>
+      <p class="subtitle">邮箱验证码</p>
+    </div>
+    <div class="content">
+      <p class="intro">你好，你正在注册 ElainaBlog 账号，请使用以下验证码完成验证：</p>
+      <div class="code-wrap">
+        <span class="code">{{.Code}}</span>
+      </div>
+      <p class="hint">验证码有效期为 <strong>{{.ExpireSeconds}} 秒</strong>，请尽快完成验证。</p>
+      <p class="note">若非本人操作，请忽略此邮件，不会对你的账号产生任何影响。</p>
+    </div>
+    <div class="footer">
+      <p>此邮件由系统自动发送，请勿直接回复</p>
+    </div>
+  </div>
+</body>
+</html>
