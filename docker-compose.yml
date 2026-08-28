@@ -1,3 +1,6 @@
+# 环境变量统一使用 backend/.env（compose 插值默认只读项目根目录 .env，本项目不使用根目录 .env）
+# 所有 docker compose 命令均需携带 --env-file backend/.env，例如：
+#   docker compose --env-file backend/.env up -d
 services:
   frontend:
     image: ${DOCKER_REGISTRY:-registry.cn-guangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-frontend:latest
@@ -19,16 +22,57 @@ services:
     ports:
       - "127.0.0.1:9178:9178"
     environment:
-      - MIGRATION_DIR=/app/migrations
       - CONFIG_DIR=/app/config
+      - CONFIG_PATH=${CONFIG_PATH:-/app/config/config.prod.yaml}
+      - MODE=${MODE:-prod}
+      # 环境变量优先于 yaml 配置，未设置时使用 yaml 原值（详见 backend/.env.example）
+      - MYSQL_HOST=${MYSQL_HOST:-mysql}
+      - MYSQL_PORT=${MYSQL_PORT:-3306}
+      - MYSQL_USER=${MYSQL_USER:-root}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?请在 backend/.env 中设置 MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-ElainaBlog}
+      - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_SSL=${SMTP_SSL:-}
+      - SERVER_PORT=${SERVER_PORT:-9178}
+      - UPLOAD_PATH=${UPLOAD_PATH:-uploads}
+      - UPLOAD_AVATAR_PATH=${UPLOAD_AVATAR_PATH:-uploads/avatars}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
     volumes:
-      - ./config/backend:/app/config # 配置文件（含 .env 和 yaml）
+      - ./backend/configs:/app/config # 配置文件（yaml）
       - ./backend/uploads:/app/uploads # 上传文件（头像等）持久化
       - logs:/app/log # 日志持久化
     depends_on:
-      mysql:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
+        condition: service_healthy
+    networks:
+      - elainablog
+
+  # 数据库迁移：MySQL 就绪后执行一次 golang-migrate，完成后退出
+  migrate:
+    image: migrate/migrate:v4.19.1
+    container_name: elainablog-migrate
+    restart: "no"
+    command:
+      - -path=/migrations
+      - -database=mysql://root:${MYSQL_ROOT_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-ElainaBlog}?multiStatements=true
+      - up
+    volumes:
+      - ./backend/db/migrations:/migrations
+    depends_on:
+      mysql:
         condition: service_healthy
     networks:
       - elainablog
@@ -38,7 +82,7 @@ services:
     container_name: elainablog-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 backend/.env 中设置 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-ElainaBlog}
       TZ: Asia/Shanghai
     volumes:

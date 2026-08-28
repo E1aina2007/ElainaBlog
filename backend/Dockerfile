@@ -20,8 +20,6 @@ WORKDIR /app
 
 # 从构建阶段复制二进制文件
 COPY --from=builder /elainablog .
-# 复制数据库迁移脚本（独立路径，不被 config 挂载覆盖）
-COPY --from=builder /app/config/db/SQLscript/ /app/migrations/
 
 # 创建上传目录和日志目录，设置非 root 用户
 RUN adduser -D -u 1001 appuser && \
@@ -32,4 +30,4 @@ USER appuser
 
 EXPOSE 9178
 
-CMD ["./elainablog", "runServer"]
+CMD ["./elainablog"]
