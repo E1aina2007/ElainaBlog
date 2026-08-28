@@ -6,12 +6,22 @@
 ElainaBlog/
 ├── backend/                    # Go 后端服务
 │   ├── Dockerfile              # 多阶段构建（Go 编译 + Alpine 运行）
-│   ├── cmd/                    # 应用入口（main、initSystem、runServer）
-│   ├── config/                 # 配置定义与加载（Go 源码 + 本地开发配置）
-│   │   └── db/                 # 数据库连接池 & SQL 迁移脚本
+│   ├── cmd/                    # 应用入口与 HTTP 服务启动
+│   ├── configs/                # 外部配置（yaml；环境变量文件为 backend/.env，均不提交 Git）
+│   ├── db/
+│   │   └── migrations/         # SQL 迁移脚本（.up.sql / .down.sql）
 │   ├── internal/               # 核心业务逻辑（不可被外部导入）
-│   │   ├── common/             # JWT 服务、公共 helper、模型
-│   │   ├── middleware/         # JWT 鉴权中间件
+│   │   ├── config/             # 配置定义与加载
+│   │   ├── db/                 # 数据库连接池
+│   │   ├── mail/               # SMTP 邮件发送与邮箱哈希
+│   │   ├── util/               # 工具子包（timeutil / verifycode）
+│   │   ├── auth/               # JWT 服务与 token 管理
+│   │   ├── response/           # API 统一响应与业务错误
+│   │   ├── middleware/         # Gin 中间件
+│   │   │   ├── jwt/            # JWT 鉴权与管理员权限
+│   │   │   ├── ratelimit/      # 接口速率限制
+│   │   │   ├── redis/          # Redis 连接与操作
+│   │   │   └── uploadlimit/    # 上传频率限制
 │   │   ├── router/             # 路由注册
 │   │   ├── user/               # 用户模块（Controller / Service / Repository）
 │   │   ├── article/            # 文章模块
@@ -19,16 +29,6 @@ ElainaBlog/
 │   │   ├── comment/            # 评论模块
 │   │   ├── site/               # 站点配置模块
 │   │   └── upload/             # 文件上传模块
-│   └── pkg/                    # 公共工具包
-│       ├── mail/               # SMTP 邮件发送
-│       ├── rdb/                # Redis 连接 & 验证码操作
-│       ├── util/               # 工具函数
-│       └── zaplogger/          # Zap 日志初始化
-├── config/                     # 外部配置目录（Docker 挂载，不提交 Git）
-│   ├── .env.example            # Docker Compose 环境变量示例
-│   └── backend/
-│       ├── .env.example        # 运行模式示例（MODE=dev/prod）
-│       └── config.example.yaml # 后端配置示例
 ├── frontend/                   # Vue3 前端应用
 │   ├── Dockerfile              # 多阶段构建（Node 构建 + Nginx 托管）
 │   ├── nginx.conf              # 容器内 Nginx 配置（SPA fallback + 反向代理）
@@ -44,11 +44,7 @@ ElainaBlog/
 │       ├── styles/             # 全局样式、CSS 变量
 │       ├── utils/              # 工具函数
 │       └── views/              # 页面视图
-├── docs/                       # 设计文档
-│   ├── BACKEND_DESIGN.md       # 后端设计文档
-│   ├── FRONTEND_DESIGN.md      # 前端设计文档
-│   └── PROGRESS.md             # 开发进度
-├── nginx.conf                  # 宿主机 Nginx 入口配置
+├── docs/                       # 设计与规划文档（TODO / issues / plans）
 ├── docker-compose.yml          # Docker Compose 配置（frontend + backend + mysql + redis）
 └── README.md                   # 项目说明
 ```
@@ -117,6 +113,7 @@ ElainaBlog/
 |------|------|------|
 | `elainablog-frontend` | 127.0.0.1:3000:80 | Nginx 托管前端静态文件 |
 | `elainablog-backend` | 127.0.0.1:9178:9178 | Go API 服务 |
+| `elainablog-migrate` | 内部 | golang-migrate 数据库迁移（一次性执行） |
 | `elainablog-mysql` | 内部 | MySQL 8.0 |
 | `elainablog-redis` | 内部 | Redis 7 |
 
@@ -129,6 +126,6 @@ ElainaBlog/
 | 命名卷 | `uploads` | /app/uploads | 上传文件持久化 |
 | 命名卷 | `logs` | /app/log | 后端日志持久化 |
 | 绑定挂载 | `frontend/public/author/` | /usr/share/nginx/html/author | 作者头像与背景图 |
-| 绑定挂载 | `config/backend/` | /app/config | 后端配置文件（.env + yaml） |
+| 绑定挂载 | `backend/configs/` | /app/config | 后端配置文件（yaml） |
 
-> SQL 迁移脚本烘焙在后端镜像的 `/app/migrations/` 路径，不被 config 挂载覆盖。
+> SQL 迁移脚本挂载到 `migrate` 容器，由 golang-migrate 在 MySQL 就绪后自动执行；后端镜像不再内置迁移。

@@ -76,7 +76,7 @@
 ### 其他
 
 - 全局健康检查接口（`/health`）
-- 日志按级别分文件输出（Zap + Lumberjack 自动轮转）
+- 关键操作使用标准库控制台日志
 - 文件上传与静态资源托管
 - Docker Compose 一键部署（CI 构建镜像，服务器远程拉取）
 
@@ -95,7 +95,7 @@
 | ORM | [GORM](https://gorm.io/) v1.31 |
 | 数据库 | MySQL 8.0+ |
 | 缓存 | Redis（多级缓存 + 验证码 + 防刷限流 + 浏览量缓冲） |
-| 日志 | [Zap](https://github.com/uber-go/zap) v1.27 + Lumberjack |
+| 日志 | 标准库 `log`（仅关键信息输出到控制台） |
 
 ### 前端
 
@@ -124,7 +124,7 @@
 
 | 宿主机路径 | 容器内路径 | 用途 | 类型 |
 |-----------|-----------|------|------|
-| `config/backend` | `/app/config` | 后端配置文件（`.env` 和 `yaml`） | 绑定挂载 |
+| `backend/configs` | `/app/config` | 后端配置文件（yaml） | 绑定挂载 |
 | `backend/uploads` | `/app/uploads` | 用户上传文件（头像、文章封面等） | 绑定挂载 |
 | `frontend/public/author` | `/usr/share/nginx/html/author` | 作者头像与背景图 | 绑定挂载 |
 | `logs` (Docker Volume) | `/app/log` | 后端日志 | 命名卷 |
