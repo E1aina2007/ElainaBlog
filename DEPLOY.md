@@ -16,18 +16,23 @@
 
 ## 环境配置
 
-项目通过 `config/backend/.env` 中的 `MODE` 变量区分环境，加载对应的配置文件：
+项目通过 `CONFIG_PATH` 指定配置文件，未设置时默认读取 `backend/configs/config.dev.yaml`：
 
-| MODE 值 | 加载的配置文件 | 用途 |
-|---------|--------------|------|
-| `dev` | `config/backend/config.dev.yaml` | 本地开发 |
-| `prod` | `config/backend/config.prod.yaml` | 生产部署 |
+| 场景 | CONFIG_PATH | 说明 |
+|------|------------|------|
+| 本地开发 | 不设置 | 默认 `backend/configs/config.dev.yaml`，也可在 `backend/.env` 中指定 |
+| Docker 部署 | `/app/config/config.prod.yaml` | 由 `docker-compose.yml` 自动注入 |
 
-所有配置文件统一放在 `config/backend/` 目录下，已加入 `.gitignore`，需从示例文件复制后修改：
+`MODE` 仅从环境变量读取（不读 yaml），默认开发模式；显式设置为 `prod` / `production` 才是生产模式。
+敏感与部署配置可用环境变量覆盖（优先级高于 yaml），完整变量清单见 `backend/.env.example`；
+Docker 部署时由 `docker-compose.yml` 从 `backend/.env` 读取并注入（所有 compose 命令需携带 `--env-file backend/.env`）。
+
+环境变量文件统一使用 `backend/.env`（yaml 放在 `backend/configs/`，该目录仅 `config.example.yaml` 提交 Git），
+敏感文件已加入 `.gitignore`，需从示例文件复制后修改：
 
 ```bash
-cp config/backend/.env.example config/backend/.env
-cp config/backend/config.example.yaml config/backend/config.dev.yaml
+cp backend/.env.example backend/.env
+cp backend/configs/config.example.yaml backend/configs/config.dev.yaml
 ```
 
 ### 必须修改的配置项
@@ -36,9 +41,11 @@ cp config/backend/config.example.yaml config/backend/config.dev.yaml
 |-------|------|
 | `auth.access_token_secret` | JWT Access Token 签名密钥 |
 | `auth.refresh_token_secret` | JWT Refresh Token 签名密钥 |
-| `db.password` | MySQL 密码 |
+| `db.password` | MySQL 密码（Docker 部署由 `MYSQL_ROOT_PASSWORD` 自动注入） |
 | `smtp.from` / `smtp.verification` | 发件邮箱及 SMTP 授权码 |
-| `server.sessions_key` | Session 密钥 |
+| `admin.password` | 管理员密码（必填，启动时自动创建/重置管理员） |
+
+> 以上密钥、密码及部署相关地址也可用环境变量提供（如 `JWT_ACCESS_SECRET`、`SMTP_PASSWORD`、`ADMIN_PASSWORD`），优先级高于 yaml。
 
 ### 开发与生产配置差异
 
@@ -46,10 +53,6 @@ cp config/backend/config.example.yaml config/backend/config.dev.yaml
 |-------|---------|---------|
 | `db.host` | `127.0.0.1` | `mysql`（Docker 服务名） |
 | `redis.address` | `127.0.0.1:6379` | `redis:6379`（Docker 服务名） |
-| `server.host` | `127.0.0.1` | `0.0.0.0` |
-| `server.env` | `debug` | `production` |
-| `zap.is_console_print` | `true` | `false` |
-| `dev` | `true` | `false` |
 
 > 请勿将真实密码写入 `*.example.yaml` 示例文件。
 
@@ -76,32 +79,35 @@ cd ElainaBlog
 ### 2. 配置环境
 
 ```bash
-cp config/backend/.env.example config/backend/.env
-cp config/backend/config.example.yaml config/backend/config.dev.yaml
+cp backend/.env.example backend/.env
+cp backend/configs/config.example.yaml backend/configs/config.dev.yaml
 ```
 
-编辑 `config/backend/config.dev.yaml`，修改数据库、Redis 等连接信息。
+编辑 `backend/configs/config.dev.yaml`，修改数据库、Redis 等连接信息。
 
-确保 `config/backend/.env` 中设置了运行模式：
+确保 `backend/.env` 中设置了运行模式：
 
 ```
 MODE=dev
 ```
 
-### 3. 初始化管理员
+### 3. 初始化数据库与管理员
 
-数据库表会在后端首次启动时自动迁移创建，无需手动执行 SQL。
+数据库表由迁移脚本创建，本地开发需先执行一次迁移：
 
 ```bash
-cd backend
-go run ./cmd initSystem <password>
+mysql -u root -p ElainaBlog < backend/db/migrations/0001_init.up.sql
 ```
+
+> 也可以使用 golang-migrate CLI 执行：`migrate -path backend/db/migrations -database "mysql://root:密码@tcp(127.0.0.1:3306)/ElainaBlog?multiStatements=true" up`
+
+管理员账号会在首次启动时自动创建，用户名、邮箱和密码取自 `backend/configs/config.dev.yaml` 的 `admin` 配置段（`admin.password` 必填）。
 
 ### 4. 启动后端
 
 ```bash
 cd backend
-go run ./cmd runServer
+go run ./cmd
 ```
 
 后端默认运行在 `http://localhost:9178`
@@ -135,7 +141,7 @@ npm run dev
 
 #### 配置 Docker 镜像加速（国内服务器必做）
 
-MySQL、Redis 等官方镜像在 `docker compose up` 时自动拉取，国内服务器需配置镜像加速，否则可能超时失败：
+MySQL、Redis 等官方镜像在 `docker compose --env-file backend/.env up` 时自动拉取，国内服务器需配置镜像加速，否则可能超时失败：
 
 ```bash
 sudo tee /etc/docker/daemon.json > /dev/null << 'EOF'
@@ -182,30 +188,28 @@ cd ElainaBlog
 ### 2. 配置环境
 
 ```bash
-# Docker Compose 环境变量（项目根目录，供 docker-compose.yml 插值使用）
-cp config/.env.example .env
+# 环境变量文件（供 docker-compose.yml 插值与容器环境使用，通过 --env-file 指定）
+cp backend/.env.example backend/.env
 
-# 后端配置（挂载到容器内）
-cp config/backend/.env.example config/backend/.env
-cp config/backend/config.example.yaml config/backend/config.prod.yaml
+# 生产配置（挂载到容器内）
+cp backend/configs/config.example.yaml backend/configs/config.prod.yaml
 ```
 
-编辑 `.env`，设置数据库密码：
+编辑 `backend/.env`，设置数据库密码与生产模式：
 
 ```env
+MODE=prod
 MYSQL_ROOT_PASSWORD=替换为数据库密码
 MYSQL_DATABASE=ElainaBlog
 ```
 
-编辑 `config/backend/.env`，设置生产模式：
+> 注意：`MYSQL_ROOT_PASSWORD` 会拼接进 migrate 容器的 MySQL 连接串，请避免使用 `@`、`:`、`/`、`?` 等 URL 特殊字符。
+> 该密码会同时作为 `MYSQL_ROOT_PASSWORD` 注入 backend 容器，因此 `config.prod.yaml` 中的 `db.password` 无需再单独修改。
+> `MYSQL_HOST=127.0.0.1`、`REDIS_ADDRESS=127.0.0.1:6379` 等本地开发值在 Docker 部署时请注释掉，让 compose 默认值（`mysql` / `redis:6379`）生效，否则容器内连不上数据库。
 
-```
-MODE=prod
-```
+编辑 `backend/configs/config.prod.yaml`，以下为 **必须修改** 的配置项：
 
-编辑 `config/backend/config.prod.yaml`，以下为 **必须修改** 的配置项：
-
-> 生成随机密钥（用于 `access_token_secret`、`refresh_token_secret`、`sessions_key`）：
+> 生成随机密钥（用于 `access_token_secret`、`refresh_token_secret`）：
 >
 > ```bash
 > # Linux / macOS
@@ -215,41 +219,41 @@ MODE=prod
 > -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
 > ```
 >
-> 三个密钥应分别生成，不要相同。
+> 两个密钥应分别生成，不要相同。
+>
+> 也可不修改 yaml，改为在 `backend/.env` 中提供 `JWT_ACCESS_SECRET`、`JWT_REFRESH_SECRET`、`SMTP_PASSWORD`、`ADMIN_PASSWORD` 等环境变量。
 
 ```yaml
 auth:
-  access_token_secret: "替换为随机密钥"   # openssl rand -hex 32
-  refresh_token_secret: "替换为随机密钥"
+  access_token_secret: "替换为随机密钥"   # openssl rand -hex 32；也可用环境变量 JWT_ACCESS_SECRET
+  refresh_token_secret: "替换为随机密钥"  # 也可用环境变量 JWT_REFRESH_SECRET
 
 db:
-  host: mysql                            # Docker 服务名
-  password: "替换为数据库密码"              # 必须与 .env 中 MYSQL_ROOT_PASSWORD 一致
-  config: charset=utf8mb4&parseTime=True  # 不要添加 loc=Local，时区已由代码自动设置为 Asia/Shanghai
+  host: mysql                            # Docker 服务名（环境变量 MYSQL_HOST 默认 mysql）
+  # db.password / db.db_name 无需修改：Docker 自动注入 MYSQL_ROOT_PASSWORD / MYSQL_DATABASE
 
 smtp:
-  from: "your_email@qq.com"
-  verification: "your_smtp_auth_code"    # SMTP 授权码（非邮箱密码）
+  from: "your_email@qq.com"              # 也可用环境变量 SMTP_FROM
+  verification: "your_smtp_auth_code"    # SMTP 授权码（非邮箱密码），也可用环境变量 SMTP_PASSWORD
 
 redis:
-  address: redis:6379
+  address: redis:6379                    # 环境变量 REDIS_ADDRESS 默认 redis:6379
 
 server:
-  host: 0.0.0.0
-  env: production
-  sessions_key: "替换为随机密钥"           # openssl rand -hex 32
+  port: 9178
 
-zap:
-  is_console_print: false
+admin:
+  username: admin                        # 也可用环境变量 ADMIN_USERNAME
+  email: admin@admin.com                 # 也可用环境变量 ADMIN_EMAIL
+  password: "替换为管理员密码"   # 必填，启动时自动创建管理员；也可用环境变量 ADMIN_PASSWORD
 
-dev: false
 ```
 
 ### 3. 初始化目录
 
 ```bash
 # 创建绑定挂载的宿主机目录
-mkdir -p config/backend
+mkdir -p backend/configs
 mkdir -p backend/uploads
 mkdir -p frontend/public/author
 ```
@@ -258,14 +262,14 @@ mkdir -p frontend/public/author
 
 | 宿主机路径 | 容器内路径 | 服务 | 用途 |
 |-----------|-----------|------|------|
-| `config/backend` | `/app/config` | backend | 后端配置文件（`.env` 和 `yaml`） |
+| `backend/configs` | `/app/config` | backend | 后端配置文件（yaml） |
 | `backend/uploads` | `/app/uploads` | backend | 用户上传文件（头像、文章封面等） |
 | `frontend/public/author` | `/usr/share/nginx/html/author` | frontend | 作者头像与背景图 |
 | `logs` (Volume) | `/app/log` | backend | 后端运行日志 |
 | `mysql_data` (Volume) | `/var/lib/mysql` | mysql | MySQL 数据库数据 |
 | `redis_data` (Volume) | `/data` | redis | Redis 缓存数据 |
 
-> Docker 命名卷（`logs`、`mysql_data`、`redis_data`）会在首次 `docker compose up` 时自动创建。
+> Docker 命名卷（`logs`、`mysql_data`、`redis_data`）会在首次 `docker compose --env-file backend/.env up` 时自动创建。
 
 #### 作者资源
 
@@ -281,7 +285,7 @@ frontend/public/author/
 
 镜像由 GitHub Actions 在推送到 main 分支时构建并推送到远程仓库，服务器无需构建。
 
-> MySQL 和 Redis 使用官方镜像（`mysql:8.0`、`redis:7-alpine`），无需构建，会在 `docker compose up` 时自动拉取。如未提前配置镜像加速，请先完成「环境准备」中的镜像加速配置。
+> MySQL 和 Redis 使用官方镜像（`mysql:8.0`、`redis:7-alpine`），无需构建，会在 `docker compose --env-file backend/.env up` 时自动拉取。如未提前配置镜像加速，请先完成「环境准备」中的镜像加速配置。
 
 #### 远程镜像（推荐）
 
@@ -291,7 +295,7 @@ GitHub 推送到 main 分支时自动构建镜像并推送到远程仓库，服�
 
 项目已包含工作流文件 `.github/workflows/docker-image.yml`，推送到 main 分支自动触发构建，同时向两个仓库推送 `latest` 和 commit SHA 标签。
 
-在 `.env` 中配置镜像地址：
+在 `backend/.env` 中配置镜像地址：
 
 ```env
 DOCKER_REGISTRY=registry.<地域>.aliyuncs.com
@@ -300,26 +304,26 @@ DOCKER_NAMESPACE=<命名空间>
 
 ```bash
 # 拉取远程镜像并启动
-docker compose pull
-docker compose up -d
+docker compose --env-file backend/.env pull
+docker compose --env-file backend/.env up -d
 ```
 
 ### 5. 启动数据库
 
 ```bash
 # 先单独启动 MySQL，等待就绪
-docker compose up -d mysql
+docker compose --env-file backend/.env up -d mysql
 ```
 
 ```bash
 # 查看 MySQL 日志，出现 "ready for connections" 表示就绪
-docker compose logs -f mysql
+docker compose --env-file backend/.env logs -f mysql
 # 按 Ctrl+C 退出日志查看
 ```
 
 ```bash
 # 确认 MySQL 容器状态为 running (healthy)
-docker compose ps mysql
+docker compose --env-file backend/.env ps mysql
 ```
 
 预期输出：
@@ -333,12 +337,12 @@ elainablog-mysql    running (healthy)
 
 ```bash
 # 启动 Redis
-docker compose up -d redis
+docker compose --env-file backend/.env up -d redis
 ```
 
 ```bash
 # 确认 Redis 容器状态为 running (healthy)
-docker compose ps redis
+docker compose --env-file backend/.env ps redis
 ```
 
 预期输出：
@@ -351,18 +355,18 @@ elainablog-redis    running (healthy)
 ### 7. 启动后端
 
 ```bash
-# 启动后端容器（会自动执行数据库迁移）
-docker compose up -d backend
+# 启动后端容器（migrate 容器会先自动执行数据库迁移）
+docker compose --env-file backend/.env up -d backend
 ```
 
 ```bash
 # 查看后端启动日志，确认无报错
-docker compose logs backend
+docker compose --env-file backend/.env logs backend
 ```
 
 ```bash
 # 确认后端容器状态为 running
-docker compose ps backend
+docker compose --env-file backend/.env ps backend
 ```
 
 ```bash
@@ -377,18 +381,19 @@ NAME                STATUS
 elainablog-backend  running
 ```
 
-> 数据库表会在后端首次启动时自动迁移创建，无需手动执行 SQL 脚本。
+> 数据库迁移由 `migrate` 容器自动执行，`docker compose --env-file backend/.env up -d` 时无需手动执行 SQL。
+> 迁移体系仅支持全新初始化的数据库：旧版本使用的自建迁移表（`version VARCHAR + applied_at`）与 golang-migrate 的表结构（`version BIGINT + dirty`）不兼容，已有旧版数据库不支持原地升级，需导出数据后重建。
 
 ### 8. 启动前端
 
 ```bash
 # 启动前端容器
-docker compose up -d frontend
+docker compose --env-file backend/.env up -d frontend
 ```
 
 ```bash
 # 确认前端容器状态为 running
-docker compose ps frontend
+docker compose --env-file backend/.env ps frontend
 ```
 
 ```bash
@@ -407,7 +412,7 @@ elainablog-frontend  running
 
 ```bash
 # 确认所有 4 个容器均为 running
-docker compose ps
+docker compose --env-file backend/.env ps
 ```
 
 预期输出：
@@ -420,31 +425,22 @@ elainablog-mysql     running (healthy)
 elainablog-redis     running (healthy)
 ```
 
-### 10. 创建管理员账号
+### 10. 管理员账号
 
-```bash
-# 方式一：命令行传入密码（推荐）
-docker exec elainablog-backend ./elainablog initSystem <管理员密码>
+管理员账号会在容器启动时自动创建，用户名、邮箱与密码均取自 `backend/configs/config.prod.yaml` 的 `admin` 配置段：
+
+```yaml
+admin:
+  username: admin
+  email: admin@admin.com
+  password: "替换为管理员密码"   # 必填
 ```
 
-```bash
-# 方式二：密码已在 config.prod.yaml 的 admin.password 中配置
-docker exec elainablog-backend ./elainablog initSystem
-```
+修改 `admin.password` 后重启容器，管理员密码会自动重置为该值。
 
-执行成功后会输出管理员邮箱和初始化结果。
+> 也可用环境变量 `ADMIN_USERNAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` 覆盖，优先级高于 yaml。
 
-### 11. 迁移头像文件命名（可选）
-
-如果从旧版本升级，头像文件可能使用邮箱作为文件名。执行以下命令将其迁移为哈希命名：
-
-```bash
-docker exec elainablog-backend ./elainablog migrateAvatars
-```
-
-执行成功后会输出迁移结果。新上传的头像会自动使用哈希命名，无需迁移。
-
-### 12. 配置宿主机 Nginx
+### 11. 配置宿主机 Nginx
 
 ```bash
 # 创建 Nginx 配置文件
@@ -512,7 +508,7 @@ sudo nginx -s reload
 > sudo certbot --nginx -d your-domain.com -d www.your-domain.com
 > ```
 
-### 13. 验证服务
+### 12. 验证服务
 
 ```bash
 # 测试后端健康检查
@@ -552,26 +548,26 @@ git pull
 #### 更新全部服务
 
 ```bash
-docker compose pull
-docker compose up -d
+docker compose --env-file backend/.env pull
+docker compose --env-file backend/.env up -d
 ```
 
 #### 仅更新前端或后端
 
 ```bash
-docker compose pull frontend
-docker compose up -d frontend
+docker compose --env-file backend/.env pull frontend
+docker compose --env-file backend/.env up -d frontend
 ```
 
 ```bash
-docker compose pull backend
-docker compose up -d backend
-docker compose logs backend
+docker compose --env-file backend/.env pull backend
+docker compose --env-file backend/.env up -d backend
+docker compose --env-file backend/.env logs backend
 ```
 
 ```bash
 # 确认所有容器均为 running
-docker compose ps
+docker compose --env-file backend/.env ps
 ```
 
 ---
@@ -582,62 +578,62 @@ docker compose ps
 
 ```bash
 # 查看所有容器状态
-docker compose ps
+docker compose --env-file backend/.env ps
 ```
 
 ```bash
 # 启动所有服务
-docker compose up -d
+docker compose --env-file backend/.env up -d
 ```
 
 ```bash
 # 停止所有服务（保留数据卷）
-docker compose down
+docker compose --env-file backend/.env down
 ```
 
 ```bash
 # 停止并删除数据卷（⚠️ 会删除数据库、日志、Redis 缓存）
-docker compose down -v
+docker compose --env-file backend/.env down -v
 ```
 
 ```bash
 # 重启所有服务
-docker compose restart
+docker compose --env-file backend/.env restart
 ```
 
 ```bash
 # 重启单个服务
-docker compose restart backend
-docker compose restart frontend
-docker compose restart mysql
-docker compose restart redis
+docker compose --env-file backend/.env restart backend
+docker compose --env-file backend/.env restart frontend
+docker compose --env-file backend/.env restart mysql
+docker compose --env-file backend/.env restart redis
 ```
 
 ### 日志查看
 
 ```bash
 # 查看后端日志（实时，Ctrl+C 退出）
-docker compose logs -f backend
+docker compose --env-file backend/.env logs -f backend
 ```
 
 ```bash
 # 查看前端日志（实时）
-docker compose logs -f frontend
+docker compose --env-file backend/.env logs -f frontend
 ```
 
 ```bash
 # 查看 MySQL 日志（实时）
-docker compose logs -f mysql
+docker compose --env-file backend/.env logs -f mysql
 ```
 
 ```bash
 # 查看 Redis 日志（实时）
-docker compose logs -f redis
+docker compose --env-file backend/.env logs -f redis
 ```
 
 ```bash
 # 查看所有服务最近 100 行日志
-docker compose logs --tail 100
+docker compose --env-file backend/.env logs --tail 100
 ```
 
 ### 容器操作
@@ -661,7 +657,7 @@ docker exec -it elainablog-redis redis-cli
 # 查看后端容器内文件
 docker exec elainablog-backend ls /app/uploads
 docker exec elainablog-backend ls /app/log
-docker exec elainablog-backend ls /app/migrations
+docker exec elainablog-backend ls /app/config
 ```
 
 ### 数据备份与恢复
@@ -712,7 +708,7 @@ docker system prune -f
 
 ```bash
 # 确认 MySQL 容器已就绪
-docker compose logs mysql
+docker compose --env-file backend/.env logs mysql
 ```
 
 等待出现 "ready for connections" 后再启动后端。
@@ -721,7 +717,7 @@ docker compose logs mysql
 
 ```bash
 # 1. 确认前端容器运行中
-docker compose ps
+docker compose --env-file backend/.env ps
 
 # 2. 确认前端可访问
 curl http://127.0.0.1:3000
@@ -734,13 +730,13 @@ cat /etc/nginx/conf.d/elainablog.conf
 
 ```bash
 # 1. 确认后端容器运行中
-docker compose ps
+docker compose --env-file backend/.env ps
 
 # 2. 确认端口绑定
 curl http://127.0.0.1:9178/health
 
 # 3. 查看后端日志排查错误
-docker compose logs backend
+docker compose --env-file backend/.env logs backend
 ```
 
 ### 文件上传失败
@@ -756,7 +752,8 @@ docker exec elainablog-backend ls -la /app/uploads
 ### 忘记管理员密码
 
 ```bash
-docker exec elainablog-backend ./elainablog initSystem <新密码>
+# 修改 config.prod.yaml 中 admin.password 后重启，密码会自动重置
+docker compose --env-file backend/.env restart backend
 ```
 
 ---
@@ -765,15 +762,13 @@ docker exec elainablog-backend ./elainablog initSystem <新密码>
 
 ### 配置
 
-- [ ] `config/backend/config.prod.yaml` 中所有密钥已替换为随机值
-- [ ] `config/backend/config.prod.yaml` 中 `db.password` 与 `.env` 中 `MYSQL_ROOT_PASSWORD` 一致
-- [ ] `config/backend/config.prod.yaml` 中 `dev: false`、`server.env: production`
-- [ ] `config/backend/.env` 中 `MODE=prod`
-- [ ] `.env` 中数据库密码已设置
+- [ ] 密钥已配置：`config.prod.yaml` 或 `backend/.env` 中的 `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` 等
+- [ ] `backend/.env` 中 `MODE=prod`（开发/生产仅由环境变量决定，不读 yaml）
+- [ ] `backend/.env` 中 `MYSQL_ROOT_PASSWORD` 已设置（自动注入后端，无需再改 `db.password`）
 
 ### 服务
 
-- [ ] `docker compose ps` 显示 4 个容器均为 running
+- [ ] `docker compose --env-file backend/.env ps` 显示 4 个容器均为 running
 - [ ] `curl http://127.0.0.1:9178/health` 返回正常
 - [ ] 管理员账号已创建
 
