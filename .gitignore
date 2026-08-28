@@ -1,9 +1,8 @@
 # ===== 配置文件 =====
-config/.env
-config/backend/.env
-config/backend/config.dev.yaml
-config/backend/config.prod.yaml
-.env
+backend/.env
+# configs 下仅示例配置可跟踪，其余（本地/生产 yaml、误放的 .env 等）一律忽略
+backend/configs/*
+!backend/configs/config.example.yaml
 
 # ===== 日志文件 =====
 backend/log/
@@ -15,6 +14,7 @@ backend/cmd/tmp/
 
 # ===== Claude AI =====
 .claude/
+.zcode/
 
 # ===== 辅助文档 =====
 docs/
