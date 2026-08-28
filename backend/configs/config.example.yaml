@@ -1,5 +1,6 @@
 # 配置文件示例 — 复制为 config.dev.yaml（开发）或 config.prod.yaml（生产）后修改
 # 开发与生产环境的关键差异已在注释中标出
+# 敏感与部署相关配置（密码、地址等）也可用环境变量覆盖，变量名见 .env.example，优先级高于 yaml
 
 auth:
   access_token_secret: "your-access-secret"    # 替换为随机密钥
@@ -9,15 +10,11 @@ auth:
   issuer: ElainaWeb
 
 db:
-  sqlname: mysql
   host: 127.0.0.1     # 生产环境改为 mysql（Docker 服务名）
   port: 3306
-  config: charset=utf8mb4&parseTime=True
-  db_name: ElainaBlog
   username: root
   password: your-mysql-password  # 生产环境需与 docker-compose 中 MYSQL_ROOT_PASSWORD 一致
-  max_idle_conns: 10
-  max_open_conns: 100
+  db_name: ElainaBlog
 
 smtp:
   host: "smtp.qq.com"
@@ -39,17 +36,7 @@ verification:
   resend_interval: 60
 
 server:
-  host: 0.0.0.0       # 开发环境可改为 127.0.0.1
   port: 9178
-  env: debug           # 生产环境改为 production
-  # 允许的跨域来源
-  # 生产环境改为实际域名，例如：
-  #   cors_origins:
-  #     - "https://example.com"
-  #     - "https://www.example.com"
-  # 需包含前端页面的所有访问入口（含 www 和非 www），否则浏览器会拦截跨域请求
-  cors_origins:
-    - "http://localhost:5173"
 
 upload:
   size: 20
@@ -63,17 +50,7 @@ upload:
   cleanup_enabled: true     # 是否启用孤儿图片清理
   cleanup_cron: "0 3 * * *" # 清理任务 cron 表达式（每天凌晨3点）
 
-zap:
-  level: info
-  filename: log/go_blog.log
-  max_size: 200
-  max_backups: 5
-  max_age: 30
-  is_console_print: true  # 生产环境改为 false
-
 admin:
   username: admin
   email: admin@admin.com
-  password: ""            # 可选，留空则必须通过命令行参数传入
-
-dev: true                # 生产环境改为 false
+  password: ""            # 必填：启动时自动创建管理员，变更后重启重置密码
