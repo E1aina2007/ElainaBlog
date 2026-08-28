@@ -1,8 +1,7 @@
 package site
 
 import (
-	"ElainaBlog/internal/common/model"
-	"ElainaBlog/pkg/rdb"
+	"ElainaBlog/internal/response"
 	"bufio"
 	"context"
 	"database/sql"
@@ -16,28 +15,29 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Controller struct {
 	service *Service
-	rdb     rdb.RedisClient
+	rdb     *redis.Client
 	sqlDB   *sql.DB // 用于 Ping 等原生操作
 }
 
-func NewController(service *Service, gormDB *gorm.DB, redis rdb.RedisClient) *Controller {
+func NewController(service *Service, gormDB *gorm.DB, redis *redis.Client) *Controller {
 	sqlDB, _ := gormDB.DB()
 	return &Controller{service: service, rdb: redis, sqlDB: sqlDB}
 }
 
 // GetDashboardStats 获取仪表盘统计数据（管理员）
 func (ctl *Controller) GetDashboardStats(c *gin.Context) {
-	stats, err := ctl.service.GetDashboardStats()
+	stats, err := ctl.service.GetDashboardStats(c.Request.Context())
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(stats))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(stats))
 }
 
 // RecordVisit 记录页面访问（公开接口）
@@ -46,7 +46,7 @@ func (ctl *Controller) RecordVisit(c *gin.Context) {
 		Path string `json:"path"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.Path == "" {
-		c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+		c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 		return
 	}
 
@@ -59,34 +59,22 @@ func (ctl *Controller) RecordVisit(c *gin.Context) {
 		}
 	}
 	if !valid {
-		c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+		c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 		return
 	}
 
-	ctl.service.RecordVisit(c.ClientIP())
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	ctl.service.RecordVisit(c.Request.Context(), c.ClientIP())
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 // GetAuthorStats 获取作者页统计数据（公开接口）
 func (ctl *Controller) GetAuthorStats(c *gin.Context) {
-	stats, err := ctl.service.GetAuthorStats()
+	stats, err := ctl.service.GetAuthorStats(c.Request.Context())
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(stats))
-}
-
-// SystemStatus 系统状态响应结构
-type SystemStatusResponse struct {
-	CPUUsage     float64 `json:"cpu_usage"`
-	MemoryUsage  float64 `json:"memory_usage"`
-	MemoryTotal  uint64  `json:"memory_total"`
-	MemoryUsed   uint64  `json:"memory_used"`
-	DBStatus     string  `json:"db_status"`
-	RedisStatus  string  `json:"redis_status"`
-	CacheHitRate float64 `json:"cache_hit_rate"`
-	Uptime       string  `json:"uptime"`
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(stats))
 }
 
 var (
@@ -235,7 +223,7 @@ func (ctl *Controller) GetSystemStatus(c *gin.Context) {
 		Uptime:       formatUptime(time.Since(startTime)),
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(status))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(status))
 }
 
 // ClearCache 清理缓存（管理员）
@@ -244,22 +232,22 @@ func (ctl *Controller) ClearCache(c *gin.Context) {
 
 	if ctl.rdb != nil {
 		if err := ctl.rdb.FlushDB(ctx).Err(); err != nil {
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, "Redis 缓存清理失败", nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, "Redis 缓存清理失败", nil))
 			return
 		}
 	}
 
 	runtime.GC()
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"message": "缓存已清理"}))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{"message": "缓存已清理"}))
 }
 
 // ExportBackup 导出数据库备份（管理员）
 func (ctl *Controller) ExportBackup(c *gin.Context) {
-	backup, err := ctl.service.ExportDatabaseBackup()
+	backup, err := ctl.service.ExportDatabaseBackup(c.Request.Context())
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail(err.Error())
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInternal.WithDetail(err.Error())
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
@@ -271,8 +259,8 @@ func (ctl *Controller) ExportBackup(c *gin.Context) {
 
 // GetBannedIPs 获取被封禁的IP列表（管理员）
 func (ctl *Controller) GetBannedIPs(c *gin.Context) {
-	ips := ctl.service.GetBannedIPs()
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(ips))
+	ips := ctl.service.GetBannedIPs(c.Request.Context())
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(ips))
 }
 
 // UnbanIP 解封IP（管理员）
@@ -281,16 +269,16 @@ func (ctl *Controller) UnbanIP(c *gin.Context) {
 		IP string `json:"ip"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.IP == "" {
-		appErr := model.ErrInvalidParams.WithDetail("无效的IP地址")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("无效的IP地址")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	if err := ctl.service.UnbanIP(req.IP); err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+	if err := ctl.service.UnbanIP(c.Request.Context(), req.IP); err != nil {
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"message": "IP已解封"}))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{"message": "IP已解封"}))
 }
 
 var startTime = time.Now()

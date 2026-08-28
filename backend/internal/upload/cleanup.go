@@ -3,45 +3,33 @@
 package upload
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"go.uber.org/zap"
 )
 
 // ArticleContentProvider 提供文章内容的接口
 type ArticleContentProvider interface {
-	GetAllActiveContents() ([]string, error)
+	GetAllActiveContents(ctx context.Context) ([]string, error)
 }
 
 // ImageCleanup 孤儿图片清理服务
 type ImageCleanup struct {
-	uploadPath    string
-	avatarPath    string
+	uploadPath      string
+	avatarPath      string
 	contentProvider ArticleContentProvider
-	logger        *zap.Logger
 }
 
 // NewImageCleanup 创建图片清理服务实例
-func NewImageCleanup(uploadPath, avatarPath string, contentProvider ArticleContentProvider, logger *zap.Logger) *ImageCleanup {
+func NewImageCleanup(uploadPath, avatarPath string, contentProvider ArticleContentProvider) *ImageCleanup {
 	return &ImageCleanup{
 		uploadPath:      uploadPath,
 		avatarPath:      avatarPath,
 		contentProvider: contentProvider,
-		logger:          logger,
 	}
-}
-
-// CleanupResult 清理结果
-type CleanupResult struct {
-	ScannedFiles  int      // 扫描的文件数
-	ReferencedFiles int    // 被引用的文件数
-	DeletedFiles  int      // 删除的文件数
-	DeletedPaths  []string // 删除的文件路径列表
-	Errors        []error  // 删除失败的错误列表
 }
 
 // CleanupOrphanImages 清理孤儿图片
@@ -49,14 +37,14 @@ type CleanupResult struct {
 // 2. 用正则提取所有图片 URL
 // 3. 扫描 uploads 目录获取所有文件
 // 4. 删除不在引用集合中的文件
-func (s *ImageCleanup) CleanupOrphanImages() (*CleanupResult, error) {
+func (s *ImageCleanup) CleanupOrphanImages(ctx context.Context) (*CleanupResult, error) {
 	result := &CleanupResult{
 		DeletedPaths: make([]string, 0),
 		Errors:       make([]error, 0),
 	}
 
 	// 1. 获取所有有效文章的 content
-	contents, err := s.contentProvider.GetAllActiveContents()
+	contents, err := s.contentProvider.GetAllActiveContents(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("获取文章内容失败: %w", err)
 	}
@@ -78,7 +66,6 @@ func (s *ImageCleanup) CleanupOrphanImages() (*CleanupResult, error) {
 		}
 	}
 
-	s.logger.Info("图片引用统计", zap.Int("referenced_count", len(referencedImages)))
 	result.ReferencedFiles = len(referencedImages)
 
 	// 3. 扫描 uploads 目录，跳过 avatars 目录
@@ -107,11 +94,9 @@ func (s *ImageCleanup) CleanupOrphanImages() (*CleanupResult, error) {
 		if !referencedImages[relPath] {
 			if err := os.Remove(path); err != nil {
 				result.Errors = append(result.Errors, fmt.Errorf("删除 %s 失败: %w", relPath, err))
-				s.logger.Error("删除孤儿图片失败", zap.String("path", relPath), zap.Error(err))
 			} else {
 				result.DeletedFiles++
 				result.DeletedPaths = append(result.DeletedPaths, relPath)
-				s.logger.Info("已删除孤儿图片", zap.String("path", relPath))
 			}
 		}
 
@@ -154,9 +139,7 @@ func (s *ImageCleanup) cleanupEmptyDirs(basePath string) {
 		}
 
 		if len(dirEntries) == 0 {
-			if err := os.Remove(dirPath); err == nil {
-				s.logger.Info("已删除空目录", zap.String("path", dirPath))
-			}
+			os.Remove(dirPath)
 		}
 	}
 }

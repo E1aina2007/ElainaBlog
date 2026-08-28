@@ -1,29 +1,24 @@
 package category
 
 import (
+	"context"
+
 	"gorm.io/gorm"
 )
 
-type CategoryVO struct {
-	ID           int64  `json:"id" gorm:"column:id"`
-	Name         string `json:"name" gorm:"column:name"`
-	IsTop        bool   `json:"is_top" gorm:"column:is_top"`
-	ArticleCount int    `json:"article_count" gorm:"column:article_count"`
-}
-
-// MySQLRepository 实现 category.Repository 接口，使用 GORM 存储。
-type MySQLRepository struct {
+// Repository 使用 GORM 存储分类数据。
+type Repository struct {
 	db *gorm.DB
 }
 
 // NewRepository 创建分类仓储实例。
-func NewRepository(db *gorm.DB) *MySQLRepository {
-	return &MySQLRepository{db: db}
+func NewRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *MySQLRepository) GetCategoryByID(id int64) (*CategoryVO, error) {
+func (r *Repository) GetCategoryByID(ctx context.Context, id int64) (*CategoryVO, error) {
 	var category CategoryVO
-	err := r.db.Table("category").
+	err := r.db.WithContext(ctx).Table("category").
 		Select("id", "name", "is_top").
 		Where("id = ? AND is_deleted = 0", id).
 		First(&category).Error
@@ -33,9 +28,9 @@ func (r *MySQLRepository) GetCategoryByID(id int64) (*CategoryVO, error) {
 	return &category, nil
 }
 
-func (r *MySQLRepository) GetCategoryByName(name string) (*CategoryVO, error) {
+func (r *Repository) GetCategoryByName(ctx context.Context, name string) (*CategoryVO, error) {
 	var category CategoryVO
-	err := r.db.Table("category").
+	err := r.db.WithContext(ctx).Table("category").
 		Select("id", "name", "is_top").
 		Where("name = ? AND is_deleted = 0", name).
 		First(&category).Error
@@ -45,9 +40,9 @@ func (r *MySQLRepository) GetCategoryByName(name string) (*CategoryVO, error) {
 	return &category, nil
 }
 
-func (r *MySQLRepository) GetCategoryList() ([]*CategoryVO, error) {
+func (r *Repository) GetCategoryList(ctx context.Context) ([]*CategoryVO, error) {
 	var categories []*CategoryVO
-	err := r.db.Table("category c").
+	err := r.db.WithContext(ctx).Table("category c").
 		Select("c.id", "c.name", "c.is_top", "COUNT(a.id) AS article_count").
 		Joins("LEFT JOIN article a ON a.category_id = c.id AND a.is_deleted = 0 AND a.is_draft = 0").
 		Where("c.is_deleted = 0").
@@ -60,29 +55,29 @@ func (r *MySQLRepository) GetCategoryList() ([]*CategoryVO, error) {
 	return categories, nil
 }
 
-func (r *MySQLRepository) CreateCategory(name string) (*CategoryVO, error) {
-	if err := r.db.Exec("INSERT INTO category (name) VALUES (?)", name).Error; err != nil {
+func (r *Repository) CreateCategory(ctx context.Context, name string) (*CategoryVO, error) {
+	if err := r.db.WithContext(ctx).Exec("INSERT INTO category (name) VALUES (?)", name).Error; err != nil {
 		return nil, err
 	}
 	var category CategoryVO
-	if err := r.db.Raw("SELECT LAST_INSERT_ID() AS id").Scan(&category).Error; err != nil {
+	if err := r.db.WithContext(ctx).Raw("SELECT LAST_INSERT_ID() AS id").Scan(&category).Error; err != nil {
 		return nil, err
 	}
-	return r.GetCategoryByID(category.ID)
+	return r.GetCategoryByID(ctx, category.ID)
 }
 
-func (r *MySQLRepository) UpdateCategory(id int64, name string) (*CategoryVO, error) {
-	if err := r.db.Exec("UPDATE category SET name = ? WHERE id = ? AND is_deleted = 0", name, id).Error; err != nil {
+func (r *Repository) UpdateCategory(ctx context.Context, id int64, name string) (*CategoryVO, error) {
+	if err := r.db.WithContext(ctx).Exec("UPDATE category SET name = ? WHERE id = ? AND is_deleted = 0", name, id).Error; err != nil {
 		return nil, err
 	}
-	return r.GetCategoryByID(id)
+	return r.GetCategoryByID(ctx, id)
 }
 
 // ToggleCategoryTop 单独切换分类置顶状态
-func (r *MySQLRepository) ToggleCategoryTop(id int64, isTop bool) error {
-	return r.db.Exec("UPDATE category SET is_top = ? WHERE id = ? AND is_deleted = 0", isTop, id).Error
+func (r *Repository) ToggleCategoryTop(ctx context.Context, id int64, isTop bool) error {
+	return r.db.WithContext(ctx).Exec("UPDATE category SET is_top = ? WHERE id = ? AND is_deleted = 0", isTop, id).Error
 }
 
-func (r *MySQLRepository) DeleteCategory(id int64) error {
-	return r.db.Exec("UPDATE category SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id).Error
+func (r *Repository) DeleteCategory(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Exec("UPDATE category SET is_deleted = 1 WHERE id = ? AND is_deleted = 0", id).Error
 }

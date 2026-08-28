@@ -1,55 +1,28 @@
 package comment
 
 import (
-	"time"
+	"context"
 
 	"gorm.io/gorm"
 )
-
-type Comment struct {
-	ID               int64   `json:"id"`
-	ArticleID        int64   `json:"article_id"`
-	UserID           int64   `json:"user_id"`
-	ReplyToUserID    *int64  `json:"reply_to_user_id"`
-	ReplyToUsername  *string `json:"reply_to_username"`
-	ReplyToCommentID *int64  `json:"reply_to_comment_id"`
-	ReplyToContent   *string `json:"reply_to_content"`
-	Content          string  `json:"content"`
-	CreatedAt        time.Time `json:"created_at"`
-}
-
-type CommentVO struct {
-	ID               int64   `json:"id"`
-	ArticleID        int64   `json:"article_id"`
-	UserID           int64   `json:"user_id"`
-	ReplyToUserID    *int64  `json:"reply_to_user_id"`
-	ReplyToUsername  *string `json:"reply_to_username"`
-	ReplyToCommentID *int64  `json:"reply_to_comment_id"`
-	ReplyToContent   *string `json:"reply_to_content"`
-	Username         string  `json:"username"`
-	Avatar           string  `json:"avatar"`
-	IsAdmin          bool    `json:"is_admin"`
-	Content          string  `json:"content"`
-	CreatedAt        time.Time `json:"created_at"`
-}
 
 const commentSelect = `c.id, c.article_id, c.user_id, c.reply_to_user_id, c.reply_to_username,
 	c.reply_to_comment_id, c.reply_to_content,
 	u.username, COALESCE(u.avatar,'') AS avatar, u.is_admin, c.content, c.created_at`
 
-// MySQLRepository 实现 comment.Repository 接口，使用 GORM 存储。
-type MySQLRepository struct {
+// Repository 使用 GORM 存储评论数据。
+type Repository struct {
 	db *gorm.DB
 }
 
 // NewRepository 创建评论仓储实例。
-func NewRepository(db *gorm.DB) *MySQLRepository {
-	return &MySQLRepository{db: db}
+func NewRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *MySQLRepository) GetCommentByID(id int64) (*Comment, error) {
+func (r *Repository) GetCommentByID(ctx context.Context, id int64) (*Comment, error) {
 	var comment Comment
-	err := r.db.Table("comment").
+	err := r.db.WithContext(ctx).Table("comment").
 		Where("id = ? AND is_deleted = 0", id).
 		First(&comment).Error
 	if err != nil {
@@ -58,9 +31,9 @@ func (r *MySQLRepository) GetCommentByID(id int64) (*Comment, error) {
 	return &comment, nil
 }
 
-func (r *MySQLRepository) GetCommentListByArticleID(articleID int64) ([]*CommentVO, error) {
+func (r *Repository) GetCommentListByArticleID(ctx context.Context, articleID int64) ([]*CommentVO, error) {
 	var comments []*CommentVO
-	err := r.db.Table("comment c").
+	err := r.db.WithContext(ctx).Table("comment c").
 		Select(commentSelect).
 		Joins("LEFT JOIN `user` u ON c.user_id = u.id").
 		Where("c.article_id = ? AND c.is_deleted = 0", articleID).
@@ -69,9 +42,9 @@ func (r *MySQLRepository) GetCommentListByArticleID(articleID int64) ([]*Comment
 	return comments, err
 }
 
-func (r *MySQLRepository) GetAllCommentList() ([]*CommentVO, error) {
+func (r *Repository) GetAllCommentList(ctx context.Context) ([]*CommentVO, error) {
 	var comments []*CommentVO
-	err := r.db.Table("comment c").
+	err := r.db.WithContext(ctx).Table("comment c").
 		Select(commentSelect).
 		Joins("LEFT JOIN `user` u ON c.user_id = u.id").
 		Joins("LEFT JOIN article a ON c.article_id = a.id").
@@ -81,21 +54,21 @@ func (r *MySQLRepository) GetAllCommentList() ([]*CommentVO, error) {
 	return comments, err
 }
 
-func (r *MySQLRepository) CreateComment(comment *Comment) (int64, error) {
-	if err := r.db.Table("comment").Create(comment).Error; err != nil {
+func (r *Repository) CreateComment(ctx context.Context, comment *Comment) (int64, error) {
+	if err := r.db.WithContext(ctx).Table("comment").Create(comment).Error; err != nil {
 		return 0, err
 	}
 	return comment.ID, nil
 }
 
-func (r *MySQLRepository) DeleteComment(id int64) error {
-	return r.db.Table("comment").
+func (r *Repository) DeleteComment(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Table("comment").
 		Where("id = ? AND is_deleted = 0", id).
 		Update("is_deleted", 1).Error
 }
 
-func (r *MySQLRepository) DeleteCommentsByArticleID(articleID int64) error {
-	return r.db.Table("comment").
+func (r *Repository) DeleteCommentsByArticleID(ctx context.Context, articleID int64) error {
+	return r.db.WithContext(ctx).Table("comment").
 		Where("article_id = ? AND is_deleted = 0", articleID).
 		Update("is_deleted", 1).Error
 }

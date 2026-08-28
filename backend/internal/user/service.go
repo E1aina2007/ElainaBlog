@@ -1,26 +1,27 @@
 package user
 
 import (
-	"ElainaBlog/config"
-	"ElainaBlog/internal/common"
-	"ElainaBlog/pkg/mail"
-	"ElainaBlog/pkg/rdb"
-	"ElainaBlog/pkg/util"
+	"ElainaBlog/internal/config"
+	"ElainaBlog/internal/auth"
+	"ElainaBlog/internal/mail"
+	cache "ElainaBlog/internal/middleware/redis"
+	"ElainaBlog/internal/util/verifycode"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
-	repo     Repository
-	rdb      rdb.RedisClient     // 可选，用于验证码存储
-	tokenMgr common.TokenManager // 可选，用于 JWT 签发
+	repo     *Repository
+	rdb      *goredis.Client     // 可选，用于验证码存储
+	tokenMgr auth.TokenManager // 可选，用于 JWT 签发
 }
 
 const (
@@ -28,36 +29,8 @@ const (
 	cacheTTLAdmin       = time.Hour
 )
 
-func NewService(repo Repository, redis rdb.RedisClient, tokenMgr common.TokenManager) *Service {
+func NewService(repo *Repository, redis *goredis.Client, tokenMgr auth.TokenManager) *Service {
 	return &Service{repo: repo, rdb: redis, tokenMgr: tokenMgr}
-}
-
-type CreateUserParams struct {
-	Username string
-	Password string
-	Email    string
-	Avatar   string
-	IsAdmin  bool
-	Code     string
-}
-
-type UpdateProfileParams struct {
-	UserID   int64
-	Username string
-	Email    string
-	Avatar   string
-}
-
-type LoginParams struct {
-	Email    string
-	Password string
-}
-
-type LoginResult struct {
-	UserID       int64
-	Email        string
-	AccessToken  string
-	RefreshToken string
 }
 
 var (
@@ -75,7 +48,7 @@ var (
 	ErrCodeMismatch       = errors.New("验证码错误")
 )
 
-func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
+func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, ErrDBNotInitialized
 	}
@@ -104,18 +77,18 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 		if code == "" {
 			return 0, ErrInvalidParams
 		}
-		storedCode, err := rdb.GetVerificationCode(s.rdb, email)
+		storedCode, err := cache.GetVerificationCode(s.rdb, email)
 		if err != nil {
 			return 0, ErrCodeExpired
 		}
 		if storedCode != code {
 			return 0, ErrCodeMismatch
 		}
-		_ = rdb.DeleteVerificationCode(s.rdb, email)
+		_ = cache.DeleteVerificationCode(s.rdb, email)
 	}
 
 	// 检查用户名是否已存在
-	existing, err := s.repo.GetUserByUsername(username)
+	existing, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return 0, err
 	}
@@ -124,7 +97,7 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 	}
 
 	// 检查邮箱是否已注册
-	existing, err = s.repo.GetUserByEmail(email)
+	existing, err = s.repo.GetUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return 0, err
 	}
@@ -138,7 +111,7 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 		return 0, err
 	}
 
-	return s.repo.CreateUser(&User{
+	return s.repo.CreateUser(ctx, &User{
 		Username: username,
 		Password: string(hashedPassword),
 		Email:    email,
@@ -147,7 +120,7 @@ func (s *Service) CreateUser(params CreateUserParams) (int64, error) {
 	})
 }
 
-func (s *Service) Login(params LoginParams) (*LoginResult, error) {
+func (s *Service) Login(ctx context.Context, params LoginParams) (*LoginResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -165,7 +138,7 @@ func (s *Service) Login(params LoginParams) (*LoginResult, error) {
 	}
 
 	// 通过邮箱查询用户
-	u, err := s.repo.GetUserByEmail(email)
+	u, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -198,7 +171,7 @@ func (s *Service) Login(params LoginParams) (*LoginResult, error) {
 	}, nil
 }
 
-func (s *Service) GetByID(id int64) (*User, error) {
+func (s *Service) GetByID(ctx context.Context, id int64) (*User, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -206,7 +179,7 @@ func (s *Service) GetByID(id int64) (*User, error) {
 		return nil, ErrInvalidParams
 	}
 
-	u, err := s.repo.GetUserByID(id)
+	u, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -216,14 +189,14 @@ func (s *Service) GetByID(id int64) (*User, error) {
 	return u, nil
 }
 
-func (s *Service) GetList() ([]*User, error) {
+func (s *Service) GetList(ctx context.Context) ([]*User, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	return s.repo.GetUserList()
+	return s.repo.GetUserList(ctx)
 }
 
-func (s *Service) UpdateProfile(params UpdateProfileParams) error {
+func (s *Service) UpdateProfile(ctx context.Context, params UpdateProfileParams) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -245,7 +218,7 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 	}
 
 	// 检查用户是否存在
-	_, err := s.repo.GetUserByID(params.UserID)
+	_, err := s.repo.GetUserByID(ctx, params.UserID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
@@ -254,7 +227,7 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 	}
 
 	// 检查用户名是否被其他人占用
-	existing, err := s.repo.GetUserByUsername(username)
+	existing, err := s.repo.GetUserByUsername(ctx, username)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -263,7 +236,7 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 	}
 
 	// 检查邮箱是否被其他人占用
-	existing, err = s.repo.GetUserByEmail(email)
+	existing, err = s.repo.GetUserByEmail(ctx, email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -271,10 +244,10 @@ func (s *Service) UpdateProfile(params UpdateProfileParams) error {
 		return ErrEmailExists
 	}
 
-	return s.repo.UpdateProfile(params.UserID, username, email, avatar)
+	return s.repo.UpdateProfile(ctx, params.UserID, username, email, avatar)
 }
 
-func (s *Service) UpdatePassword(userID int64, oldPassword, newPassword string) error {
+func (s *Service) UpdatePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -291,7 +264,7 @@ func (s *Service) UpdatePassword(userID int64, oldPassword, newPassword string) 
 	}
 
 	// 查询用户
-	u, err := s.repo.GetUserByID(userID)
+	u, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
@@ -315,10 +288,10 @@ func (s *Service) UpdatePassword(userID int64, oldPassword, newPassword string) 
 		return err
 	}
 
-	return s.repo.UpdatePassword(userID, string(hashedPassword))
+	return s.repo.UpdatePassword(ctx, userID, string(hashedPassword))
 }
 
-func (s *Service) DeleteUser(operatorID, targetID int64) error {
+func (s *Service) DeleteUser(ctx context.Context, operatorID, targetID int64) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -327,7 +300,7 @@ func (s *Service) DeleteUser(operatorID, targetID int64) error {
 	}
 
 	// 校验操作者是否为管理员
-	operator, err := s.repo.GetUserByID(operatorID)
+	operator, err := s.repo.GetUserByID(ctx, operatorID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
@@ -339,7 +312,7 @@ func (s *Service) DeleteUser(operatorID, targetID int64) error {
 	}
 
 	// 校验目标用户是否存在
-	_, err = s.repo.GetUserByID(targetID)
+	_, err = s.repo.GetUserByID(ctx, targetID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
@@ -347,16 +320,14 @@ func (s *Service) DeleteUser(operatorID, targetID int64) error {
 		return err
 	}
 
-	return s.repo.DeleteUser(targetID)
+	return s.repo.DeleteUser(ctx, targetID)
 }
 
 // CheckIsAdmin 检查用户是否为管理员（优先查 Redis 缓存）
-func (s *Service) CheckIsAdmin(userID int64) (bool, error) {
+func (s *Service) CheckIsAdmin(ctx context.Context, userID int64) (bool, error) {
 	if s == nil || s.repo == nil {
 		return false, ErrDBNotInitialized
 	}
-
-	ctx := context.Background()
 
 	// 尝试从 Redis 读取
 	if s.rdb != nil {
@@ -367,7 +338,7 @@ func (s *Service) CheckIsAdmin(userID int64) (bool, error) {
 	}
 
 	// 缓存未命中，查库
-	u, err := s.repo.GetUserByID(userID)
+	u, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, ErrUserNotFound
@@ -387,11 +358,11 @@ func (s *Service) CheckIsAdmin(userID int64) (bool, error) {
 	return u.IsAdmin, nil
 }
 
-func (s *Service) GetUserEmailByID(userID int64) (string, error) {
+func (s *Service) GetUserEmailByID(ctx context.Context, userID int64) (string, error) {
 	if s == nil || s.repo == nil {
 		return "", ErrDBNotInitialized
 	}
-	u, err := s.repo.GetUserByID(userID)
+	u, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrUserNotFound
@@ -401,11 +372,11 @@ func (s *Service) GetUserEmailByID(userID int64) (string, error) {
 	return u.Email, nil
 }
 
-func (s *Service) GetUsernameByID(userID int64) (string, error) {
+func (s *Service) GetUsernameByID(ctx context.Context, userID int64) (string, error) {
 	if s == nil || s.repo == nil {
 		return "", ErrDBNotInitialized
 	}
-	u, err := s.repo.GetUserByID(userID)
+	u, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", ErrUserNotFound
@@ -415,7 +386,7 @@ func (s *Service) GetUsernameByID(userID int64) (string, error) {
 	return u.Username, nil
 }
 
-func (s *Service) SendVerificationCode(email string) error {
+func (s *Service) SendVerificationCode(ctx context.Context, email string) error {
 	email = strings.TrimSpace(email)
 	if email == "" {
 		return ErrInvalidParams
@@ -426,7 +397,7 @@ func (s *Service) SendVerificationCode(email string) error {
 		return err
 	}
 
-	limited, err := rdb.IsDuringInterval(s.rdb, email)
+	limited, err := cache.IsDuringInterval(s.rdb, email)
 	if err != nil {
 		return err
 	}
@@ -435,18 +406,18 @@ func (s *Service) SendVerificationCode(email string) error {
 	}
 
 	cfg := config.GlobalConfig.Verification
-	code := util.GenerateCode(cfg.CodeLength)
+	code := verifycode.GenerateCode(cfg.CodeLength)
 
 	expiry := time.Duration(cfg.ExpireTime) * time.Second
 	interval := time.Duration(cfg.ResendInterval) * time.Second
-	if err := rdb.SetVerificationCode(s.rdb, email, code, expiry, interval); err != nil {
+	if err := cache.SetVerificationCode(s.rdb, email, code, expiry, interval); err != nil {
 		return err
 	}
 
 	return mail.SendVerificationCode(config.GlobalConfig.Smtp, cfg.ExpireTime, email, code)
 }
 
-func (s *Service) ResetPassword(email, code, newPassword string) error {
+func (s *Service) ResetPassword(ctx context.Context, email, code, newPassword string) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -470,7 +441,7 @@ func (s *Service) ResetPassword(email, code, newPassword string) error {
 	}
 
 	// 验证验证码
-	storedCode, err := rdb.GetVerificationCode(s.rdb, email)
+	storedCode, err := cache.GetVerificationCode(s.rdb, email)
 	if err != nil {
 		return ErrCodeExpired
 	}
@@ -479,7 +450,7 @@ func (s *Service) ResetPassword(email, code, newPassword string) error {
 	}
 
 	// 查询用户
-	u, err := s.repo.GetUserByEmail(email)
+	u, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
@@ -494,8 +465,8 @@ func (s *Service) ResetPassword(email, code, newPassword string) error {
 	}
 
 	// 删除已使用的验证码
-	_ = rdb.DeleteVerificationCode(s.rdb, email)
+	_ = cache.DeleteVerificationCode(s.rdb, email)
 
-	return s.repo.UpdatePassword(u.ID, string(hashedPassword))
+	return s.repo.UpdatePassword(ctx, u.ID, string(hashedPassword))
 }
 

@@ -1,40 +1,23 @@
 package friendlink
 
 import (
-	"ElainaBlog/pkg/rdb"
 	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo Repository
-	rdb  rdb.RedisClient
+	repo *Repository
+	rdb  *redis.Client
 }
 
-func NewService(repo Repository, redis rdb.RedisClient) *Service {
+func NewService(repo *Repository, redis *redis.Client) *Service {
 	return &Service{repo: repo, rdb: redis}
-}
-
-type CreateParams struct {
-	Name        string
-	URL         string
-	Avatar      string
-	Description string
-	SortOrder   int
-}
-
-type UpdateParams struct {
-	ID          int64
-	Name        string
-	URL         string
-	Avatar      string
-	Description string
-	SortOrder   int
 }
 
 var (
@@ -56,14 +39,14 @@ func normalizeURL(url string) string {
 	return url
 }
 
-func (s *Service) GetByID(id int64) (*FriendLinkVO, error) {
+func (s *Service) GetByID(ctx context.Context, id int64) (*FriendLinkVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
 	if id <= 0 {
 		return nil, ErrInvalidParams
 	}
-	vo, err := s.repo.GetByID(id)
+	vo, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrLinkNotFound
@@ -74,12 +57,10 @@ func (s *Service) GetByID(id int64) (*FriendLinkVO, error) {
 }
 
 // GetList 获取友链列表（优先查 Redis）
-func (s *Service) GetList() ([]*FriendLinkVO, error) {
+func (s *Service) GetList(ctx context.Context) ([]*FriendLinkVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-
-	ctx := context.Background()
 
 	// 尝试从 Redis 读取
 	if s.rdb != nil {
@@ -93,7 +74,7 @@ func (s *Service) GetList() ([]*FriendLinkVO, error) {
 	}
 
 	// 缓存未命中，查库
-	links, err := s.repo.GetList()
+	links, err := s.repo.GetList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +89,7 @@ func (s *Service) GetList() ([]*FriendLinkVO, error) {
 	return links, nil
 }
 
-func (s *Service) Create(params CreateParams) (*FriendLinkVO, error) {
+func (s *Service) Create(ctx context.Context, params CreateParams) (*FriendLinkVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -119,7 +100,7 @@ func (s *Service) Create(params CreateParams) (*FriendLinkVO, error) {
 		return nil, ErrInvalidParams
 	}
 
-	id, err := s.repo.Create(&FriendLink{
+	id, err := s.repo.Create(ctx, &FriendLink{
 		Name:        name,
 		URL:         url,
 		Avatar:      strings.TrimSpace(params.Avatar),
@@ -129,11 +110,11 @@ func (s *Service) Create(params CreateParams) (*FriendLinkVO, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.invalidateCache()
-	return s.repo.GetByID(id)
+	s.invalidateCache(ctx)
+	return s.repo.GetByID(ctx, id)
 }
 
-func (s *Service) Update(params UpdateParams) (*FriendLinkVO, error) {
+func (s *Service) Update(ctx context.Context, params UpdateParams) (*FriendLinkVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -147,7 +128,7 @@ func (s *Service) Update(params UpdateParams) (*FriendLinkVO, error) {
 		return nil, ErrInvalidParams
 	}
 
-	_, err := s.repo.GetByID(params.ID)
+	_, err := s.repo.GetByID(ctx, params.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrLinkNotFound
@@ -155,7 +136,7 @@ func (s *Service) Update(params UpdateParams) (*FriendLinkVO, error) {
 		return nil, err
 	}
 
-	err = s.repo.Update(&FriendLink{
+	err = s.repo.Update(ctx, &FriendLink{
 		ID:          params.ID,
 		Name:        name,
 		URL:         url,
@@ -166,11 +147,11 @@ func (s *Service) Update(params UpdateParams) (*FriendLinkVO, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.invalidateCache()
-	return s.repo.GetByID(params.ID)
+	s.invalidateCache(ctx)
+	return s.repo.GetByID(ctx, params.ID)
 }
 
-func (s *Service) Delete(id int64) error {
+func (s *Service) Delete(ctx context.Context, id int64) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -178,22 +159,22 @@ func (s *Service) Delete(id int64) error {
 		return ErrInvalidParams
 	}
 
-	_, err := s.repo.GetByID(id)
+	_, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrLinkNotFound
 		}
 		return err
 	}
-	if err := s.repo.Delete(id); err != nil {
+	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
-	s.invalidateCache()
+	s.invalidateCache(ctx)
 	return nil
 }
 
-func (s *Service) invalidateCache() {
+func (s *Service) invalidateCache(ctx context.Context) {
 	if s.rdb != nil {
-		s.rdb.Del(context.Background(), cacheKeyFriendLinkList)
+		s.rdb.Del(ctx, cacheKeyFriendLinkList)
 	}
 }

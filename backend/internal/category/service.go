@@ -1,32 +1,23 @@
 package category
 
 import (
-	"ElainaBlog/pkg/rdb"
 	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo Repository
-	rdb  rdb.RedisClient
+	repo *Repository
+	rdb  *redis.Client
 }
 
-func NewService(repo Repository, redis rdb.RedisClient) *Service {
+func NewService(repo *Repository, redis *redis.Client) *Service {
 	return &Service{repo: repo, rdb: redis}
-}
-
-type CreateCategoryParams struct {
-	Name string
-}
-
-type UpdateCategoryParams struct {
-	ID   int64
-	Name string
 }
 
 var (
@@ -41,27 +32,25 @@ const (
 	cacheTTLCategory     = time.Hour
 )
 
-func (s *Service) GetCategoryByID(id int64) (*CategoryVO, error) {
+func (s *Service) GetCategoryByID(ctx context.Context, id int64) (*CategoryVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	return s.repo.GetCategoryByID(id)
+	return s.repo.GetCategoryByID(ctx, id)
 }
 
-func (s *Service) GetCategoryByName(name string) (*CategoryVO, error) {
+func (s *Service) GetCategoryByName(ctx context.Context, name string) (*CategoryVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	return s.repo.GetCategoryByName(name)
+	return s.repo.GetCategoryByName(ctx, name)
 }
 
 // GetCategoryList 获取分类列表（优先查 Redis）
-func (s *Service) GetCategoryList() ([]*CategoryVO, error) {
+func (s *Service) GetCategoryList(ctx context.Context) ([]*CategoryVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-
-	ctx := context.Background()
 
 	// 尝试从 Redis 读取
 	if s.rdb != nil {
@@ -75,7 +64,7 @@ func (s *Service) GetCategoryList() ([]*CategoryVO, error) {
 	}
 
 	// 缓存未命中，查库
-	categories, err := s.repo.GetCategoryList()
+	categories, err := s.repo.GetCategoryList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +79,7 @@ func (s *Service) GetCategoryList() ([]*CategoryVO, error) {
 	return categories, nil
 }
 
-func (s *Service) CreateCategory(params CreateCategoryParams) (*CategoryVO, error) {
+func (s *Service) CreateCategory(ctx context.Context, params CreateCategoryParams) (*CategoryVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -100,7 +89,7 @@ func (s *Service) CreateCategory(params CreateCategoryParams) (*CategoryVO, erro
 		return nil, ErrInvalidParams
 	}
 
-	existing, err := s.repo.GetCategoryByName(categoryName)
+	existing, err := s.repo.GetCategoryByName(ctx, categoryName)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -108,14 +97,14 @@ func (s *Service) CreateCategory(params CreateCategoryParams) (*CategoryVO, erro
 		return nil, ErrCategoryExists
 	}
 
-	result, err := s.repo.CreateCategory(categoryName)
+	result, err := s.repo.CreateCategory(ctx, categoryName)
 	if err == nil {
-		s.invalidateCache()
+		s.invalidateCache(ctx)
 	}
 	return result, err
 }
 
-func (s *Service) UpdateCategory(params UpdateCategoryParams) (*CategoryVO, error) {
+func (s *Service) UpdateCategory(ctx context.Context, params UpdateCategoryParams) (*CategoryVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -129,7 +118,7 @@ func (s *Service) UpdateCategory(params UpdateCategoryParams) (*CategoryVO, erro
 		return nil, ErrInvalidParams
 	}
 
-	_, err := s.repo.GetCategoryByID(params.ID)
+	_, err := s.repo.GetCategoryByID(ctx, params.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrCategoryNotFound
@@ -137,7 +126,7 @@ func (s *Service) UpdateCategory(params UpdateCategoryParams) (*CategoryVO, erro
 		return nil, err
 	}
 
-	existing, err := s.repo.GetCategoryByName(categoryName)
+	existing, err := s.repo.GetCategoryByName(ctx, categoryName)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -145,14 +134,14 @@ func (s *Service) UpdateCategory(params UpdateCategoryParams) (*CategoryVO, erro
 		return nil, ErrCategoryExists
 	}
 
-	result, err := s.repo.UpdateCategory(params.ID, categoryName)
+	result, err := s.repo.UpdateCategory(ctx, params.ID, categoryName)
 	if err == nil {
-		s.invalidateCache()
+		s.invalidateCache(ctx)
 	}
 	return result, err
 }
 
-func (s *Service) DeleteCategory(id int64) error {
+func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -160,7 +149,7 @@ func (s *Service) DeleteCategory(id int64) error {
 		return ErrInvalidParams
 	}
 
-	_, err := s.repo.GetCategoryByID(id)
+	_, err := s.repo.GetCategoryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCategoryNotFound
@@ -168,15 +157,15 @@ func (s *Service) DeleteCategory(id int64) error {
 		return err
 	}
 
-	if err := s.repo.DeleteCategory(id); err != nil {
+	if err := s.repo.DeleteCategory(ctx, id); err != nil {
 		return err
 	}
-	s.invalidateCache()
+	s.invalidateCache(ctx)
 	return nil
 }
 
 // ToggleTop 切换分类置顶状态（仅管理员）
-func (s *Service) ToggleTop(id int64, isTop bool) error {
+func (s *Service) ToggleTop(ctx context.Context, id int64, isTop bool) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -184,7 +173,7 @@ func (s *Service) ToggleTop(id int64, isTop bool) error {
 		return ErrInvalidParams
 	}
 
-	_, err := s.repo.GetCategoryByID(id)
+	_, err := s.repo.GetCategoryByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCategoryNotFound
@@ -192,15 +181,15 @@ func (s *Service) ToggleTop(id int64, isTop bool) error {
 		return err
 	}
 
-	if err := s.repo.ToggleCategoryTop(id, isTop); err != nil {
+	if err := s.repo.ToggleCategoryTop(ctx, id, isTop); err != nil {
 		return err
 	}
-	s.invalidateCache()
+	s.invalidateCache(ctx)
 	return nil
 }
 
-func (s *Service) invalidateCache() {
+func (s *Service) invalidateCache(ctx context.Context) {
 	if s.rdb != nil {
-		s.rdb.Del(context.Background(), cacheKeyCategoryList)
+		s.rdb.Del(ctx, cacheKeyCategoryList)
 	}
 }

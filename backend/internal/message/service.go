@@ -1,6 +1,7 @@
 package message
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -9,21 +10,21 @@ import (
 
 // AdminUserProvider 获取管理员用户列表的接口
 type AdminUserProvider interface {
-	GetAdminUserIDs() ([]int64, error)
+	GetAdminUserIDs(ctx context.Context) ([]int64, error)
 }
 
 // NotificationCreator 创建通知的接口
 type NotificationCreator interface {
-	CreateNotification(userID int64, nType, title, content string, targetID int64) error
+	CreateNotification(ctx context.Context, userID int64, nType, title, content string, targetID int64) error
 }
 
 type Service struct {
-	repo         Repository
+	repo         *Repository
 	adminUsers   AdminUserProvider
 	notifCreator NotificationCreator
 }
 
-func NewService(repo Repository, adminUsers AdminUserProvider, notifCreator NotificationCreator) *Service {
+func NewService(repo *Repository, adminUsers AdminUserProvider, notifCreator NotificationCreator) *Service {
 	return &Service{repo: repo, adminUsers: adminUsers, notifCreator: notifCreator}
 }
 
@@ -33,17 +34,17 @@ var (
 	ErrMessageNotFound  = errors.New("留言不存在")
 )
 
-func (s *Service) GetList(limit int) ([]*MessageVO, error) {
+func (s *Service) GetList(ctx context.Context, limit int) ([]*MessageVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
 	if limit <= 0 {
 		limit = 50
 	}
-	return s.repo.GetList(limit)
+	return s.repo.GetList(ctx, limit)
 }
 
-func (s *Service) Create(userID int64, content string) (int64, error) {
+func (s *Service) Create(ctx context.Context, userID int64, content string) (int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, ErrDBNotInitialized
 	}
@@ -54,7 +55,7 @@ func (s *Service) Create(userID int64, content string) (int64, error) {
 	if userID <= 0 {
 		return 0, ErrInvalidParams
 	}
-	msgID, err := s.repo.Create(&Message{
+	msgID, err := s.repo.Create(ctx, &Message{
 		UserID:  userID,
 		Content: content,
 	})
@@ -63,19 +64,19 @@ func (s *Service) Create(userID int64, content string) (int64, error) {
 	}
 
 	// 异步通知管理员（非阻塞）
-	go s.notifyAdmins(userID, content)
+	go s.notifyAdmins(context.Background(), userID, content)
 
 	return msgID, nil
 }
 
-func (s *Service) GetByID(id int64) (*Message, error) {
+func (s *Service) GetByID(ctx context.Context, id int64) (*Message, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
 	if id <= 0 {
 		return nil, ErrInvalidParams
 	}
-	msg, err := s.repo.GetByID(id)
+	msg, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrMessageNotFound
@@ -85,30 +86,30 @@ func (s *Service) GetByID(id int64) (*Message, error) {
 	return msg, nil
 }
 
-func (s *Service) Delete(id int64) error {
+func (s *Service) Delete(ctx context.Context, id int64) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
 	if id <= 0 {
 		return ErrInvalidParams
 	}
-	_, err := s.repo.GetByID(id)
+	_, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrMessageNotFound
 		}
 		return err
 	}
-	return s.repo.Delete(id)
+	return s.repo.Delete(ctx, id)
 }
 
 // notifyAdmins 通知所有管理员有新留言
-func (s *Service) notifyAdmins(userID int64, content string) {
+func (s *Service) notifyAdmins(ctx context.Context, userID int64, content string) {
 	if s.notifCreator == nil || s.adminUsers == nil {
 		return
 	}
 
-	adminIDs, err := s.adminUsers.GetAdminUserIDs()
+	adminIDs, err := s.adminUsers.GetAdminUserIDs(ctx)
 	if err != nil {
 		return
 	}
@@ -119,7 +120,7 @@ func (s *Service) notifyAdmins(userID int64, content string) {
 	}
 
 	for _, adminID := range adminIDs {
-		s.notifCreator.CreateNotification(
+		s.notifCreator.CreateNotification(ctx,
 			adminID,
 			"message",
 			"你有一条新留言",

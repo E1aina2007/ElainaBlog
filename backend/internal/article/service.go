@@ -1,6 +1,7 @@
 package article
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -8,52 +9,12 @@ import (
 )
 
 type CommentDeleter interface {
-	DeleteCommentsByArticleID(articleID int64) error
+	DeleteCommentsByArticleID(ctx context.Context, articleID int64) error
 }
 
 type Service struct {
-	repo           Repository
+	repo           *Repository
 	commentDeleter CommentDeleter
-}
-
-type CreateArticleParams struct {
-	UserID     int64
-	CategoryID *int64
-	Title      string
-	Summary    string
-	Content    string
-	Tags       string
-	IsTop      bool
-	IsDraft    bool
-}
-
-type UpdateArticleParams struct {
-	ID         int64
-	CategoryID *int64
-	Title      string
-	Summary    string
-	Content    string
-	Tags       string
-	IsTop      bool
-	IsDraft    bool
-}
-
-type DeleteArticleParams struct {
-	ID int64
-}
-
-// ArticleListParams 文章列表查询参数
-type ArticleListParams struct {
-	CategoryID *int64
-	SortBy     string // "latest"（默认） | "popular"
-	Page       int
-	PageSize   int
-}
-
-// ArticleListResult 文章列表返回结果
-type ArticleListResult struct {
-	List  []*ArticleVO `json:"list"`
-	Total int          `json:"total"`
 }
 
 var (
@@ -63,11 +24,11 @@ var (
 	ErrNoPermission     = errors.New("没有权限操作此文章")
 )
 
-func NewService(repo Repository, commentDeleter CommentDeleter) *Service {
+func NewService(repo *Repository, commentDeleter CommentDeleter) *Service {
 	return &Service{repo: repo, commentDeleter: commentDeleter}
 }
 
-func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult, error) {
+func (s *Service) GetArticleList(ctx context.Context, params *ArticleListParams) (*ArticleListResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -88,7 +49,7 @@ func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult,
 		sortBy = ""
 	}
 
-	articles, total, err := s.repo.GetArticleList(params.CategoryID, sortBy, page, pageSize)
+	articles, total, err := s.repo.GetArticleList(ctx, params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +60,7 @@ func (s *Service) GetArticleList(params *ArticleListParams) (*ArticleListResult,
 	}, nil
 }
 
-func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListResult, error) {
+func (s *Service) GetAdminArticleList(ctx context.Context, params *ArticleListParams) (*ArticleListResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -118,7 +79,7 @@ func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListRe
 		sortBy = ""
 	}
 
-	articles, total, err := s.repo.GetAdminArticleList(params.CategoryID, sortBy, page, pageSize)
+	articles, total, err := s.repo.GetAdminArticleList(ctx, params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +90,7 @@ func (s *Service) GetAdminArticleList(params *ArticleListParams) (*ArticleListRe
 	}, nil
 }
 
-func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*ArticleListResult, error) {
+func (s *Service) GetUserArticleList(ctx context.Context, userID int64, params *ArticleListParams) (*ArticleListResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -148,7 +109,7 @@ func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*
 		sortBy = ""
 	}
 
-	articles, total, err := s.repo.GetUserArticleList(userID, params.CategoryID, sortBy, page, pageSize)
+	articles, total, err := s.repo.GetUserArticleList(ctx, userID, params.CategoryID, sortBy, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -159,11 +120,11 @@ func (s *Service) GetUserArticleList(userID int64, params *ArticleListParams) (*
 	}, nil
 }
 
-func (s *Service) GetArticleByID(id int64) (*ArticleVO, error) {
+func (s *Service) GetArticleByID(ctx context.Context, id int64) (*ArticleVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	vo, err := s.repo.GetArticleByID(id)
+	vo, err := s.repo.GetArticleByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrArticleNotFound
@@ -173,11 +134,11 @@ func (s *Service) GetArticleByID(id int64) (*ArticleVO, error) {
 	return vo, nil
 }
 
-func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
+func (s *Service) GetArticleByIDIncludeDraft(ctx context.Context, id int64) (*ArticleVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	vo, err := s.repo.GetArticleByIDIncludeDraft(id)
+	vo, err := s.repo.GetArticleByIDIncludeDraft(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrArticleNotFound
@@ -188,7 +149,7 @@ func (s *Service) GetArticleByIDIncludeDraft(id int64) (*ArticleVO, error) {
 }
 
 // SearchArticles 全文搜索文章
-func (s *Service) SearchArticles(keyword string, page, pageSize int) (*ArticleListResult, error) {
+func (s *Service) SearchArticles(ctx context.Context, keyword string, page, pageSize int) (*ArticleListResult, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -204,7 +165,7 @@ func (s *Service) SearchArticles(keyword string, page, pageSize int) (*ArticleLi
 		pageSize = 10
 	}
 
-	articles, total, err := s.repo.SearchArticleList(keyword, page, pageSize)
+	articles, total, err := s.repo.SearchArticleList(ctx, keyword, page, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +177,7 @@ func (s *Service) SearchArticles(keyword string, page, pageSize int) (*ArticleLi
 }
 
 // IncrementViewCount 带 IP 去重的浏览量递增
-func (s *Service) IncrementViewCount(id int64, clientIP string) error {
+func (s *Service) IncrementViewCount(ctx context.Context, id int64, clientIP string) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -224,21 +185,21 @@ func (s *Service) IncrementViewCount(id int64, clientIP string) error {
 		return ErrInvalidParams
 	}
 
-	return s.repo.IncrementViewCountUnique(id, clientIP)
+	return s.repo.IncrementViewCountUnique(ctx, id, clientIP)
 }
 
 // GetArticleUV 获取文章的独立访客数
-func (s *Service) GetArticleUV(id int64) (int64, error) {
+func (s *Service) GetArticleUV(ctx context.Context, id int64) (int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, ErrDBNotInitialized
 	}
 	if id <= 0 {
 		return 0, ErrInvalidParams
 	}
-	return s.repo.GetArticleUV(id)
+	return s.repo.GetArticleUV(ctx, id)
 }
 
-func (s *Service) CreateArticle(params *CreateArticleParams) (int64, error) {
+func (s *Service) CreateArticle(ctx context.Context, params *CreateArticleParams) (int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, ErrDBNotInitialized
 	}
@@ -261,14 +222,14 @@ func (s *Service) CreateArticle(params *CreateArticleParams) (int64, error) {
 		return 0, ErrInvalidParams
 	}
 
-	return s.repo.CreateArticle(
+	return s.repo.CreateArticle(ctx,
 		params.UserID, params.CategoryID,
 		title, strings.TrimSpace(params.Summary), content, strings.TrimSpace(params.Tags),
 		params.IsTop, params.IsDraft,
 	)
 }
 
-func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdmin bool) error {
+func (s *Service) UpdateArticle(ctx context.Context, params *UpdateArticleParams, userID int64, isAdmin bool) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -283,7 +244,7 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 	}
 
 	// 检查文章是否存在（包含草稿）
-	article, err := s.repo.GetArticleByIDIncludeDraft(params.ID)
+	article, err := s.repo.GetArticleByIDIncludeDraft(ctx, params.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrArticleNotFound
@@ -301,7 +262,7 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 		return ErrNoPermission
 	}
 
-	return s.repo.UpdateArticle(
+	return s.repo.UpdateArticle(ctx,
 		params.ID, params.CategoryID,
 		title, strings.TrimSpace(params.Summary), content, strings.TrimSpace(params.Tags),
 		params.IsTop, params.IsDraft,
@@ -309,7 +270,7 @@ func (s *Service) UpdateArticle(params *UpdateArticleParams, userID int64, isAdm
 }
 
 // ToggleTop 单独切换文章置顶状态（仅管理员）
-func (s *Service) ToggleTop(id int64, isTop bool, isAdmin bool) error {
+func (s *Service) ToggleTop(ctx context.Context, id int64, isTop bool, isAdmin bool) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -320,16 +281,16 @@ func (s *Service) ToggleTop(id int64, isTop bool, isAdmin bool) error {
 		return ErrNoPermission
 	}
 	// 校验文章存在
-	if _, err := s.repo.GetArticleByIDIncludeDraft(id); err != nil {
+	if _, err := s.repo.GetArticleByIDIncludeDraft(ctx, id); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrArticleNotFound
 		}
 		return err
 	}
-	return s.repo.ToggleArticleTop(id, isTop)
+	return s.repo.ToggleArticleTop(ctx, id, isTop)
 }
 
-func (s *Service) DeleteArticle(params *DeleteArticleParams, userID int64, isAdmin bool) error {
+func (s *Service) DeleteArticle(ctx context.Context, params *DeleteArticleParams, userID int64, isAdmin bool) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -338,7 +299,7 @@ func (s *Service) DeleteArticle(params *DeleteArticleParams, userID int64, isAdm
 	}
 
 	// 检查文章是否存在（包含草稿）
-	article, err := s.repo.GetArticleByIDIncludeDraft(params.ID)
+	article, err := s.repo.GetArticleByIDIncludeDraft(ctx, params.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrArticleNotFound
@@ -353,8 +314,8 @@ func (s *Service) DeleteArticle(params *DeleteArticleParams, userID int64, isAdm
 
 	// 删除文章下的所有评论
 	if s.commentDeleter != nil {
-		_ = s.commentDeleter.DeleteCommentsByArticleID(params.ID)
+		_ = s.commentDeleter.DeleteCommentsByArticleID(ctx, params.ID)
 	}
 
-	return s.repo.DeleteArticle(params.ID)
+	return s.repo.DeleteArticle(ctx, params.ID)
 }

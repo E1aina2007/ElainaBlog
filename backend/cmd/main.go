@@ -2,56 +2,44 @@
 package main
 
 import (
-	"ElainaBlog/config"
-	"ElainaBlog/config/db"
-	"ElainaBlog/internal/common"
-	"ElainaBlog/pkg/rdb"
-	"ElainaBlog/pkg/zaplogger"
+	"ElainaBlog/internal/auth"
+	"ElainaBlog/internal/config"
+	"ElainaBlog/internal/db"
+	cache "ElainaBlog/internal/middleware/redis"
+	"ElainaBlog/internal/user"
+	"context"
 	"log"
-	"os"
 )
 
 func init() {
-	// 1. 加载配置文件
-	path := config.CheckMode()
-	err := config.LoadConfigFromYml(path)
-	if err != nil {
+	// 1. 加载配置文件（含 .env 与 CONFIG_PATH 选择，见 config.LoadConfig）
+	if err := config.LoadConfig(); err != nil {
 		log.Fatalf("配置文件加载失败: %v", err)
 	}
+	cfg := config.GlobalConfig
 
-	// 2. 初始化 Zap 日志
-	zaplogger.Logger = zaplogger.InitLogger()
-
-	// 3. 初始化数据库（自动执行迁移）
-	err = db.InitDB(&config.GlobalConfig.Db)
-	if err != nil {
+	// 2. 初始化数据库连接
+	if err := db.ConnectDB(&cfg.Db); err != nil {
 		log.Fatalf("数据库初始化失败: %v", err)
 	}
 
-	err = rdb.InitRedis(&config.GlobalConfig.Redis)
-	if err != nil {
+	if err := cache.InitRedis(&cfg.Redis); err != nil {
 		log.Fatalf("Redis初始化失败：%v", err)
 	}
 
-	// 4. 初始化 JWT 服务
-	common.InitJwtAuth()
+	// 3. 初始化 JWT 服务
+	auth.InitJwtAuth()
+
+	// 4. 初始化管理员（不存在则创建，配置密码变更时重置）
+	userService := user.NewService(user.NewRepository(db.DB), cache.DefaultClient, auth.JwtAuth)
+	if err := user.EnsureAdmin(context.Background(), userService, cfg.Admin); err != nil {
+		log.Fatalf("初始化管理员失败: %v", err)
+	}
+
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("请输入命令")
-	}
-	switch os.Args[1] {
-	case "initSystem":
-		initSystem()
-	case "runServer":
-		err := runServer()
-		if err != nil {
-			log.Fatalf("服务器启动失败：%v", err)
-		}
-	case "migrateAvatars":
-		migrateAvatars()
-	default:
-		log.Fatalf("未知的命令")
+	if err := runServer(); err != nil {
+		log.Fatalf("服务器启动失败：%v", err)
 	}
 }

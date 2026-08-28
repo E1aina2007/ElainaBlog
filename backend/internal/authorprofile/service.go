@@ -1,21 +1,21 @@
 package authorprofile
 
 import (
-	"ElainaBlog/pkg/rdb"
 	"context"
 	"encoding/json"
 	"errors"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo Repository
-	rdb  rdb.RedisClient
+	repo *Repository
+	rdb  *redis.Client
 }
 
-func NewService(repo Repository, redis rdb.RedisClient) *Service {
+func NewService(repo *Repository, redis *redis.Client) *Service {
 	return &Service{repo: repo, rdb: redis}
 }
 
@@ -29,12 +29,10 @@ const (
 )
 
 // Get 获取作者信息（优先查 Redis）
-func (s *Service) Get() (*AuthorProfile, error) {
+func (s *Service) Get(ctx context.Context) (*AuthorProfile, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-
-	ctx := context.Background()
 
 	// 尝试从 Redis 读取
 	if s.rdb != nil {
@@ -48,7 +46,7 @@ func (s *Service) Get() (*AuthorProfile, error) {
 	}
 
 	// 缓存未命中，查库
-	p, err := s.repo.Get()
+	p, err := s.repo.Get(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &AuthorProfile{
@@ -71,29 +69,29 @@ func (s *Service) Get() (*AuthorProfile, error) {
 }
 
 // Update 更新作者信息（写入后清除缓存）
-func (s *Service) Update(p *AuthorProfile) error {
+func (s *Service) Update(ctx context.Context, p *AuthorProfile) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
-	existing, err := s.repo.Get()
+	existing, err := s.repo.Get(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			_, err = s.repo.Create(p)
-			s.invalidateCache()
+			_, err = s.repo.Create(ctx, p)
+			s.invalidateCache(ctx)
 			return err
 		}
 		return err
 	}
 	p.ID = existing.ID
-	if err := s.repo.Update(p); err != nil {
+	if err := s.repo.Update(ctx, p); err != nil {
 		return err
 	}
-	s.invalidateCache()
+	s.invalidateCache(ctx)
 	return nil
 }
 
-func (s *Service) invalidateCache() {
+func (s *Service) invalidateCache(ctx context.Context) {
 	if s.rdb != nil {
-		s.rdb.Del(context.Background(), cacheKey)
+		s.rdb.Del(ctx, cacheKey)
 	}
 }

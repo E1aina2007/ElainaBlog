@@ -1,6 +1,7 @@
 package comment
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,40 +11,28 @@ import (
 
 // ArticleInfoProvider 获取文章信息的接口，避免直接依赖 article 模块
 type ArticleInfoProvider interface {
-	GetArticleAuthorInfo(id int64) (articleUserID int64, title string, err error)
+	GetArticleAuthorInfo(ctx context.Context, id int64) (articleUserID int64, title string, err error)
 }
 
 // NotificationCreator 创建通知的接口
 type NotificationCreator interface {
-	CreateNotification(userID int64, nType, title, content string, targetID int64) error
+	CreateNotification(ctx context.Context, userID int64, nType, title, content string, targetID int64) error
 }
 
 // UserProvider 获取用户信息的接口
 type UserProvider interface {
-	GetUsernameByID(id int64) (string, error)
+	GetUsernameByID(ctx context.Context, id int64) (string, error)
 }
 
 type Service struct {
-	repo         Repository
+	repo         *Repository
 	articleInfo  ArticleInfoProvider
 	notifCreator NotificationCreator
 	userProvider UserProvider
 }
 
-func NewService(repo Repository, articleInfo ArticleInfoProvider, notifCreator NotificationCreator, userProvider UserProvider) *Service {
+func NewService(repo *Repository, articleInfo ArticleInfoProvider, notifCreator NotificationCreator, userProvider UserProvider) *Service {
 	return &Service{repo: repo, articleInfo: articleInfo, notifCreator: notifCreator, userProvider: userProvider}
-}
-
-type CreateCommentParams struct {
-	ArticleID        int64
-	UserID           int64
-	ReplyToUserID    *int64
-	ReplyToCommentID *int64
-	Content          string
-}
-
-type DeleteCommentParams struct {
-	ID int64
 }
 
 var (
@@ -52,14 +41,14 @@ var (
 	ErrCommentNotFound  = errors.New("评论不存在")
 )
 
-func (s *Service) GetCommentByID(id int64) (*Comment, error) {
+func (s *Service) GetCommentByID(ctx context.Context, id int64) (*Comment, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
 	if id <= 0 {
 		return nil, ErrInvalidParams
 	}
-	c, err := s.repo.GetCommentByID(id)
+	c, err := s.repo.GetCommentByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrCommentNotFound
@@ -69,25 +58,25 @@ func (s *Service) GetCommentByID(id int64) (*Comment, error) {
 	return c, nil
 }
 
-func (s *Service) GetCommentList(articleID int64) ([]*CommentVO, error) {
+func (s *Service) GetCommentList(ctx context.Context, articleID int64) ([]*CommentVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
 	if articleID <= 0 {
 		return nil, ErrInvalidParams
 	}
-	return s.repo.GetCommentListByArticleID(articleID)
+	return s.repo.GetCommentListByArticleID(ctx, articleID)
 }
 
 // GetAllCommentList 获取所有评论（管理员用）
-func (s *Service) GetAllCommentList() ([]*CommentVO, error) {
+func (s *Service) GetAllCommentList(ctx context.Context) ([]*CommentVO, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	return s.repo.GetAllCommentList()
+	return s.repo.GetAllCommentList(ctx)
 }
 
-func (s *Service) CreateComment(params *CreateCommentParams) (int64, error) {
+func (s *Service) CreateComment(ctx context.Context, params *CreateCommentParams) (int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, ErrDBNotInitialized
 	}
@@ -115,7 +104,7 @@ func (s *Service) CreateComment(params *CreateCommentParams) (int64, error) {
 
 	// 设置回复目标
 	if params.ReplyToUserID != nil && *params.ReplyToUserID > 0 {
-		username, err := s.userProvider.GetUsernameByID(*params.ReplyToUserID)
+		username, err := s.userProvider.GetUsernameByID(ctx, *params.ReplyToUserID)
 		if err != nil {
 			return 0, ErrInvalidParams
 		}
@@ -125,25 +114,25 @@ func (s *Service) CreateComment(params *CreateCommentParams) (int64, error) {
 
 	// 设置回复目标评论内容
 	if params.ReplyToCommentID != nil && *params.ReplyToCommentID > 0 {
-		parentComment, err := s.repo.GetCommentByID(*params.ReplyToCommentID)
+		parentComment, err := s.repo.GetCommentByID(ctx, *params.ReplyToCommentID)
 		if err == nil && parentComment != nil {
 			comment.ReplyToCommentID = params.ReplyToCommentID
 			comment.ReplyToContent = &parentComment.Content
 		}
 	}
 
-	commentID, err := s.repo.CreateComment(comment)
+	commentID, err := s.repo.CreateComment(ctx, comment)
 	if err != nil {
 		return 0, err
 	}
 
 	// 异步通知（非阻塞）
-	go s.notifyComment(params.ArticleID, params.UserID, params.ReplyToUserID, content)
+	go s.notifyComment(context.Background(), params.ArticleID, params.UserID, params.ReplyToUserID, content)
 
 	return commentID, nil
 }
 
-func (s *Service) DeleteComment(params *DeleteCommentParams) error {
+func (s *Service) DeleteComment(ctx context.Context, params *DeleteCommentParams) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -152,7 +141,7 @@ func (s *Service) DeleteComment(params *DeleteCommentParams) error {
 	}
 
 	// 检查评论是否存在
-	_, err := s.repo.GetCommentByID(params.ID)
+	_, err := s.repo.GetCommentByID(ctx, params.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCommentNotFound
@@ -160,11 +149,11 @@ func (s *Service) DeleteComment(params *DeleteCommentParams) error {
 		return err
 	}
 
-	return s.repo.DeleteComment(params.ID)
+	return s.repo.DeleteComment(ctx, params.ID)
 }
 
 // notifyComment 通知相关用户有新评论
-func (s *Service) notifyComment(articleID, commenterID int64, replyToUserID *int64, content string) {
+func (s *Service) notifyComment(ctx context.Context, articleID, commenterID int64, replyToUserID *int64, content string) {
 	if s.notifCreator == nil {
 		return
 	}
@@ -179,7 +168,7 @@ func (s *Service) notifyComment(articleID, commenterID int64, replyToUserID *int
 		if *replyToUserID == commenterID {
 			return // 回复自己不通知
 		}
-		s.notifCreator.CreateNotification(
+		s.notifCreator.CreateNotification(ctx,
 			*replyToUserID,
 			"comment",
 			"你的评论有了新回复",
@@ -191,11 +180,11 @@ func (s *Service) notifyComment(articleID, commenterID int64, replyToUserID *int
 		if s.articleInfo == nil {
 			return
 		}
-		articleUserID, title, err := s.articleInfo.GetArticleAuthorInfo(articleID)
+		articleUserID, title, err := s.articleInfo.GetArticleAuthorInfo(ctx, articleID)
 		if err != nil || articleUserID == commenterID {
 			return
 		}
-		s.notifCreator.CreateNotification(
+		s.notifCreator.CreateNotification(ctx,
 			articleUserID,
 			"comment",
 			fmt.Sprintf("你的文章《%s》有新评论", title),

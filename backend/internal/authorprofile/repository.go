@@ -1,42 +1,24 @@
 package authorprofile
 
 import (
+	"context"
+
 	"gorm.io/gorm"
 )
 
-type AuthorProfile struct {
-	ID                   int64  `json:"id"`
-	Nickname             string `json:"nickname"`
-	Avatar               string `json:"avatar"`
-	Background           string `json:"background"`
-	Signature            string `json:"signature"`
-	Location             string `json:"location"`
-	Occupation           string `json:"occupation"`
-	School               string `json:"school"`
-	Major                string `json:"major"`
-	Email                string `json:"email"`
-	Wechat               string `json:"wechat"`
-	Bio                  string `json:"bio"`
-	TechStackFrontend    string `json:"tech_stack_frontend"`
-	TechStackBackend     string `json:"tech_stack_backend"`
-	TechStackEngineering string `json:"tech_stack_engineering"`
-	SocialGithub         string `json:"social_github"`
-	SocialBilibili       string `json:"social_bilibili"`
-}
-
-// MySQLRepository 实现 authorprofile.Repository 接口，使用 GORM 存储。
-type MySQLRepository struct {
+// Repository 使用 GORM 存储作者信息。
+type Repository struct {
 	db *gorm.DB
 }
 
 // NewRepository 创建作者信息仓储实例。
-func NewRepository(db *gorm.DB) *MySQLRepository {
-	return &MySQLRepository{db: db}
+func NewRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *MySQLRepository) Get() (*AuthorProfile, error) {
+func (r *Repository) Get(ctx context.Context) (*AuthorProfile, error) {
 	var p AuthorProfile
-	err := r.db.Table("author_profile").
+	err := r.db.WithContext(ctx).Table("author_profile").
 		Where("is_deleted = 0").
 		First(&p).Error
 	if err != nil {
@@ -45,15 +27,15 @@ func (r *MySQLRepository) Get() (*AuthorProfile, error) {
 	return &p, nil
 }
 
-func (r *MySQLRepository) Create(p *AuthorProfile) (int64, error) {
-	if err := r.db.Table("author_profile").Create(p).Error; err != nil {
+func (r *Repository) Create(ctx context.Context, p *AuthorProfile) (int64, error) {
+	if err := r.db.WithContext(ctx).Table("author_profile").Create(p).Error; err != nil {
 		return 0, err
 	}
 	return p.ID, nil
 }
 
-func (r *MySQLRepository) Update(p *AuthorProfile) error {
-	return r.db.Table("author_profile").
+func (r *Repository) Update(ctx context.Context, p *AuthorProfile) error {
+	return r.db.WithContext(ctx).Table("author_profile").
 		Where("id = ? AND is_deleted = 0", p.ID).
 		Updates(map[string]any{
 			"nickname":              p.Nickname,

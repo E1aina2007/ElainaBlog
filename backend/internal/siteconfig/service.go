@@ -1,21 +1,21 @@
 package siteconfig
 
 import (
-	"ElainaBlog/pkg/rdb"
 	"context"
 	"encoding/json"
 	"errors"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo Repository
-	rdb  rdb.RedisClient
+	repo *Repository
+	rdb  *redis.Client
 }
 
-func NewService(repo Repository, redis rdb.RedisClient) *Service {
+func NewService(repo *Repository, redis *redis.Client) *Service {
 	return &Service{repo: repo, rdb: redis}
 }
 
@@ -30,12 +30,10 @@ const (
 )
 
 // GetAllMap 返回所有配置的 key-value 映射（优先查 Redis）
-func (s *Service) GetAllMap() (map[string]string, error) {
+func (s *Service) GetAllMap(ctx context.Context) (map[string]string, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-
-	ctx := context.Background()
 
 	// 尝试从 Redis 读取
 	if s.rdb != nil {
@@ -49,7 +47,7 @@ func (s *Service) GetAllMap() (map[string]string, error) {
 	}
 
 	// 缓存未命中，查库
-	configs, err := s.repo.GetAll()
+	configs, err := s.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -69,12 +67,10 @@ func (s *Service) GetAllMap() (map[string]string, error) {
 }
 
 // GetQuotes 返回随机语句数组（优先查 Redis）
-func (s *Service) GetQuotes() ([]string, error) {
+func (s *Service) GetQuotes(ctx context.Context) ([]string, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-
-	ctx := context.Background()
 
 	// 尝试从 Redis 读取
 	if s.rdb != nil {
@@ -88,7 +84,7 @@ func (s *Service) GetQuotes() ([]string, error) {
 	}
 
 	// 缓存未命中，查库
-	c, err := s.repo.GetByKey("quotes")
+	c, err := s.repo.GetByKey(ctx, "quotes")
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return []string{}, nil
@@ -111,36 +107,35 @@ func (s *Service) GetQuotes() ([]string, error) {
 }
 
 // Upsert 批量更新配置（写入后清除缓存）
-func (s *Service) Upsert(configs map[string]string) error {
+func (s *Service) Upsert(ctx context.Context, configs map[string]string) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
 	for key, value := range configs {
-		if err := s.repo.Upsert(key, value); err != nil {
+		if err := s.repo.Upsert(ctx, key, value); err != nil {
 			return err
 		}
 	}
-	s.invalidateCache()
+	s.invalidateCache(ctx)
 	return nil
 }
 
 // Delete 删除配置（写入后清除缓存）
-func (s *Service) Delete(key string) error {
+func (s *Service) Delete(ctx context.Context, key string) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
-	if err := s.repo.DeleteByKey(key); err != nil {
+	if err := s.repo.DeleteByKey(ctx, key); err != nil {
 		return err
 	}
-	s.invalidateCache()
+	s.invalidateCache(ctx)
 	return nil
 }
 
 // invalidateCache 清除所有 siteconfig 缓存
-func (s *Service) invalidateCache() {
+func (s *Service) invalidateCache(ctx context.Context) {
 	if s.rdb == nil {
 		return
 	}
-	ctx := context.Background()
 	s.rdb.Del(ctx, cacheKeyAll, cacheKeyPrefix+"quotes")
 }

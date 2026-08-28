@@ -1,65 +1,24 @@
 package user
 
 import (
-	"ElainaBlog/config"
-	"ElainaBlog/internal/common"
-	"ElainaBlog/internal/common/model"
-	"ElainaBlog/pkg/rdb"
+	"ElainaBlog/internal/config"
+	"ElainaBlog/internal/auth"
+	"ElainaBlog/internal/response"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 type Controller struct {
 	service *Service
-	rdb     rdb.RedisClient // 可选，用于 token 黑名单
+	rdb     *redis.Client // 可选，用于 token 黑名单
 }
 
-func NewController(service *Service, redis rdb.RedisClient) *Controller {
+func NewController(service *Service, redis *redis.Client) *Controller {
 	return &Controller{service: service, rdb: redis}
-}
-
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type UpdateProfileRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
-}
-
-type UpdatePasswordRequest struct {
-	OldPassword string `json:"old_password"`
-	NewPassword string `json:"new_password"`
-}
-
-type DeleteUserRequest struct {
-	UserID int64 `json:"user_id"`
-}
-
-type RegisterRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Code     string `json:"code"`
-}
-
-type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token"`
-}
-
-type SendCodeRequest struct {
-	Email string `json:"email"`
-}
-
-type ResetPasswordRequest struct {
-	Email       string `json:"email"`
-	Code        string `json:"code"`
-	NewPassword string `json:"new_password"`
 }
 
 const (
@@ -131,19 +90,19 @@ func (ctl *Controller) clearTokenCookies(c *gin.Context) {
 // Register 注册接口：创建新用户。
 func (ctl *Controller) Register(c *gin.Context) {
 	if ctl == nil || ctl.service == nil {
-		appErr := model.ErrInternal.WithDetail("用户控制器未初始化")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInternal.WithDetail("用户控制器未初始化")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	userID, err := ctl.service.CreateUser(CreateUserParams{
+	userID, err := ctl.service.CreateUser(c.Request.Context(), CreateUserParams{
 		Username: req.Username,
 		Password: req.Password,
 		Email:    req.Email,
@@ -152,26 +111,26 @@ func (ctl *Controller) Register(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case ErrCodeExpired:
-			c.JSON(model.ErrCodeExpired.HTTPStatus(), model.ApiErrorResponse(model.ErrCodeExpired.Code, model.ErrCodeExpired.Message, model.ErrCodeExpired))
+			c.JSON(response.ErrCodeExpired.HTTPStatus(), response.ApiErrorResponse(response.ErrCodeExpired.Code, response.ErrCodeExpired.Message, response.ErrCodeExpired))
 		case ErrCodeMismatch:
-			c.JSON(model.ErrCodeMismatch.HTTPStatus(), model.ApiErrorResponse(model.ErrCodeMismatch.Code, model.ErrCodeMismatch.Message, model.ErrCodeMismatch))
+			c.JSON(response.ErrCodeMismatch.HTTPStatus(), response.ApiErrorResponse(response.ErrCodeMismatch.Code, response.ErrCodeMismatch.Message, response.ErrCodeMismatch))
 		case ErrEmailFormat, ErrEmailTooLong:
-			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
+			c.JSON(response.ErrEmailFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailFormat.Code, response.ErrEmailFormat.Message, response.ErrEmailFormat))
 		case ErrUsernameFormat:
-			c.JSON(model.ErrUsernameFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrUsernameFormat.Code, model.ErrUsernameFormat.Message, model.ErrUsernameFormat))
+			c.JSON(response.ErrUsernameFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrUsernameFormat.Code, response.ErrUsernameFormat.Message, response.ErrUsernameFormat))
 		case ErrPasswordLength, ErrPasswordChars, ErrPasswordNeedLetter, ErrPasswordNeedDigit:
-			c.JSON(model.ErrPasswordLength.HTTPStatus(), model.ApiErrorResponse(model.ErrPasswordLength.Code, model.ErrPasswordLength.Message, model.ErrPasswordLength))
+			c.JSON(response.ErrPasswordLength.HTTPStatus(), response.ApiErrorResponse(response.ErrPasswordLength.Code, response.ErrPasswordLength.Message, response.ErrPasswordLength))
 		case ErrUsernameExists:
-			c.JSON(model.ErrUsernameExists.HTTPStatus(), model.ApiErrorResponse(model.ErrUsernameExists.Code, model.ErrUsernameExists.Message, model.ErrUsernameExists))
+			c.JSON(response.ErrUsernameExists.HTTPStatus(), response.ApiErrorResponse(response.ErrUsernameExists.Code, response.ErrUsernameExists.Message, response.ErrUsernameExists))
 		case ErrEmailExists:
-			c.JSON(model.ErrEmailExists.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailExists.Code, model.ErrEmailExists.Message, model.ErrEmailExists))
+			c.JSON(response.ErrEmailExists.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailExists.Code, response.ErrEmailExists.Message, response.ErrEmailExists))
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{
 		"user_id": userID,
 	}))
 }
@@ -179,19 +138,19 @@ func (ctl *Controller) Register(c *gin.Context) {
 // Login 登录接口：校验账号密码并签发 JWT（access/refresh）。
 func (ctl *Controller) Login(c *gin.Context) {
 	if ctl == nil || ctl.service == nil {
-		appErr := model.ErrInternal.WithDetail("用户控制器未初始化")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInternal.WithDetail("用户控制器未初始化")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	result, err := ctl.service.Login(LoginParams{
+	result, err := ctl.service.Login(c.Request.Context(), LoginParams{
 		Email:    req.Email,
 		Password: req.Password,
 	})
@@ -199,40 +158,40 @@ func (ctl *Controller) Login(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case ErrInvalidLoginParams, ErrEmailFormat, ErrEmailTooLong:
-			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
+			c.JSON(response.ErrEmailFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailFormat.Code, response.ErrEmailFormat.Message, response.ErrEmailFormat))
 			return
 		case ErrUserNotFound, ErrPasswordMismatch:
 			// 登录失败统一返回邮箱或密码错误，不透露具体原因
-			c.JSON(model.ErrPasswordMismatch.HTTPStatus(), model.ApiErrorResponse(model.ErrPasswordMismatch.Code, model.ErrPasswordMismatch.Message, model.ErrPasswordMismatch))
+			c.JSON(response.ErrPasswordMismatch.HTTPStatus(), response.ApiErrorResponse(response.ErrPasswordMismatch.Code, response.ErrPasswordMismatch.Message, response.ErrPasswordMismatch))
 			return
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 			return
 		}
 	}
 
 	ctl.setTokenCookies(c, result.AccessToken, result.RefreshToken)
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{
 		"user_id": result.UserID,
 		"email":   result.Email,
 	}))
 }
 
 func (ctl *Controller) GetProfile(c *gin.Context) {
-	userID := c.GetInt64(common.CtxUserIDKey)
-	u, err := ctl.service.GetByID(userID)
+	userID := c.GetInt64(auth.CtxUserIDKey)
+	u, err := ctl.service.GetByID(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(u.ToVO()))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(u.ToVO()))
 }
 
 func (ctl *Controller) GetList(c *gin.Context) {
-	users, err := ctl.service.GetList()
+	users, err := ctl.service.GetList(c.Request.Context())
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 
@@ -241,20 +200,20 @@ func (ctl *Controller) GetList(c *gin.Context) {
 		voList = append(voList, u.ToVO())
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(voList))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(voList))
 }
 
 func (ctl *Controller) UpdateProfile(c *gin.Context) {
-	userID := c.GetInt64(common.CtxUserIDKey)
+	userID := c.GetInt64(auth.CtxUserIDKey)
 
 	var req UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	err := ctl.service.UpdateProfile(UpdateProfileParams{
+	err := ctl.service.UpdateProfile(c.Request.Context(), UpdateProfileParams{
 		UserID:   userID,
 		Username: req.Username,
 		Email:    req.Email,
@@ -263,77 +222,77 @@ func (ctl *Controller) UpdateProfile(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case ErrUsernameExists:
-			c.JSON(model.ErrUsernameExists.HTTPStatus(), model.ApiErrorResponse(model.ErrUsernameExists.Code, model.ErrUsernameExists.Message, model.ErrUsernameExists))
+			c.JSON(response.ErrUsernameExists.HTTPStatus(), response.ApiErrorResponse(response.ErrUsernameExists.Code, response.ErrUsernameExists.Message, response.ErrUsernameExists))
 		case ErrEmailExists:
-			c.JSON(model.ErrEmailExists.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailExists.Code, model.ErrEmailExists.Message, model.ErrEmailExists))
+			c.JSON(response.ErrEmailExists.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailExists.Code, response.ErrEmailExists.Message, response.ErrEmailExists))
 		case ErrEmailFormat, ErrEmailTooLong:
-			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
+			c.JSON(response.ErrEmailFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailFormat.Code, response.ErrEmailFormat.Message, response.ErrEmailFormat))
 		case ErrUsernameFormat:
-			c.JSON(model.ErrUsernameFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrUsernameFormat.Code, model.ErrUsernameFormat.Message, model.ErrUsernameFormat))
+			c.JSON(response.ErrUsernameFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrUsernameFormat.Code, response.ErrUsernameFormat.Message, response.ErrUsernameFormat))
 		case ErrUserNotFound:
-			c.JSON(model.ErrUserNotFound.HTTPStatus(), model.ApiErrorResponse(model.ErrUserNotFound.Code, model.ErrUserNotFound.Message, model.ErrUserNotFound))
+			c.JSON(response.ErrUserNotFound.HTTPStatus(), response.ApiErrorResponse(response.ErrUserNotFound.Code, response.ErrUserNotFound.Message, response.ErrUserNotFound))
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) UpdatePassword(c *gin.Context) {
-	userID := c.GetInt64(common.CtxUserIDKey)
+	userID := c.GetInt64(auth.CtxUserIDKey)
 
 	var req UpdatePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	err := ctl.service.UpdatePassword(userID, req.OldPassword, req.NewPassword)
+	err := ctl.service.UpdatePassword(c.Request.Context(), userID, req.OldPassword, req.NewPassword)
 	if err != nil {
 		switch err {
 		case ErrPasswordMismatch:
-			c.JSON(model.ErrPasswordMismatch.HTTPStatus(), model.ApiErrorResponse(model.ErrPasswordMismatch.Code, model.ErrPasswordMismatch.Message, model.ErrPasswordMismatch))
+			c.JSON(response.ErrPasswordMismatch.HTTPStatus(), response.ApiErrorResponse(response.ErrPasswordMismatch.Code, response.ErrPasswordMismatch.Message, response.ErrPasswordMismatch))
 		case ErrSamePassword:
-			c.JSON(http.StatusBadRequest, model.ApiErrorResponse(400010, "same password", nil))
+			c.JSON(http.StatusBadRequest, response.ApiErrorResponse(400010, "same password", nil))
 		case ErrPasswordLength, ErrPasswordChars, ErrPasswordNeedLetter, ErrPasswordNeedDigit:
-			c.JSON(model.ErrPasswordLength.HTTPStatus(), model.ApiErrorResponse(model.ErrPasswordLength.Code, model.ErrPasswordLength.Message, model.ErrPasswordLength))
+			c.JSON(response.ErrPasswordLength.HTTPStatus(), response.ApiErrorResponse(response.ErrPasswordLength.Code, response.ErrPasswordLength.Message, response.ErrPasswordLength))
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) DeleteUser(c *gin.Context) {
 	// 验证管理员权限：操作者必须为管理员，由 service.DeleteUser 内部校验
-	operatorID := c.GetInt64(common.CtxUserIDKey)
+	operatorID := c.GetInt64(auth.CtxUserIDKey)
 
 	var req DeleteUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	err := ctl.service.DeleteUser(operatorID, req.UserID)
+	err := ctl.service.DeleteUser(c.Request.Context(), operatorID, req.UserID)
 	if err != nil {
 		switch err {
 		case ErrForbidden:
-			c.JSON(model.ErrForbidden.HTTPStatus(), model.ApiErrorResponse(model.ErrForbidden.Code, model.ErrForbidden.Message, model.ErrForbidden))
+			c.JSON(response.ErrForbidden.HTTPStatus(), response.ApiErrorResponse(response.ErrForbidden.Code, response.ErrForbidden.Message, response.ErrForbidden))
 		case ErrUserNotFound:
-			c.JSON(model.ErrUserNotFound.HTTPStatus(), model.ApiErrorResponse(model.ErrUserNotFound.Code, model.ErrUserNotFound.Message, model.ErrUserNotFound))
+			c.JSON(response.ErrUserNotFound.HTTPStatus(), response.ApiErrorResponse(response.ErrUserNotFound.Code, response.ErrUserNotFound.Message, response.ErrUserNotFound))
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) RefreshToken(c *gin.Context) {
@@ -346,14 +305,14 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 	}
 
 	if refreshTokenStr == "" {
-		appErr := model.ErrInvalidParams.WithDetail("缺少 refresh token")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("缺少 refresh token")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(refreshTokenStr)
+	claims, err := auth.JwtAuth.ParseAndVerifyRefreshToken(refreshTokenStr)
 	if err != nil {
-		c.JSON(model.ErrRefreshTokenInvalid.HTTPStatus(), model.ApiErrorResponse(model.ErrRefreshTokenInvalid.Code, model.ErrRefreshTokenInvalid.Message, model.ErrRefreshTokenInvalid))
+		c.JSON(response.ErrRefreshTokenInvalid.HTTPStatus(), response.ApiErrorResponse(response.ErrRefreshTokenInvalid.Code, response.ErrRefreshTokenInvalid.Message, response.ErrRefreshTokenInvalid))
 		return
 	}
 
@@ -361,101 +320,101 @@ func (ctl *Controller) RefreshToken(c *gin.Context) {
 	if claims.JTI != "" {
 		ttl := time.Until(claims.ExpiresAt.Time)
 		if ttl > 0 {
-			common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
+			auth.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 		}
 	}
 
-	accessToken, err := common.JwtAuth.GenerateAccessToken(claims.UserID)
+	accessToken, err := auth.JwtAuth.GenerateAccessToken(claims.UserID)
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 
-	refreshToken, err := common.JwtAuth.GenerateRefreshToken(claims.UserID)
+	refreshToken, err := auth.JwtAuth.GenerateRefreshToken(claims.UserID)
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 
 	ctl.setTokenCookies(c, accessToken, refreshToken)
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) Logout(c *gin.Context) {
 	// 吊销 access token
 	if tokenStr, err := c.Cookie(accessTokenCookie); err == nil && tokenStr != "" {
-		if claims, err := common.JwtAuth.ParseAndVerifyAccessToken(tokenStr); err == nil && claims.JTI != "" {
+		if claims, err := auth.JwtAuth.ParseAndVerifyAccessToken(tokenStr); err == nil && claims.JTI != "" {
 			ttl := time.Until(claims.ExpiresAt.Time)
 			if ttl > 0 {
-				common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
+				auth.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 			}
 		}
 	}
 
 	// 吊销 refresh token
 	if tokenStr, err := c.Cookie(refreshTokenCookie); err == nil && tokenStr != "" {
-		if claims, err := common.JwtAuth.ParseAndVerifyRefreshToken(tokenStr); err == nil && claims.JTI != "" {
+		if claims, err := auth.JwtAuth.ParseAndVerifyRefreshToken(tokenStr); err == nil && claims.JTI != "" {
 			ttl := time.Until(claims.ExpiresAt.Time)
 			if ttl > 0 {
-				common.BlacklistToken(ctl.rdb, claims.JTI, ttl)
+				auth.BlacklistToken(ctl.rdb, claims.JTI, ttl)
 			}
 		}
 	}
 
 	ctl.clearTokenCookies(c)
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) SendCode(c *gin.Context) {
 	var req SendCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	err := ctl.service.SendVerificationCode(req.Email)
+	err := ctl.service.SendVerificationCode(c.Request.Context(), req.Email)
 	if err != nil {
 		switch err {
 		case ErrEmailFormat, ErrEmailTooLong:
-			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
+			c.JSON(response.ErrEmailFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailFormat.Code, response.ErrEmailFormat.Message, response.ErrEmailFormat))
 		case ErrResendTooFrequent:
-			c.JSON(model.ErrResendTooFrequent.HTTPStatus(), model.ApiErrorResponse(model.ErrResendTooFrequent.Code, model.ErrResendTooFrequent.Message, model.ErrResendTooFrequent))
+			c.JSON(response.ErrResendTooFrequent.HTTPStatus(), response.ApiErrorResponse(response.ErrResendTooFrequent.Code, response.ErrResendTooFrequent.Message, response.ErrResendTooFrequent))
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }
 
 func (ctl *Controller) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("请求参数格式错误")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("请求参数格式错误")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
-	err := ctl.service.ResetPassword(req.Email, req.Code, req.NewPassword)
+	err := ctl.service.ResetPassword(c.Request.Context(), req.Email, req.Code, req.NewPassword)
 	if err != nil {
 		switch err {
 		case ErrEmailFormat, ErrEmailTooLong:
-			c.JSON(model.ErrEmailFormat.HTTPStatus(), model.ApiErrorResponse(model.ErrEmailFormat.Code, model.ErrEmailFormat.Message, model.ErrEmailFormat))
+			c.JSON(response.ErrEmailFormat.HTTPStatus(), response.ApiErrorResponse(response.ErrEmailFormat.Code, response.ErrEmailFormat.Message, response.ErrEmailFormat))
 		case ErrPasswordLength, ErrPasswordChars, ErrPasswordNeedLetter, ErrPasswordNeedDigit:
-			c.JSON(model.ErrPasswordLength.HTTPStatus(), model.ApiErrorResponse(model.ErrPasswordLength.Code, model.ErrPasswordLength.Message, model.ErrPasswordLength))
+			c.JSON(response.ErrPasswordLength.HTTPStatus(), response.ApiErrorResponse(response.ErrPasswordLength.Code, response.ErrPasswordLength.Message, response.ErrPasswordLength))
 		case ErrCodeExpired:
-			c.JSON(model.ErrCodeExpired.HTTPStatus(), model.ApiErrorResponse(model.ErrCodeExpired.Code, model.ErrCodeExpired.Message, model.ErrCodeExpired))
+			c.JSON(response.ErrCodeExpired.HTTPStatus(), response.ApiErrorResponse(response.ErrCodeExpired.Code, response.ErrCodeExpired.Message, response.ErrCodeExpired))
 		case ErrCodeMismatch:
-			c.JSON(model.ErrCodeMismatch.HTTPStatus(), model.ApiErrorResponse(model.ErrCodeMismatch.Code, model.ErrCodeMismatch.Message, model.ErrCodeMismatch))
+			c.JSON(response.ErrCodeMismatch.HTTPStatus(), response.ApiErrorResponse(response.ErrCodeMismatch.Code, response.ErrCodeMismatch.Message, response.ErrCodeMismatch))
 		case ErrUserNotFound:
-			c.JSON(model.ErrUserNotFound.HTTPStatus(), model.ApiErrorResponse(model.ErrUserNotFound.Code, model.ErrUserNotFound.Message, model.ErrUserNotFound))
+			c.JSON(response.ErrUserNotFound.HTTPStatus(), response.ApiErrorResponse(response.ErrUserNotFound.Code, response.ErrUserNotFound.Message, response.ErrUserNotFound))
 		default:
-			c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(nil))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(nil))
 }

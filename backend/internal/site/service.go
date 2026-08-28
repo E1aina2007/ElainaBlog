@@ -1,24 +1,25 @@
 package site
 
 import (
-	"ElainaBlog/config"
-	"ElainaBlog/pkg/rdb"
+	"ElainaBlog/internal/config"
+	cache "ElainaBlog/internal/middleware/redis"
 	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	goredis "github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
 type Service struct {
-	repo Repository
-	rdb  rdb.RedisClient
+	repo *Repository
+	rdb  *goredis.Client
 	db   *gorm.DB
 }
 
-func NewService(repo Repository, redis rdb.RedisClient, gormDB *gorm.DB) *Service {
+func NewService(repo *Repository, redis *goredis.Client, gormDB *gorm.DB) *Service {
 	return &Service{repo: repo, rdb: redis, db: gormDB}
 }
 
@@ -27,16 +28,15 @@ var (
 )
 
 // GetDashboardStats 获取仪表盘统计数据
-func (s *Service) GetDashboardStats() (*DashboardStats, error) {
+func (s *Service) GetDashboardStats(ctx context.Context) (*DashboardStats, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	stats, err := s.repo.GetDashboardStats()
+	stats, err := s.repo.GetDashboardStats(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.Background()
 	today := time.Now().Format("2006-01-02")
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
@@ -57,8 +57,7 @@ func (s *Service) GetDashboardStats() (*DashboardStats, error) {
 }
 
 // RecordVisit 记录一次页面访问（PV+UV）
-func (s *Service) RecordVisit(clientIP string) {
-	ctx := context.Background()
+func (s *Service) RecordVisit(ctx context.Context, clientIP string) {
 	today := time.Now().Format("2006-01-02")
 
 	pvKey := "pv:" + today
@@ -71,15 +70,15 @@ func (s *Service) RecordVisit(clientIP string) {
 }
 
 // GetAuthorStats 获取作者页统计数据
-func (s *Service) GetAuthorStats() (*AuthorStats, error) {
+func (s *Service) GetAuthorStats(ctx context.Context) (*AuthorStats, error) {
 	if s == nil || s.repo == nil {
 		return nil, ErrDBNotInitialized
 	}
-	return s.repo.GetAuthorStats()
+	return s.repo.GetAuthorStats(ctx)
 }
 
 // ExportDatabaseBackup 通过 GORM 导出数据库备份
-func (s *Service) ExportDatabaseBackup() ([]byte, error) {
+func (s *Service) ExportDatabaseBackup(ctx context.Context) ([]byte, error) {
 	if s == nil || s.db == nil {
 		return nil, ErrDBNotInitialized
 	}
@@ -93,7 +92,7 @@ func (s *Service) ExportDatabaseBackup() ([]byte, error) {
 	out.WriteString("SET FOREIGN_KEY_CHECKS=0;\n\n")
 
 	// 获取所有表名
-	rows, err := s.db.Raw("SHOW TABLES").Rows()
+	rows, err := s.db.WithContext(ctx).Raw("SHOW TABLES").Rows()
 	if err != nil {
 		return nil, fmt.Errorf("获取表列表失败: %w", err)
 	}
@@ -111,7 +110,7 @@ func (s *Service) ExportDatabaseBackup() ([]byte, error) {
 	for _, table := range tables {
 		// 获取建表 DDL
 		var tableName, ddl string
-		if err := s.db.Raw(fmt.Sprintf("SHOW CREATE TABLE `%s`", table)).Row().Scan(&tableName, &ddl); err != nil {
+		if err := s.db.WithContext(ctx).Raw(fmt.Sprintf("SHOW CREATE TABLE `%s`", table)).Row().Scan(&tableName, &ddl); err != nil {
 			return nil, fmt.Errorf("获取表 %s 结构失败: %w", table, err)
 		}
 		out.WriteString(fmt.Sprintf("-- Table: %s\n", table))
@@ -119,7 +118,7 @@ func (s *Service) ExportDatabaseBackup() ([]byte, error) {
 		out.WriteString(ddl + ";\n\n")
 
 		// 读取表数据
-		dataRows, err := s.db.Raw(fmt.Sprintf("SELECT * FROM `%s`", table)).Rows()
+		dataRows, err := s.db.WithContext(ctx).Raw(fmt.Sprintf("SELECT * FROM `%s`", table)).Rows()
 		if err != nil {
 			return nil, fmt.Errorf("读取表 %s 数据失败: %w", table, err)
 		}
@@ -169,8 +168,8 @@ func (s *Service) ExportDatabaseBackup() ([]byte, error) {
 }
 
 // GetBannedIPs 获取被封禁的IP列表
-func (s *Service) GetBannedIPs() []string {
-	ips, err := rdb.GetBannedIPs(s.rdb)
+func (s *Service) GetBannedIPs(ctx context.Context) []string {
+	ips, err := cache.GetBannedIPs(s.rdb)
 	if err != nil {
 		return []string{}
 	}
@@ -178,6 +177,6 @@ func (s *Service) GetBannedIPs() []string {
 }
 
 // UnbanIP 解封IP
-func (s *Service) UnbanIP(ip string) error {
-	return rdb.UnbanIP(s.rdb, ip)
+func (s *Service) UnbanIP(ctx context.Context, ip string) error {
+	return cache.UnbanIP(s.rdb, ip)
 }

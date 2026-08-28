@@ -1,37 +1,33 @@
 package siteconfig
 
 import (
+	"context"
+
 	"gorm.io/gorm"
 )
 
-type SiteConfig struct {
-	ID      int64  `json:"id"`
-	KeyName string `json:"key_name"`
-	Value   string `json:"value"`
-}
-
-// MySQLRepository 实现 siteconfig.Repository 接口，使用 GORM 存储。
-type MySQLRepository struct {
+// Repository 使用 GORM 存储站点配置数据。
+type Repository struct {
 	db *gorm.DB
 }
 
 // NewRepository 创建站点配置仓储实例。
-func NewRepository(db *gorm.DB) *MySQLRepository {
-	return &MySQLRepository{db: db}
+func NewRepository(db *gorm.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *MySQLRepository) GetAll() ([]*SiteConfig, error) {
+func (r *Repository) GetAll(ctx context.Context) ([]*SiteConfig, error) {
 	var configs []*SiteConfig
-	err := r.db.Table("site_config").
+	err := r.db.WithContext(ctx).Table("site_config").
 		Select("id", "key_name", "value").
 		Where("is_deleted = 0").
 		Scan(&configs).Error
 	return configs, err
 }
 
-func (r *MySQLRepository) GetByKey(key string) (*SiteConfig, error) {
+func (r *Repository) GetByKey(ctx context.Context, key string) (*SiteConfig, error) {
 	var c SiteConfig
-	err := r.db.Table("site_config").
+	err := r.db.WithContext(ctx).Table("site_config").
 		Select("id", "key_name", "value").
 		Where("key_name = ? AND is_deleted = 0", key).
 		First(&c).Error
@@ -41,15 +37,15 @@ func (r *MySQLRepository) GetByKey(key string) (*SiteConfig, error) {
 	return &c, nil
 }
 
-func (r *MySQLRepository) Upsert(key, value string) error {
-	return r.db.Exec(`
+func (r *Repository) Upsert(ctx context.Context, key, value string) error {
+	return r.db.WithContext(ctx).Exec(`
 		INSERT INTO site_config (key_name, value) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = CURRENT_TIMESTAMP
 	`, key, value).Error
 }
 
-func (r *MySQLRepository) DeleteByKey(key string) error {
-	return r.db.Table("site_config").
+func (r *Repository) DeleteByKey(ctx context.Context, key string) error {
+	return r.db.WithContext(ctx).Table("site_config").
 		Where("key_name = ? AND is_deleted = 0", key).
 		Update("is_deleted", 1).Error
 }

@@ -1,9 +1,10 @@
 package upload
 
 import (
-	"ElainaBlog/internal/common"
-	"ElainaBlog/internal/common/model"
-	"ElainaBlog/pkg/util"
+	"ElainaBlog/internal/auth"
+	"ElainaBlog/internal/response"
+	"ElainaBlog/internal/mail"
+	"context"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -23,7 +24,7 @@ type Controller struct {
 }
 
 type UserService interface {
-	GetUserEmailByID(id int64) (string, error)
+	GetUserEmailByID(ctx context.Context, id int64) (string, error)
 }
 
 func NewController(storage Storage, maxSizeMB int, avatarStorage Storage, avatarMaxSizeMB int, userService UserService) *Controller {
@@ -69,30 +70,30 @@ func (ctl *Controller) validateMIME(file io.ReadSeeker) (string, error) {
 func (ctl *Controller) Upload(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("缺少上传文件")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("缺少上传文件")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 校验文件大小
 	if fileHeader.Size > ctl.maxSize {
-		appErr := model.ErrInvalidParams.WithDetail("文件大小超出限制")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("文件大小超出限制")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 校验扩展名
 	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	if !ctl.allowExts[ext] {
-		appErr := model.ErrInvalidParams.WithDetail("不支持的文件类型")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("不支持的文件类型")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 打开文件
 	file, err := fileHeader.Open()
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 	defer file.Close()
@@ -100,64 +101,64 @@ func (ctl *Controller) Upload(c *gin.Context) {
 	// 校验 MIME 类型（魔数检测）
 	mimeType, err := ctl.validateMIME(file)
 	if err != nil || !ctl.allowMIMEs[mimeType] {
-		appErr := model.ErrInvalidParams.WithDetail("不支持的文件内容类型")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("不支持的文件内容类型")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 保存
 	url, err := ctl.storage.Save(file, fileHeader.Filename)
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"url": url}))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{"url": url}))
 }
 
 func (ctl *Controller) UploadAvatar(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
-		appErr := model.ErrInvalidParams.WithDetail("缺少上传文件")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("缺少上传文件")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 校验文件大小
 	if fileHeader.Size > ctl.avatarMaxSize {
-		appErr := model.ErrInvalidParams.WithDetail("头像文件大小超出限制")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("头像文件大小超出限制")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 校验扩展名
 	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
 	if !ctl.allowExts[ext] {
-		appErr := model.ErrInvalidParams.WithDetail("不支持的文件类型")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("不支持的文件类型")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 从 JWT 中获取用户 ID
-	userID, exists := c.Get(common.CtxUserIDKey)
+	userID, exists := c.Get(auth.CtxUserIDKey)
 	if !exists {
-		appErr := model.ErrUnauthorized.WithDetail("未登录")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrUnauthorized.WithDetail("未登录")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 获取用户邮箱
-	email, err := ctl.userService.GetUserEmailByID(userID.(int64))
+	email, err := ctl.userService.GetUserEmailByID(c.Request.Context(), userID.(int64))
 	if err != nil {
-		appErr := model.ErrInternal.WithDetail("获取用户信息失败")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInternal.WithDetail("获取用户信息失败")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 打开文件
 	file, err := fileHeader.Open()
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 	defer file.Close()
@@ -165,20 +166,20 @@ func (ctl *Controller) UploadAvatar(c *gin.Context) {
 	// 校验 MIME 类型（魔数检测）
 	mimeType, err := ctl.validateMIME(file)
 	if err != nil || !ctl.allowMIMEs[mimeType] {
-		appErr := model.ErrInvalidParams.WithDetail("不支持的文件内容类型")
-		c.JSON(appErr.HTTPStatus(), model.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		appErr := response.ErrInvalidParams.WithDetail("不支持的文件内容类型")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return
 	}
 
 	// 构造自定义文件名：邮箱哈希（同一邮箱始终生成相同哈希，新头像会覆盖旧头像）
-	customName := util.EmailToAvatarHash(email)
+	customName := mail.EmailToAvatarHash(email)
 
 	// 保存到头像专用目录
 	url, err := ctl.avatarStorage.SaveAs(file, fileHeader.Filename, customName)
 	if err != nil {
-		c.JSON(model.ErrInternal.HTTPStatus(), model.ApiErrorResponse(model.ErrInternal.Code, model.ErrInternal.Message, nil))
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 
-	c.JSON(http.StatusOK, model.ApiSuccessResponse(gin.H{"url": url}))
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{"url": url}))
 }

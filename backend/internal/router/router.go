@@ -2,34 +2,68 @@
 package router
 
 import (
-	"ElainaBlog/config"
-	"ElainaBlog/config/db"
 	"ElainaBlog/internal/article"
 	"ElainaBlog/internal/authorprofile"
 	"ElainaBlog/internal/category"
 	"ElainaBlog/internal/comment"
-	"ElainaBlog/internal/common"
+	"ElainaBlog/internal/auth"
+	"ElainaBlog/internal/config"
 	"ElainaBlog/internal/friendlink"
 	"ElainaBlog/internal/message"
-	"ElainaBlog/internal/middleware"
+	"ElainaBlog/internal/middleware/jwt"
+	"ElainaBlog/internal/middleware/ratelimit"
+	"ElainaBlog/internal/middleware/uploadlimit"
 	"ElainaBlog/internal/notification"
 	"ElainaBlog/internal/site"
 	"ElainaBlog/internal/siteconfig"
 	"ElainaBlog/internal/upload"
 	"ElainaBlog/internal/user"
-	"ElainaBlog/pkg/rdb"
-	"ElainaBlog/pkg/util"
 	"net/http"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
-func RouterInit(r *gin.Engine) {
+// Options 收纳路由装配所需的依赖与配置
+type Options struct {
+	Config config.Config
+	DB     *gorm.DB
+	Redis  *redis.Client
+	Jwt    auth.TokenManager
+}
+
+// New 创建并返回完整的 gin.Engine（参照 GoFeed 路由层）
+func New(opts Options) *gin.Engine {
+	// 设置 gin 运行模式：开发模式 Debug，生产模式 Release
+	if opts.Config.Dev {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.New()
+	r.Use(gin.Recovery())
+	if opts.Config.Dev {
+		r.Use(gin.Logger())
+	}
+
+	// CORS 配置（前端开发地址固定为 localhost:5173）
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	// 获取依赖实例
-	gormDB := db.DB
-	redis := rdb.DefaultClient
-	tokenMgr := common.JwtAuth
+	gormDB := opts.DB
+	redis := opts.Redis
+	tokenMgr := opts.Jwt
 
 	// 创建仓储层
 	userRepo := user.NewRepository(gormDB)
@@ -51,20 +85,14 @@ func RouterInit(r *gin.Engine) {
 	siteService := site.NewService(siteRepo, redis, gormDB)
 	friendLinkService := friendlink.NewService(friendLinkRepo, redis)
 
-	// 创建中间件
-	auth := middleware.NewJwtAuthMiddleware(tokenMgr)
-	adminAuth := middleware.NewAdminAuthMiddleware(userService)
-	rateLimiter := middleware.NewRateLimitMiddleware(redis)
-	uploadLimiter := middleware.NewUploadLimitMiddleware(redis)
-
 	// 创建控制器
 	userController := user.NewController(userService, redis)
 	categoryController := category.NewController(categoryService)
 	articleController := article.NewController(articleService, userService)
 	commentController := comment.NewController(commentService, userService)
-	uploadStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.Path)
-	avatarStorage := upload.NewLocalStorage(config.GlobalConfig.Upload.AvatarPath)
-	uploadController := upload.NewController(uploadStorage, config.GlobalConfig.Upload.Size, avatarStorage, config.GlobalConfig.Upload.AvatarSize, userService)
+	uploadStorage := upload.NewLocalStorage(opts.Config.Upload.Path)
+	avatarStorage := upload.NewLocalStorage(opts.Config.Upload.AvatarPath)
+	uploadController := upload.NewController(uploadStorage, opts.Config.Upload.Size, avatarStorage, opts.Config.Upload.AvatarSize, userService)
 	siteController := site.NewController(siteService, gormDB, redis)
 	messageController := message.NewController(messageService, userService)
 	siteConfigController := siteconfig.NewController(siteconfig.NewService(siteconfig.NewRepository(gormDB), redis))
@@ -74,17 +102,17 @@ func RouterInit(r *gin.Engine) {
 
 	// 无需鉴权
 	r.GET("/health", health)
-	r.Static("/uploads", config.GlobalConfig.Upload.Path)
+	r.Static("/uploads", opts.Config.Upload.Path)
 
 	// api路由组
 	apiGroup := r.Group("/api/ui")
 	{
 		// 公开接口
-		apiGroup.POST("/login", rateLimiter.Limit("login", 10, time.Minute), userController.Login)
-		apiGroup.POST("/register", rateLimiter.Limit("register", 5, time.Minute), userController.Register)
-		apiGroup.POST("/refresh", rateLimiter.Limit("refresh", 30, time.Minute), userController.RefreshToken)
-		apiGroup.POST("/send-code", rateLimiter.Limit("send-code", 5, time.Minute), userController.SendCode)
-		apiGroup.POST("/reset-password", rateLimiter.Limit("reset-password", 5, time.Minute), userController.ResetPassword)
+		apiGroup.POST("/login", ratelimit.Limit(redis, "login", 10, time.Minute), userController.Login)
+		apiGroup.POST("/register", ratelimit.Limit(redis, "register", 5, time.Minute), userController.Register)
+		apiGroup.POST("/refresh", ratelimit.Limit(redis, "refresh", 30, time.Minute), userController.RefreshToken)
+		apiGroup.POST("/send-code", ratelimit.Limit(redis, "send-code", 5, time.Minute), userController.SendCode)
+		apiGroup.POST("/reset-password", ratelimit.Limit(redis, "reset-password", 5, time.Minute), userController.ResetPassword)
 		apiGroup.GET("/category/list", categoryController.GetList)
 		apiGroup.GET("/article/list", articleController.GetList)
 		apiGroup.GET("/article/search", articleController.Search)
@@ -96,17 +124,16 @@ func RouterInit(r *gin.Engine) {
 		apiGroup.GET("/author/profile", authorProfileController.Get)
 		apiGroup.GET("/message/list", messageController.GetList)
 		apiGroup.GET("/friend-link/list", friendLinkController.GetList)
-		apiGroup.GET("/favicon", rateLimiter.Limit("favicon", 30, time.Minute), util.FaviconProxy)
 		apiGroup.POST("/visit", siteController.RecordVisit)
 
 		// 需要登录的接口
-		authGroup := apiGroup.Group("", auth.RequireAuth())
+		authGroup := apiGroup.Group("", jwt.RequireAuth(tokenMgr))
 		{
 			authGroup.GET("/user/profile", userController.GetProfile)
 			authGroup.POST("/user/profile", userController.UpdateProfile)
 			authGroup.POST("/user/password", userController.UpdatePassword)
 			authGroup.POST("/user/delete", userController.DeleteUser)
-			authGroup.POST("/upload", uploadLimiter.Limit(config.GlobalConfig.Upload.RateLimit, time.Duration(config.GlobalConfig.Upload.RateWindow)*time.Second), uploadController.Upload)
+			authGroup.POST("/upload", uploadlimit.Limit(redis, opts.Config.Upload.RateLimit, time.Duration(opts.Config.Upload.RateWindow)*time.Second), uploadController.Upload)
 			authGroup.POST("/upload/avatar", uploadController.UploadAvatar)
 			authGroup.POST("/article/create", articleController.CreateArticle)
 			authGroup.POST("/article/update", articleController.UpdateArticle)
@@ -126,7 +153,7 @@ func RouterInit(r *gin.Engine) {
 		}
 
 		// 需要管理员权限的接口
-		adminGroup := apiGroup.Group("", auth.RequireAuth(), adminAuth.RequireAdmin())
+		adminGroup := apiGroup.Group("", jwt.RequireAuth(tokenMgr), jwt.RequireAdmin(userService))
 		{
 			adminGroup.GET("/dashboard/stats", siteController.GetDashboardStats)
 			adminGroup.GET("/article/admin-list", articleController.GetAdminList)
@@ -153,6 +180,8 @@ func RouterInit(r *gin.Engine) {
 			adminGroup.POST("/friend-link/delete", friendLinkController.Delete)
 		}
 	}
+
+	return r
 }
 
 // health 健康检查接口
