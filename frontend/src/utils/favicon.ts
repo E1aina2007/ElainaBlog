@@ -12,14 +12,13 @@ export function extractDomain(url: string): string {
 
 /**
  * 获取所有候选 favicon URL（按优先级排列）
- * 顺序：后端代理(直连+Referer) → DuckDuckGo → Google
+ * 顺序：站点直接图标 → DuckDuckGo → Google
  */
 export function getFaviconFallbacks(url: string): string[] {
   const domain = extractDomain(url)
   if (!domain) return []
 
   return [
-    `/api/ui/favicon?domain=${domain}`,
     `https://${domain}/favicon.ico`,
     `https://${domain}/apple-touch-icon.png`,
     `https://icons.duckduckgo.com/ip3/${domain}.ico`,
