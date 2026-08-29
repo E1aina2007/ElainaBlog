@@ -3,8 +3,6 @@ package ratelimit
 
 import (
 	"ElainaBlog/internal/response"
-	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -12,26 +10,30 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// incrWithTTL 原子执行 INCR 与首次 EXPIRE：
+// 两者分开调用时，若 INCR 成功而 EXPIRE 失败（Redis 抖动），
+// key 将永不过期，对应 IP 会被永久限流
+var incrWithTTL = redis.NewScript(`
+local v = redis.call('INCR', KEYS[1])
+if v == 1 then
+	redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return v
+`)
+
 // Limit 基于客户端 IP 的固定窗口速率限制中间件。
 // keyPrefix: Redis 键前缀（用于区分不同接口）
 // maxRequests: 时间窗口内最大请求数
 // window: 时间窗口大小
-func Limit(redis *redis.Client, keyPrefix string, maxRequests int, window time.Duration) gin.HandlerFunc {
+func Limit(rdb *redis.Client, keyPrefix string, maxRequests int, window time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		clientIP := c.ClientIP()
-		key := fmt.Sprintf("rate_limit:%s:%s", keyPrefix, clientIP)
+		key := "rate_limit:" + keyPrefix + ":" + c.ClientIP()
 
-		ctx := context.Background()
-		count, err := redis.Incr(ctx, key).Result()
+		count, err := incrWithTTL.Run(c.Request.Context(), rdb, []string{key}, int64(window.Seconds())).Int64()
 		if err != nil {
 			// Redis 故障时放行，不影响正常请求
 			c.Next()
 			return
-		}
-
-		// 首次请求时设置过期时间
-		if count == 1 {
-			redis.Expire(ctx, key, window)
 		}
 
 		if count > int64(maxRequests) {
