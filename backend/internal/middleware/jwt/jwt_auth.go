@@ -38,7 +38,7 @@ func RequireAuth(tokenMgr authsvc.TokenManager) gin.HandlerFunc {
 
 		claims, err := tokenMgr.ParseAndVerifyAccessToken(tokenString)
 		if err != nil {
-			c.JSON(response.ErrTokenInvalid.HTTPStatus(), response.ApiErrorResponse(response.ErrTokenInvalid.Code, response.ErrTokenInvalid.Message, response.ErrTokenInvalid))
+			c.JSON(response.ErrTokenInvalid.HTTPStatus(), response.ApiErrorResponse(response.ErrTokenInvalid.Code, response.ErrTokenInvalid.Message, nil))
 			c.Abort()
 			return
 		}
