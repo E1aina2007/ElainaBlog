@@ -4,9 +4,28 @@ import request from '@/api/request'
 import toast from '@/utils/toast'
 
 const backupLoading = ref(false)
-const bannedIPs = ref<string[]>([])
+const bannedIPs = ref<BannedIPInfo[]>([])
 const banInput = ref('')
 const banning = ref(false)
+
+// 后端 /security/banned-ips 返回的封禁条目；ttl_seconds 为 -1 表示永久封禁
+interface BannedIPInfo {
+  ip: string
+  banned_at: number
+  ttl_seconds: number
+}
+
+const formatTime = (unix: number): string =>
+  unix > 0 ? new Date(unix * 1000).toLocaleString('zh-CN', { hour12: false }) : '--'
+
+const formatTTL = (ttl: number): string => {
+  if (ttl < 0) return '永久'
+  const minutes = Math.ceil(ttl / 60)
+  if (minutes < 60) return `${minutes} 分钟`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest > 0 ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`
+}
 
 // 手动封禁 IP（永久封禁，可解封）
 const handleBan = async () => {
@@ -53,7 +72,7 @@ const handleBackup = async () => {
 // 获取被封禁的IP列表
 const fetchBannedIPs = async () => {
   try {
-    const data = await request.get('/security/banned-ips') as string[]
+    const data = await request.get('/security/banned-ips') as BannedIPInfo[]
     bannedIPs.value = data || []
   } catch {
     console.log('封禁功能需要后端支持')
@@ -66,7 +85,7 @@ const handleUnban = async (ip: string) => {
   if (!confirm(`确定要解封 IP ${ip} 吗？`)) return
   try {
     await request.post('/security/unban', { ip })
-    bannedIPs.value = bannedIPs.value.filter(i => i !== ip)
+    bannedIPs.value = bannedIPs.value.filter(item => item.ip !== ip)
     toast.success('解封成功')
   } catch {
     toast.error('解封失败')
@@ -166,12 +185,12 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ip in bannedIPs" :key="ip">
-              <td class="ip-address">{{ ip }}</td>
-              <td>--</td>
-              <td>--</td>
+            <tr v-for="item in bannedIPs" :key="item.ip">
+              <td class="ip-address">{{ item.ip }}</td>
+              <td>{{ formatTime(item.banned_at) }}</td>
+              <td>{{ formatTTL(item.ttl_seconds) }}</td>
               <td>
-                <button class="btn-text" @click="handleUnban(ip)">解封</button>
+                <button class="btn-text" @click="handleUnban(item.ip)">解封</button>
               </td>
             </tr>
           </tbody>

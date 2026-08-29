@@ -167,11 +167,11 @@ func (s *Service) ExportDatabaseBackup(ctx context.Context) ([]byte, error) {
 	return []byte(out.String()), nil
 }
 
-// GetBannedIPs 获取被封禁的IP列表
-func (s *Service) GetBannedIPs(ctx context.Context) []string {
+// GetBannedIPs 获取被封禁的IP列表（含封禁时间与剩余时长）
+func (s *Service) GetBannedIPs(ctx context.Context) []cache.BannedIP {
 	ips, err := cache.GetBannedIPs(s.rdb)
 	if err != nil {
-		return []string{}
+		return []cache.BannedIP{}
 	}
 	return ips
 }
