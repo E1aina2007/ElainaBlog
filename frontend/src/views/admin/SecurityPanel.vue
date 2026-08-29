@@ -5,6 +5,25 @@ import toast from '@/utils/toast'
 
 const backupLoading = ref(false)
 const bannedIPs = ref<string[]>([])
+const banInput = ref('')
+const banning = ref(false)
+
+// 手动封禁 IP（永久封禁，可解封）
+const handleBan = async () => {
+  const ip = banInput.value.trim()
+  if (!ip) return
+  banning.value = true
+  try {
+    await request.post('/security/ban', { ip })
+    toast.success('IP 已封禁')
+    banInput.value = ''
+    await fetchBannedIPs()
+  } catch {
+    toast.error('封禁失败，请检查 IP 格式')
+  } finally {
+    banning.value = false
+  }
+}
 
 // 一键备份
 const handleBackup = async () => {
@@ -25,7 +44,7 @@ const handleBackup = async () => {
     toast.success('备份成功！文件已下载')
   } catch (error) {
     console.error('备份失败:', error)
-    toast.error('备份功能需要后端支持，请先实现备份接口')
+    toast.error('备份失败，请稍后重试')
   } finally {
     backupLoading.value = false
   }
@@ -103,7 +122,7 @@ onMounted(() => {
         <h3>登录防爆破</h3>
         <p class="card-desc">
           系统会自动封禁多次登录失败的IP地址。
-          <br>默认规则：<strong>5次失败后封禁24小时</strong>
+          <br>默认规则：<strong>15 分钟内失败 10 次后封禁 1 小时</strong>，管理员可手动永久封禁
         </p>
         <div class="stats-row">
           <div class="stat">
@@ -115,7 +134,20 @@ onMounted(() => {
 
       <!-- 封禁IP列表 -->
       <div class="security-card full-width">
-        <h3>封禁IP列表</h3>
+        <div class="list-header">
+          <h3>封禁IP列表</h3>
+          <div class="ban-form">
+            <input
+              v-model="banInput"
+              class="ban-input"
+              placeholder="输入要封禁的 IP 地址"
+              @keyup.enter="handleBan"
+            />
+            <button class="btn-primary" :disabled="banning || !banInput.trim()" @click="handleBan">
+              {{ banning ? '封禁中...' : '封禁' }}
+            </button>
+          </div>
+        </div>
         <div v-if="bannedIPs.length === 0" class="empty-state">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -418,5 +450,31 @@ onMounted(() => {
   gap: 12px;
   font-size: 14px;
   color: #166534;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ban-form {
+  display: flex;
+  gap: 8px;
+}
+
+.ban-input {
+  width: 220px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.ban-input:focus {
+  border-color: #3b82f6;
 }
 </style>
