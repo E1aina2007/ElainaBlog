@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"runtime"
@@ -263,12 +264,30 @@ func (ctl *Controller) GetBannedIPs(c *gin.Context) {
 	c.JSON(http.StatusOK, response.ApiSuccessResponse(ips))
 }
 
+// BanIP 封禁IP（管理员手动封禁，不自动过期，可解封）
+func (ctl *Controller) BanIP(c *gin.Context) {
+	var req struct {
+		IP string `json:"ip"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || net.ParseIP(req.IP) == nil {
+		appErr := response.ErrInvalidParams.WithDetail("无效的IP地址")
+		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		return
+	}
+
+	if err := ctl.service.BanIP(c.Request.Context(), req.IP); err != nil {
+		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
+		return
+	}
+	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{"message": "IP已封禁"}))
+}
+
 // UnbanIP 解封IP（管理员）
 func (ctl *Controller) UnbanIP(c *gin.Context) {
 	var req struct {
 		IP string `json:"ip"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.IP == "" {
+	if err := c.ShouldBindJSON(&req); err != nil || net.ParseIP(req.IP) == nil {
 		appErr := response.ErrInvalidParams.WithDetail("无效的IP地址")
 		c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		return

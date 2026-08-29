@@ -10,6 +10,7 @@ import (
 	"ElainaBlog/internal/config"
 	"ElainaBlog/internal/friendlink"
 	"ElainaBlog/internal/message"
+	"ElainaBlog/internal/middleware/ipban"
 	"ElainaBlog/internal/middleware/jwt"
 	"ElainaBlog/internal/middleware/ratelimit"
 	"ElainaBlog/internal/middleware/uploadlimit"
@@ -67,6 +68,9 @@ func New(opts Options) *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+
+	// IP 封禁检查：命中即拒绝，作用于全部 /api 路由
+	r.Use(ipban.Middleware(opts.Redis))
 
 	// 获取依赖实例
 	gormDB := opts.DB
@@ -178,6 +182,7 @@ func New(opts Options) *gin.Engine {
 			adminGroup.POST("/cache/clear", siteController.ClearCache)
 			adminGroup.GET("/backup/export", siteController.ExportBackup)
 			adminGroup.GET("/security/banned-ips", siteController.GetBannedIPs)
+			adminGroup.POST("/security/ban", siteController.BanIP)
 			adminGroup.POST("/security/unban", siteController.UnbanIP)
 			adminGroup.GET("/site-config/all", siteConfigController.GetAll)
 			adminGroup.POST("/site-config/update", siteConfigController.Upsert)

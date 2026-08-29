@@ -180,3 +180,8 @@ func (s *Service) GetBannedIPs(ctx context.Context) []string {
 func (s *Service) UnbanIP(ctx context.Context, ip string) error {
 	return cache.UnbanIP(s.rdb, ip)
 }
+
+// BanIP 封禁IP（管理员手动封禁，不自动过期，可随时解封）
+func (s *Service) BanIP(ctx context.Context, ip string) error {
+	return cache.BanIP(s.rdb, ip, 0)
+}
