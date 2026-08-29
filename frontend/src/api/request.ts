@@ -61,6 +61,12 @@ function getErrorMessage(error: any): string {
         return '网络错误，请检查网络连接'
     }
 
+    // 后端 error.detail 携带面向用户的中文详情（如 IP 封禁提示、权限说明），优先展示
+    const detail = data?.error?.detail
+    if (typeof detail === 'string' && detail) {
+        return detail
+    }
+
     // 根据后端错误码映射
     const code = data?.code
     if (code && errorCodeMap[code]) {
@@ -122,7 +128,12 @@ request.interceptors.response.use(
             return data.data
         }
         // 业务错误（HTTP 200 但 code !== 0）
-        const message = errorCodeMap[data.code] || data.message || '请求失败'
+        const detail = data?.error?.detail
+        const message =
+            (typeof detail === 'string' && detail) ||
+            errorCodeMap[data.code] ||
+            data.message ||
+            '请求失败'
         return Promise.reject(new Error(message))
     },
     async (error) => {
@@ -143,9 +154,10 @@ request.interceptors.response.use(
 
             // 如果已有刷新请求在进行中，排队等待
             if (refreshPromise) {
-                return new Promise<void>((resolve, reject) => {
+                return new Promise((resolve, reject) => {
                     pendingRequests.push(() => {
-                        request(originalRequest).then(() => resolve()).catch(reject)
+                        // 重试结果原样透传，调用方拿到的是拦截器处理后的真实数据
+                        request(originalRequest).then(resolve).catch(reject)
                     })
                 })
             }
