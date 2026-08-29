@@ -123,7 +123,7 @@ ElainaBlog/
 |------|-----------|---------|------|
 | 命名卷 | `mysql_data` | /var/lib/mysql | MySQL 数据持久化 |
 | 命名卷 | `redis_data` | /data | Redis 数据持久化 |
-| 命名卷 | `uploads` | /app/uploads | 上传文件持久化 |
+| 绑定挂载 | `backend/uploads/` | /app/uploads | 上传文件持久化 |
 | 命名卷 | `logs` | /app/log | 后端日志持久化 |
 | 绑定挂载 | `frontend/public/author/` | /usr/share/nginx/html/author | 作者头像与背景图 |
 | 绑定挂载 | `backend/configs/` | /app/config | 后端配置文件（yaml） |
