@@ -1,10 +1,13 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -123,6 +126,7 @@ func LoadConfig() error {
 	if err != nil {
 		return err
 	}
+	ensureJwtSecrets(&cfg)
 	GlobalConfig = &cfg
 	if cfg.Dev {
 		log.Println("开发模式")
@@ -130,6 +134,48 @@ func LoadConfig() error {
 		log.Println("生产模式")
 	}
 	return nil
+}
+
+// jwtPlaceholderSecrets 示例配置中的公开占位密钥，绝不能参与真实签发
+var jwtPlaceholderSecrets = map[string]struct{}{
+	"your-access-secret":  {},
+	"your-refresh-secret": {},
+}
+
+// ensureJwtSecrets 校验 JWT 密钥：空值或示例占位值时生成本次运行专用的随机密钥。
+// 临时密钥仅当前进程有效，重启后所有已签发 token 失效（单实例下即全员重新登录）；
+// 生产部署必须配置固定密钥。
+func ensureJwtSecrets(cfg *Config) {
+	fields := []struct {
+		name   string
+		secret *string
+	}{
+		{"access", &cfg.Auth.AccessTokenSecret},
+		{"refresh", &cfg.Auth.RefreshTokenSecret},
+	}
+	for _, f := range fields {
+		s := strings.TrimSpace(*f.secret)
+		if s != "" {
+			if _, isPlaceholder := jwtPlaceholderSecrets[s]; !isPlaceholder {
+				continue
+			}
+		}
+		generated, err := randomSecret()
+		if err != nil {
+			log.Fatalf("生成 JWT %s 临时密钥失败: %v", f.name, err)
+		}
+		*f.secret = generated
+		log.Printf("JWT %s 密钥未配置或为示例占位值，已生成本次运行专用的临时密钥；重启后所有登录态将失效，生产部署请配置固定密钥", f.name)
+	}
+}
+
+// randomSecret 生成 32 字节随机密钥的十六进制表示
+func randomSecret() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // Load 读取 yaml 配置文件，并用环境变量覆盖对应字段（环境变量优先）
