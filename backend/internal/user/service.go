@@ -7,6 +7,7 @@ import (
 	cache "ElainaBlog/internal/middleware/redis"
 	"ElainaBlog/internal/util/verifycode"
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"strings"
@@ -81,7 +82,8 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (int6
 		if err != nil {
 			return 0, ErrCodeExpired
 		}
-		if storedCode != code {
+		// 常数时间比对，避免时序侧信道
+		if subtle.ConstantTimeCompare([]byte(storedCode), []byte(code)) != 1 {
 			return 0, ErrCodeMismatch
 		}
 		_ = cache.DeleteVerificationCode(s.rdb, email)
@@ -445,7 +447,8 @@ func (s *Service) ResetPassword(ctx context.Context, email, code, newPassword st
 	if err != nil {
 		return ErrCodeExpired
 	}
-	if storedCode != code {
+	// 常数时间比对，避免时序侧信道
+	if subtle.ConstantTimeCompare([]byte(storedCode), []byte(code)) != 1 {
 		return ErrCodeMismatch
 	}
 
