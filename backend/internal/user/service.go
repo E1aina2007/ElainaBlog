@@ -19,10 +19,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserStore 用户数据的窄接口（消费者侧定义，参照 comment 包模式），
+// 便于 service 层单元测试时以假实现替换；*Repository 天然满足此接口
+type UserStore interface {
+	GetUserByUsername(ctx context.Context, username string) (*User, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	GetUserByID(ctx context.Context, id int64) (*User, error)
+	GetUserList(ctx context.Context) ([]*User, error)
+	CreateUser(ctx context.Context, user *User) (int64, error)
+	UpdateProfile(ctx context.Context, id int64, username, email, avatar string) error
+	UpdatePassword(ctx context.Context, id int64, newPassword string) error
+	DeleteUser(ctx context.Context, id int64) error
+}
+
 type Service struct {
-	repo     *Repository
-	rdb      *goredis.Client     // 可选，用于验证码存储
-	tokenMgr auth.TokenManager // 可选，用于 JWT 签发
+	repo     UserStore
+	rdb      *goredis.Client    // 可选，用于验证码存储
+	tokenMgr auth.TokenManager  // 可选，用于 JWT 签发
 }
 
 const (
@@ -30,7 +43,7 @@ const (
 	cacheTTLAdmin       = time.Hour
 )
 
-func NewService(repo *Repository, redis *goredis.Client, tokenMgr auth.TokenManager) *Service {
+func NewService(repo UserStore, redis *goredis.Client, tokenMgr auth.TokenManager) *Service {
 	return &Service{repo: repo, rdb: redis, tokenMgr: tokenMgr}
 }
 

@@ -12,8 +12,25 @@ type CommentDeleter interface {
 	DeleteCommentsByArticleID(ctx context.Context, articleID int64) error
 }
 
+// ArticleStore 文章数据的窄接口（消费者侧定义，参照 comment 包模式），
+// 便于 service 层单元测试时以假实现替换；*Repository 天然满足此接口
+type ArticleStore interface {
+	GetArticleByID(ctx context.Context, id int64) (*ArticleVO, error)
+	GetArticleByIDIncludeDraft(ctx context.Context, id int64) (*ArticleVO, error)
+	GetArticleList(ctx context.Context, categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error)
+	GetAdminArticleList(ctx context.Context, categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error)
+	GetUserArticleList(ctx context.Context, userID int64, categoryID *int64, sortBy string, page, pageSize int) ([]*ArticleVO, int, error)
+	SearchArticleList(ctx context.Context, keyword string, page, pageSize int) ([]*ArticleVO, int, error)
+	CreateArticle(ctx context.Context, userID int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) (int64, error)
+	UpdateArticle(ctx context.Context, id int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) error
+	ToggleArticleTop(ctx context.Context, id int64, isTop bool) error
+	DeleteArticle(ctx context.Context, id int64) error
+	GetArticleUV(ctx context.Context, id int64) (int64, error)
+	IncrementViewCountUnique(ctx context.Context, id int64, clientIP string) error
+}
+
 type Service struct {
-	repo           *Repository
+	repo           ArticleStore
 	commentDeleter CommentDeleter
 }
 
@@ -24,7 +41,7 @@ var (
 	ErrNoPermission     = errors.New("没有权限操作此文章")
 )
 
-func NewService(repo *Repository, commentDeleter CommentDeleter) *Service {
+func NewService(repo ArticleStore, commentDeleter CommentDeleter) *Service {
 	return &Service{repo: repo, commentDeleter: commentDeleter}
 }
 
