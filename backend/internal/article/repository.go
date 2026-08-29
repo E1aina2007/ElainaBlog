@@ -282,13 +282,16 @@ func (r *Repository) FlushViewCounts(ctx context.Context) (int, error) {
 }
 
 func (r *Repository) CreateArticle(ctx context.Context, userID int64, categoryID *int64, title, summary, content, tags string, isTop, isDraft bool) (int64, error) {
-	result := r.db.WithContext(ctx).Exec("INSERT INTO article (user_id, category_id, title, summary, content, tags, is_top, is_draft) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		userID, categoryID, title, summary, content, tags, isTop, isDraft)
-	if result.Error != nil {
-		return 0, result.Error
-	}
 	var id int64
-	if err := r.db.WithContext(ctx).Raw("SELECT LAST_INSERT_ID()").Scan(&id).Error; err != nil {
+	// 事务绑定同一连接：LAST_INSERT_ID 为连接级变量，池化下跨连接查询会拿到错误 ID
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("INSERT INTO article (user_id, category_id, title, summary, content, tags, is_top, is_draft) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			userID, categoryID, title, summary, content, tags, isTop, isDraft).Error; err != nil {
+			return err
+		}
+		return tx.Raw("SELECT LAST_INSERT_ID()").Scan(&id).Error
+	})
+	if err != nil {
 		return 0, err
 	}
 	return id, nil

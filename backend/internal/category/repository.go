@@ -56,11 +56,15 @@ func (r *Repository) GetCategoryList(ctx context.Context) ([]*CategoryVO, error)
 }
 
 func (r *Repository) CreateCategory(ctx context.Context, name string) (*CategoryVO, error) {
-	if err := r.db.WithContext(ctx).Exec("INSERT INTO category (name) VALUES (?)", name).Error; err != nil {
-		return nil, err
-	}
 	var category CategoryVO
-	if err := r.db.WithContext(ctx).Raw("SELECT LAST_INSERT_ID() AS id").Scan(&category).Error; err != nil {
+	// 事务绑定同一连接：LAST_INSERT_ID 为连接级变量，池化下跨连接查询会拿到错误 ID
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("INSERT INTO category (name) VALUES (?)", name).Error; err != nil {
+			return err
+		}
+		return tx.Raw("SELECT LAST_INSERT_ID() AS id").Scan(&category).Error
+	})
+	if err != nil {
 		return nil, err
 	}
 	return r.GetCategoryByID(ctx, category.ID)
