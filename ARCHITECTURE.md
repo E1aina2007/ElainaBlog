@@ -19,8 +19,9 @@ ElainaBlog/
 │   │   ├── response/           # API 统一响应与业务错误
 │   │   ├── middleware/         # Gin 中间件
 │   │   │   ├── jwt/            # JWT 鉴权与管理员权限
-│   │   │   ├── ratelimit/      # 接口速率限制
-│   │   │   ├── redis/          # Redis 连接与操作
+│   │   │   ├── ratelimit/      # 接口固定窗口限流（Lua 原子计数）
+│   │   │   ├── ipban/          # IP 封禁检查（命中 403，fail-open）
+│   │   │   ├── redis/          # Redis 连接、验证码、封禁存储与登录失败计数
 │   │   │   └── uploadlimit/    # 上传频率限制
 │   │   ├── router/             # 路由注册
 │   │   ├── user/               # 用户模块（Controller / Service / Repository）
