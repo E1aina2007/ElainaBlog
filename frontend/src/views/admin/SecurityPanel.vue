@@ -5,7 +5,6 @@ import toast from '@/utils/toast'
 
 const backupLoading = ref(false)
 const bannedIPs = ref<string[]>([])
-const loginAttempts = ref<Record<string, number>>({})
 
 // 一键备份
 const handleBackup = async () => {
@@ -37,7 +36,7 @@ const fetchBannedIPs = async () => {
   try {
     const data = await request.get('/security/banned-ips') as string[]
     bannedIPs.value = data || []
-  } catch (error) {
+  } catch {
     console.log('封禁功能需要后端支持')
     bannedIPs.value = []
   }
@@ -50,7 +49,7 @@ const handleUnban = async (ip: string) => {
     await request.post('/security/unban', { ip })
     bannedIPs.value = bannedIPs.value.filter(i => i !== ip)
     toast.success('解封成功')
-  } catch (error) {
+  } catch {
     toast.error('解封失败')
   }
 }

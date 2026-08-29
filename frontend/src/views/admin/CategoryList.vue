@@ -76,7 +76,7 @@ const handleToggleTop = async (category: Category) => {
     await toggleCategoryTop(category.id, !category.is_top)
     fetchCategories()
     toast.success(category.is_top ? '已取消置顶' : '已置顶')
-  } catch (error) {
+  } catch {
     toast.error('操作失败')
   }
 }

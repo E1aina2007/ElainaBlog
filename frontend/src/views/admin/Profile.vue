@@ -41,7 +41,7 @@ const handleSaveProfile = async () => {
     })
     await userStore.fetchProfile()
     toast.success('保存成功')
-  } catch (error) {
+  } catch {
     toast.error('保存失败')
   } finally {
     saving.value = false
@@ -66,7 +66,7 @@ const handleChangePassword = async () => {
     })
     passwordForm.value = { old_password: '', new_password: '', confirm_password: '' }
     toast.success('密码修改成功')
-  } catch (error) {
+  } catch {
     toast.error('密码修改失败，请确认原密码正确')
   } finally {
     changingPassword.value = false

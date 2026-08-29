@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getAllSiteConfig, updateSiteConfig, deleteSiteConfig } from '@/api/siteConfig'
+import { getAllSiteConfig, updateSiteConfig } from '@/api/siteConfig'
 import { useSiteStore } from '@/stores/site'
 import toast from '@/utils/toast'
 
@@ -58,18 +58,6 @@ const handleSave = async () => {
     toast.error('保存失败')
   } finally {
     saving.value = false
-  }
-}
-
-const handleDelete = async (key: string) => {
-  if (!confirm(`确定删除配置项 "${configLabels[key] || key}"？`)) return
-  try {
-    await deleteSiteConfig(key)
-    delete configs.value[key]
-    await siteStore.fetchConfig()
-    toast.success('删除成功')
-  } catch {
-    toast.error('删除失败')
   }
 }
 

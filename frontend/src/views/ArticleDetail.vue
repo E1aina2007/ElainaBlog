@@ -151,7 +151,7 @@ async function handleDeleteArticle() {
     setTimeout(() => {
       window.location.href = '/'
     }, 1000)
-  } catch (err) {
+  } catch {
     toast.error('删除失败')
   }
 }
@@ -169,7 +169,7 @@ async function handleTogglePin() {
     await toggleArticleTop(article.value.id, !article.value.is_top)
     article.value.is_top = !article.value.is_top
     toast.success(article.value.is_top ? '已置顶' : '已取消置顶')
-  } catch (err) {
+  } catch {
     toast.error('操作失败')
   }
 }

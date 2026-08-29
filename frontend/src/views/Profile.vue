@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getProfile, updateProfile, updatePassword } from '@/api/user'
-import type { UserProfile } from '@/api/user'
 import AvatarUpload from '@/components/AvatarUpload.vue'
 
-const router = useRouter()
 const userStore = useUserStore()
 
 const activeTab = ref<'info' | 'password'>('info')

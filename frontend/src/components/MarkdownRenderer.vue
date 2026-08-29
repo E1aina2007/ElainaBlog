@@ -46,7 +46,7 @@ const md = new MarkdownIt({
       try {
         const result = hljs.highlight(str, { language: lang, ignoreIllegals: true })
         return `<pre class="hljs-code-block"><div class="code-block-wrapper"><div class="code-block-header"><span class="code-lang">${lang}</span>${copyBtn}</div><code class="hljs language-${lang}">${result.value}</code></div></pre>`
-      } catch (_) {}
+      } catch {}
     }
     return `<pre class="hljs-code-block"><div class="code-block-wrapper"><div class="code-block-header">${copyBtn}</div><code class="hljs">${escapedContent}</code></div></pre>`
   },
@@ -108,13 +108,18 @@ function buildHeadingIdMap(content: string): Record<string, string> {
 
 const headingIdMap = ref<Record<string, string>>({})
 
-const renderedContent = computed(() => {
-  const content = props.content || ''
-  const map = buildHeadingIdMap(content)
-  headingIdMap.value = map
-  toc.value = extractToc(content)
-  return md.render(content)
-})
+const renderedContent = computed(() => md.render(props.content || ''))
+
+// content 变化时同步重建 TOC 与 heading ID 映射（渲染器在 md.render 期间读取，须先于渲染更新）
+watch(
+  () => props.content,
+  (content) => {
+    const c = content || ''
+    headingIdMap.value = buildHeadingIdMap(c)
+    toc.value = extractToc(c)
+  },
+  { immediate: true },
+)
 
 // 自定义 heading 渲染，添加 ID
 const defaultHeadingOpen = md.renderer.rules.heading_open || function (tokens, idx, options, _env, self) {

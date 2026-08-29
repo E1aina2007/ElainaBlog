@@ -141,11 +141,6 @@ const goToWrite = () => {
   router.push('/write')
 }
 
-// 关闭排序下拉
-const closeSortDropdown = () => {
-  sortDropdownOpen.value = false
-}
-
 // 切换排序并关闭下拉
 const selectSort = (sort: 'latest' | 'popular' | 'comment') => {
   sortDropdownOpen.value = false

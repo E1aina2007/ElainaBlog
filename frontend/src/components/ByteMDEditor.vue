@@ -10,7 +10,7 @@ const { isDark } = useTheme()
 
 const plugins = [highlight(), gfm()]
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     modelValue: string
     placeholder?: string

@@ -1,10 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getAuthorStats, getMessageList, createMessage, deleteMessage } from '@/api/message'
+import type { Message } from '@/api/message'
 import { getAuthorProfile } from '@/api/authorProfile'
 import { getFriendLinkList } from '@/api/friendlink'
+import type { FriendLink } from '@/api/friendlink'
 import { getFaviconUrl, createFaviconErrorHandler } from '@/utils/favicon'
 import toast from '@/utils/toast'
 
@@ -12,8 +14,8 @@ const router = useRouter()
 const userStore = useUserStore()
 
 /** 隐藏加载失败的图片 */
-const hideImage = (e) => {
-  e.target.style.display = 'none'
+const hideImage = (e: Event) => {
+  ;(e.target as HTMLElement).style.display = 'none'
 }
 const canComment = computed(() => userStore.isLoggedIn)
 
@@ -30,9 +32,9 @@ const authorInfo = ref({
   wechat: '',
   bio: '',
   techStack: {
-    frontend: [],
-    backend: [],
-    engineering: [],
+    frontend: [] as string[],
+    backend: [] as string[],
+    engineering: [] as string[],
   },
   social: {
     github: '',
@@ -62,8 +64,8 @@ const DEFAULT_AUTHOR = {
 const fetchAuthorProfile = async () => {
   try {
     const profile = await getAuthorProfile()
-    const safeParse = (str, fallback) => {
-      try { return JSON.parse(str) } catch { return fallback }
+    const safeParse = <T,>(str: string, fallback: T): T => {
+      try { return JSON.parse(str) as T } catch { return fallback }
     }
     authorInfo.value = {
       ...authorInfo.value,
@@ -101,7 +103,7 @@ const fetchAuthorProfile = async () => {
 // 横幅滚动效果
 const scrollProgress = ref(0)
 const SCROLL_DISTANCE = 250
-let rafId = null
+let rafId: number | null = null
 const handleBannerScroll = () => {
   if (rafId) return
   rafId = requestAnimationFrame(() => {
@@ -112,10 +114,10 @@ const handleBannerScroll = () => {
 }
 
 // 留言板
-const messages = ref([])
+const messages = ref<Message[]>([])
 const newMessage = ref('')
 const sending = ref(false)
-const friendLinks = ref([])
+const friendLinks = ref<FriendLink[]>([])
 
 const fetchStats = async () => {
   try {
@@ -125,7 +127,7 @@ const fetchStats = async () => {
     authorInfo.value.stats.daysSinceCreated = stats.days_since
   } catch (e) {
     console.error('获取统计失败:', e)
-    toast.error(e?.message || '获取统计数据失败')
+    toast.error(e instanceof Error ? e.message : '获取统计数据失败')
   }
 }
 
@@ -134,7 +136,7 @@ const fetchMessages = async () => {
     messages.value = (await getMessageList()) ?? []
   } catch (e) {
     console.error('获取留言失败:', e)
-    toast.error(e?.message || '获取留言列表失败')
+    toast.error(e instanceof Error ? e.message : '获取留言列表失败')
   }
 }
 
@@ -161,24 +163,24 @@ const handleSendMessage = async () => {
     await fetchMessages()
     toast.success('留言成功')
   } catch (e) {
-    toast.error(e?.message || '留言失败')
+    toast.error(e instanceof Error ? e.message : '留言失败')
   } finally {
     sending.value = false
   }
 }
 
-const handleDeleteMessage = async (id) => {
+const handleDeleteMessage = async (id: number) => {
   if (!confirm('确定删除这条留言？')) return
   try {
     await deleteMessage(id)
     await fetchMessages()
     toast.success('留言已删除')
-  } catch (e) {
+  } catch {
     toast.error('删除失败')
   }
 }
 
-const formatDate = (date) => {
+const formatDate = (date: string) => {
   return new Date(date).toLocaleString('zh-CN', {
     month: 'short',
     day: 'numeric',

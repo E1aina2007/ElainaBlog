@@ -23,6 +23,18 @@ export default defineConfigWithVueTs(
   vueTsConfigs.recommended,
 
   {
+    name: 'app/rules-relaxations',
+    rules: {
+      // 页面级视图组件按项目约定使用单字命名（Home/Login 等），经 router 引用而非自定义标签
+      'vue/multi-word-component-names': 'off',
+      // 存量 catch 块与第三方回调广泛使用 any，暂降为警告逐步偿还
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // env.d.ts 的 .vue 模块 shim 样板使用空对象类型
+      '@typescript-eslint/no-empty-object-type': 'warn',
+    },
+  },
+
+  {
     ...pluginPlaywright.configs['flat/recommended'],
     files: ['e2e/**/*.{test,spec}.{js,ts,jsx,tsx}'],
   },

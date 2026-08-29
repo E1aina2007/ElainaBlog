@@ -47,7 +47,6 @@ function generateRandom() {
 
 // ========== 时间戳转换 ==========
 const tsInput = ref('')
-const tsMode = ref<'now' | 'unix' | 'date'>('now')
 const tsResult = ref('')
 
 function getNow() {
