@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"gorm.io/gorm"
@@ -168,13 +169,15 @@ func (s *Service) notifyComment(ctx context.Context, articleID, commenterID int6
 		if *replyToUserID == commenterID {
 			return // 回复自己不通知
 		}
-		s.notifCreator.CreateNotification(ctx,
+		if err := s.notifCreator.CreateNotification(ctx,
 			*replyToUserID,
 			"comment",
 			"你的评论有了新回复",
 			summary,
 			articleID,
-		)
+		); err != nil {
+			log.Printf("创建评论回复通知失败: userID=%d articleID=%d err=%v", *replyToUserID, articleID, err)
+		}
 	} else {
 		// 普通评论 → 通知文章作者
 		if s.articleInfo == nil {
@@ -184,12 +187,14 @@ func (s *Service) notifyComment(ctx context.Context, articleID, commenterID int6
 		if err != nil || articleUserID == commenterID {
 			return
 		}
-		s.notifCreator.CreateNotification(ctx,
+		if err := s.notifCreator.CreateNotification(ctx,
 			articleUserID,
 			"comment",
 			fmt.Sprintf("你的文章《%s》有新评论", title),
 			summary,
 			articleID,
-		)
+		); err != nil {
+			log.Printf("创建文章评论通知失败: userID=%d articleID=%d err=%v", articleUserID, articleID, err)
+		}
 	}
 }

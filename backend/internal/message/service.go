@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 
 	"gorm.io/gorm"
@@ -120,12 +121,14 @@ func (s *Service) notifyAdmins(ctx context.Context, userID int64, content string
 	}
 
 	for _, adminID := range adminIDs {
-		s.notifCreator.CreateNotification(ctx,
+		if err := s.notifCreator.CreateNotification(ctx,
 			adminID,
 			"message",
 			"你有一条新留言",
 			summary,
 			0,
-		)
+		); err != nil {
+			log.Printf("创建留言通知失败: adminID=%d err=%v", adminID, err)
+		}
 	}
 }
