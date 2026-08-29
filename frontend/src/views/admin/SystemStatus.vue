@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import request from '@/api/request'
+import { getSystemStatus } from '@/api/dashboard'
 
 interface SystemStatus {
   cpu_usage: number
@@ -31,7 +31,7 @@ const autoRefresh = ref(false)
 const fetchStatus = async () => {
   loading.value = true
   try {
-    const data = await request.get('/system/status')
+    const data = await getSystemStatus()
     status.value = { ...status.value, ...data }
   } catch (error) {
     console.error('获取系统状态失败:', error)

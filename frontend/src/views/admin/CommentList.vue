@@ -1,18 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import request from '@/api/request'
+import { getCommentList, deleteComment, type AdminComment as Comment } from '@/api/comment'
 import toast from '@/utils/toast'
-
-interface Comment {
-  id: number
-  article_id: number
-  article_title?: string
-  user_id: number
-  username: string
-  content: string
-  created_at: string
-  is_pending?: boolean
-}
 
 const comments = ref<Comment[]>([])
 const loading = ref(false)
@@ -21,8 +10,7 @@ const searchQuery = ref('')
 const fetchComments = async () => {
   loading.value = true
   try {
-    // 获取所有评论列表（需要后端支持）
-    const data = await request.get('/comment/list') as Comment[]
+    const data = await getCommentList()
     comments.value = data || []
   } catch (error) {
     console.error('获取评论列表失败:', error)
@@ -46,7 +34,7 @@ const filteredComments = computed(() => {
 const handleDelete = async (comment: Comment) => {
   if (!confirm('确定要删除这条评论吗？')) return
   try {
-    await request.post('/comment/delete', { id: comment.id })
+    await deleteComment(comment.id)
     comments.value = comments.value.filter(c => c.id !== comment.id)
     toast.success('删除成功')
   } catch (error) {

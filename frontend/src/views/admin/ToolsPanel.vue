@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import request from '@/api/request'
+import { clearCache, saveCustomCode } from '@/api/tools'
 import toast from '@/utils/toast'
 
 const clearingCache = ref(false)
@@ -13,7 +13,7 @@ const handleClearCache = async () => {
   if (!confirm('确定要清理所有缓存吗？包括 Redis 缓存和页面静态缓存。')) return
   clearingCache.value = true
   try {
-    await request.post('/cache/clear')
+    await clearCache()
     toast.success('缓存清理成功！')
   } catch (error) {
     console.error('清理失败:', error)
@@ -28,7 +28,7 @@ const handleClearCache = async () => {
 const handleSaveCode = async () => {
   savingCode.value = true
   try {
-    await request.post('/site', {
+    await saveCustomCode({
       custom_header: headerCode.value,
       custom_footer: footerCode.value,
     })

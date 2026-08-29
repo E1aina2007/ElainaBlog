@@ -30,3 +30,20 @@ export function createComment(data: { article_id: number; reply_to_user_id?: num
 export function deleteComment(id: number): Promise<void> {
     return request.post('/comment/delete', { id })
 }
+
+// 管理员评论条目：附文章标题与待审状态
+export interface AdminComment {
+    id: number
+    article_id: number
+    article_title?: string
+    user_id: number
+    username: string
+    content: string
+    created_at: string
+    is_pending?: boolean
+}
+
+// 管理员：获取全部评论列表
+export function getCommentList(): Promise<AdminComment[]> {
+    return request.get('/comment/list')
+}

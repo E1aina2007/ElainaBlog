@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import request from '@/api/request'
+import { getDashboardStats, getSystemStatus } from '@/api/dashboard'
 
 interface DashboardStats {
   article_count: number
@@ -39,7 +39,7 @@ const sysStatus = ref<SystemStatus | null>(null)
 const fetchStats = async () => {
   loading.value = true
   try {
-    const data = await request.get('/dashboard/stats')
+    const data = await getDashboardStats()
     stats.value = { ...stats.value, ...data }
   } catch (error) {
     console.error('获取统计数据失败:', error)
@@ -50,7 +50,7 @@ const fetchStats = async () => {
 
 const fetchSystemStatus = async () => {
   try {
-    const data = await request.get('/system/status')
+    const data = await getSystemStatus()
     sysStatus.value = data as unknown as SystemStatus
   } catch (error) {
     console.error('获取系统状态失败:', error)

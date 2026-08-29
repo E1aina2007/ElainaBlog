@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import request from '@/api/request'
+import { getBannedIPs, banIP, unbanIP, exportBackup, type BannedIPInfo } from '@/api/security'
 import toast from '@/utils/toast'
 
 const backupLoading = ref(false)
 const bannedIPs = ref<BannedIPInfo[]>([])
 const banInput = ref('')
 const banning = ref(false)
-
-// 后端 /security/banned-ips 返回的封禁条目；ttl_seconds 为 -1 表示永久封禁
-interface BannedIPInfo {
-  ip: string
-  banned_at: number
-  ttl_seconds: number
-}
 
 const formatTime = (unix: number): string =>
   unix > 0 ? new Date(unix * 1000).toLocaleString('zh-CN', { hour12: false }) : '--'
@@ -33,7 +26,7 @@ const handleBan = async () => {
   if (!ip) return
   banning.value = true
   try {
-    await request.post('/security/ban', { ip })
+    await banIP(ip)
     toast.success('IP 已封禁')
     banInput.value = ''
     await fetchBannedIPs()
@@ -49,7 +42,7 @@ const handleBackup = async () => {
   if (!confirm('确定要备份全站数据吗？备份文件将包含所有数据库内容。')) return
   backupLoading.value = true
   try {
-    const response = await request.get('/backup/export', { responseType: 'blob' }) as Blob
+    const response = await exportBackup()
     // 创建下载链接
     const blob = new Blob([response], { type: 'application/sql' })
     const url = window.URL.createObjectURL(blob)
@@ -72,7 +65,7 @@ const handleBackup = async () => {
 // 获取被封禁的IP列表
 const fetchBannedIPs = async () => {
   try {
-    const data = await request.get('/security/banned-ips') as BannedIPInfo[]
+    const data = await getBannedIPs()
     bannedIPs.value = data || []
   } catch {
     console.log('封禁功能需要后端支持')
@@ -84,7 +77,7 @@ const fetchBannedIPs = async () => {
 const handleUnban = async (ip: string) => {
   if (!confirm(`确定要解封 IP ${ip} 吗？`)) return
   try {
-    await request.post('/security/unban', { ip })
+    await unbanIP(ip)
     bannedIPs.value = bannedIPs.value.filter(item => item.ip !== ip)
     toast.success('解封成功')
   } catch {
