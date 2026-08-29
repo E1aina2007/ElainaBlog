@@ -18,6 +18,7 @@ import (
 	"ElainaBlog/internal/siteconfig"
 	"ElainaBlog/internal/upload"
 	"ElainaBlog/internal/user"
+	"log"
 	"net/http"
 	"time"
 
@@ -45,6 +46,13 @@ func New(opts Options) *gin.Engine {
 	}
 
 	r := gin.New()
+
+	// 仅信任本机回环代理（生产由宿主机 nginx 回源），
+	// 防止客户端伪造 X-Forwarded-For 绕过限流与 IP 封禁
+	if err := r.SetTrustedProxies([]string{"127.0.0.1", "::1"}); err != nil {
+		log.Printf("设置受信代理失败: %v", err)
+	}
+
 	r.Use(gin.Recovery())
 	if opts.Config.Dev {
 		r.Use(gin.Logger())
