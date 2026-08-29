@@ -552,6 +552,16 @@ docker compose --env-file backend/.env pull
 docker compose --env-file backend/.env up -d
 ```
 
+#### 回滚到指定版本
+
+CI 每次构建会同时推送 `latest` 与 commit SHA 标签，回滚时把镜像标签指到历史 SHA 即可：
+
+```bash
+IMAGE_TAG=<commit-sha> docker compose --env-file backend/.env up -d frontend backend
+# 恢复跟踪最新版
+docker compose --env-file backend/.env up -d
+```
+
 #### 仅更新前端或后端
 
 ```bash

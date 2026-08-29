@@ -3,7 +3,7 @@
 #   docker compose --env-file backend/.env up -d
 services:
   frontend:
-    image: ${DOCKER_REGISTRY:-registry.cn-guangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-frontend:latest
+    image: ${DOCKER_REGISTRY:-registry.cn-guangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-frontend:${IMAGE_TAG:-latest}
     container_name: elainablog-frontend
     restart: unless-stopped
     ports:
@@ -16,7 +16,7 @@ services:
       - elainablog
 
   backend:
-    image: ${DOCKER_REGISTRY:-registry.cn-guangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-backend:latest
+    image: ${DOCKER_REGISTRY:-registry.cn-guangzhou.aliyuncs.com}/${DOCKER_NAMESPACE:-elainablog}/elainablog-backend:${IMAGE_TAG:-latest}
     container_name: elainablog-backend
     restart: unless-stopped
     ports:
