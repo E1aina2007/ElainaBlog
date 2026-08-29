@@ -3,8 +3,10 @@ package user
 import (
 	"ElainaBlog/internal/config"
 	"ElainaBlog/internal/auth"
+	cache "ElainaBlog/internal/middleware/redis"
 	"ElainaBlog/internal/response"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -162,6 +164,7 @@ func (ctl *Controller) Login(c *gin.Context) {
 			return
 		case ErrUserNotFound, ErrPasswordMismatch:
 			// 登录失败统一返回邮箱或密码错误，不透露具体原因
+			ctl.recordLoginFailure(c)
 			c.JSON(response.ErrPasswordMismatch.HTTPStatus(), response.ApiErrorResponse(response.ErrPasswordMismatch.Code, response.ErrPasswordMismatch.Message, response.ErrPasswordMismatch))
 			return
 		default:
@@ -170,11 +173,29 @@ func (ctl *Controller) Login(c *gin.Context) {
 		}
 	}
 
+	if ctl.rdb != nil {
+		cache.ResetLoginFailures(ctl.rdb, c.ClientIP())
+	}
 	ctl.setTokenCookies(c, result.AccessToken, result.RefreshToken)
 	c.JSON(http.StatusOK, response.ApiSuccessResponse(gin.H{
 		"user_id": result.UserID,
 		"email":   result.Email,
 	}))
+}
+
+// recordLoginFailure 记录登录失败，窗口内达到阈值时自动封禁该 IP（带 TTL 自动解封）
+func (ctl *Controller) recordLoginFailure(c *gin.Context) {
+	if ctl.rdb == nil {
+		return
+	}
+	ip := c.ClientIP()
+	fails, err := cache.RecordLoginFailure(ctl.rdb, ip)
+	if err != nil {
+		return // Redis 故障时静默跳过，不阻塞登录响应
+	}
+	if cache.AutoBanIfAbusive(ctl.rdb, ip, fails) {
+		log.Printf("IP %s 登录失败达 %d 次，已自动封禁 %s", ip, fails, cache.LoginBanTTL)
+	}
 }
 
 func (ctl *Controller) GetProfile(c *gin.Context) {
