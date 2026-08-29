@@ -64,9 +64,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 存量 lint 错误较多，暂只提示不阻断；修完后删除 continue-on-error
-      - name: Lint (advisory)
-        continue-on-error: true
+      # eslint 0 error（28 个 warn 为存量 any 债务，警告不阻断）
+      - name: Lint
         run: |
           npx oxlint .
           npx eslint .
