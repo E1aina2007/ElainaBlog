@@ -21,9 +21,9 @@ WORKDIR /app
 # 从构建阶段复制二进制文件
 COPY --from=builder /elainablog .
 
-# 创建上传目录和日志目录，设置非 root 用户
+# 创建上传目录，设置非 root 用户
 RUN adduser -D -u 1001 appuser && \
-    mkdir -p uploads log && \
+    mkdir -p uploads && \
     chown -R appuser:appuser /app
 
 USER appuser

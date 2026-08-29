@@ -127,7 +127,6 @@
 | `backend/configs` | `/app/config` | 后端配置文件（yaml） | 绑定挂载 |
 | `backend/uploads` | `/app/uploads` | 用户上传文件（头像、文章封面等） | 绑定挂载 |
 | `frontend/public/author` | `/usr/share/nginx/html/author` | 作者头像与背景图 | 绑定挂载 |
-| `logs` (Docker Volume) | `/app/log` | 后端日志 | 命名卷 |
 | `mysql_data` (Docker Volume) | `/var/lib/mysql` | MySQL 数据 | 命名卷 |
 | `redis_data` (Docker Volume) | `/data` | Redis 数据 | 命名卷 |
 

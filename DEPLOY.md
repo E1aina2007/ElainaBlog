@@ -265,11 +265,11 @@ mkdir -p frontend/public/author
 | `backend/configs` | `/app/config` | backend | 后端配置文件（yaml） |
 | `backend/uploads` | `/app/uploads` | backend | 用户上传文件（头像、文章封面等） |
 | `frontend/public/author` | `/usr/share/nginx/html/author` | frontend | 作者头像与背景图 |
-| `logs` (Volume) | `/app/log` | backend | 后端运行日志 |
 | `mysql_data` (Volume) | `/var/lib/mysql` | mysql | MySQL 数据库数据 |
 | `redis_data` (Volume) | `/data` | redis | Redis 缓存数据 |
 
-> Docker 命名卷（`logs`、`mysql_data`、`redis_data`）会在首次 `docker compose --env-file backend/.env up` 时自动创建。
+> Docker 命名卷（`mysql_data`、`redis_data`）会在首次 `docker compose --env-file backend/.env up` 时自动创建。
+> 后端日志输出到 stdout，使用 `docker compose --env-file backend/.env logs` 查看，无文件日志。
 
 #### 作者资源
 
@@ -592,7 +592,7 @@ docker compose --env-file backend/.env down
 ```
 
 ```bash
-# 停止并删除数据卷（⚠️ 会删除数据库、日志、Redis 缓存）
+# 停止并删除数据卷（⚠️ 会删除数据库、Redis 缓存）
 docker compose --env-file backend/.env down -v
 ```
 
@@ -656,7 +656,6 @@ docker exec -it elainablog-redis redis-cli
 ```bash
 # 查看后端容器内文件
 docker exec elainablog-backend ls /app/uploads
-docker exec elainablog-backend ls /app/log
 docker exec elainablog-backend ls /app/config
 ```
 

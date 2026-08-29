@@ -51,7 +51,6 @@ services:
     volumes:
       - ./backend/configs:/app/config # 配置文件（yaml）
       - ./backend/uploads:/app/uploads # 上传文件（头像等）持久化
-      - logs:/app/log # 日志持久化
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -113,7 +112,6 @@ services:
 volumes:
   mysql_data:
   redis_data:
-  logs:
 
 networks:
   elainablog:
