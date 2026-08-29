@@ -61,10 +61,11 @@ services:
       - elainablog
 
   # 数据库迁移：MySQL 就绪后执行一次 golang-migrate，完成后退出
+  # on-failure:5 容忍健康检查通过但 MySQL 未完全就绪的竞态，失败自动重试最多 5 次
   migrate:
     image: migrate/migrate:v4.19.1
     container_name: elainablog-migrate
-    restart: "no"
+    restart: on-failure:5
     command:
       - -path=/migrations
       - -database=mysql://root:${MYSQL_ROOT_PASSWORD}@tcp(mysql:3306)/${MYSQL_DATABASE:-ElainaBlog}?multiStatements=true

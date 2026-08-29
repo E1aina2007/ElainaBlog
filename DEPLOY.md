@@ -713,6 +713,20 @@ docker compose --env-file backend/.env logs mysql
 
 等待出现 "ready for connections" 后再启动后端。
 
+### migrate 容器失败，后端容器不启动
+
+后端依赖迁移完成后才启动（`depends_on: service_completed_successfully`），migrate 失败时后端不会运行：
+
+```bash
+# 1. 查看 migrate 容器日志定位失败原因
+docker compose --env-file backend/.env logs migrate
+
+# 2. 排除问题后重新执行迁移并启动
+docker compose --env-file backend/.env up -d
+```
+
+> 常见原因：数据库密码含 `@`、`:`、`/`、`?` 等 URL 特殊字符；旧版本数据库的迁移表结构与 golang-migrate 不兼容（不支持原地升级）。
+
 ### 前端页面空白或 404
 
 ```bash
