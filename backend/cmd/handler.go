@@ -95,8 +95,18 @@ func runServer() error {
 		return err
 	}
 
+	// 关停前最后一次刷写浏览量，避免丢失最近窗口内累积的数据
+	if n, err := articleRepo.FlushViewCounts(context.Background()); err != nil {
+		log.Printf("关停前浏览量同步失败: %v", err)
+	} else if n > 0 {
+		log.Printf("关停前浏览量同步完成: %d 篇", n)
+	}
+
 	if err := db.Close(db.DB); err != nil {
 		log.Printf("数据库关闭失败: %v", err)
+	}
+	if err := cache.DefaultClient.Close(); err != nil {
+		log.Printf("Redis 关闭失败: %v", err)
 	}
 	log.Println("服务器已关闭")
 	return nil
