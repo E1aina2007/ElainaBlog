@@ -136,7 +136,8 @@ func New(opts Options) *gin.Engine {
 		apiGroup.GET("/author/profile", authorProfileController.Get)
 		apiGroup.GET("/message/list", messageController.GetList)
 		apiGroup.GET("/friend-link/list", friendLinkController.GetList)
-		apiGroup.POST("/visit", siteController.RecordVisit)
+		// 公开页访问统计：粗粒度限流，防脚本刷导航虚增 PV
+		apiGroup.POST("/visit", ratelimit.Limit(redis, "visit", 30, time.Minute), siteController.RecordVisit)
 
 		// 需要登录的接口
 		authGroup := apiGroup.Group("", jwt.RequireAuth(tokenMgr))
