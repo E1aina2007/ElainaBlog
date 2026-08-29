@@ -4,6 +4,7 @@ import (
 	"ElainaBlog/internal/auth"
 	"ElainaBlog/internal/response"
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -92,35 +93,23 @@ func (ctl *Controller) DeleteComment(c *gin.Context) {
 	}
 
 	userID := c.GetInt64(auth.CtxUserIDKey)
+	isAdmin, _ := ctl.adminChecker.CheckIsAdmin(c.Request.Context(), userID)
 
-	// 检查评论是否存在，并校验本人或管理员
-	comment, err := ctl.service.GetCommentByID(c.Request.Context(), req.ID)
+	err := ctl.service.DeleteComment(c.Request.Context(), &DeleteCommentParams{ID: req.ID}, userID, isAdmin)
 	if err != nil {
-		switch err {
-		case ErrCommentNotFound:
+		switch {
+		case errors.Is(err, ErrInvalidParams):
+			appErr := response.ErrInvalidParams.WithDetail("无效的评论 ID")
+			c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case errors.Is(err, ErrCommentNotFound):
 			appErr := response.ErrNotFound.WithDetail("评论不存在")
+			c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
+		case errors.Is(err, ErrNoPermission):
+			appErr := response.ErrForbidden.WithDetail("仅评论作者或管理员可删除")
 			c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
 		default:
 			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		}
-		return
-	}
-
-	if comment.UserID != userID {
-		isAdmin, err := ctl.adminChecker.CheckIsAdmin(c.Request.Context(), userID)
-		if err != nil {
-			c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
-			return
-		}
-		if !isAdmin {
-			appErr := response.ErrForbidden.WithDetail("仅评论作者或管理员可删除")
-			c.JSON(appErr.HTTPStatus(), response.ApiErrorResponse(appErr.Code, appErr.Message, appErr))
-			return
-		}
-	}
-
-	if err := ctl.service.DeleteComment(c.Request.Context(), &DeleteCommentParams{ID: req.ID}); err != nil {
-		c.JSON(response.ErrInternal.HTTPStatus(), response.ApiErrorResponse(response.ErrInternal.Code, response.ErrInternal.Message, nil))
 		return
 	}
 

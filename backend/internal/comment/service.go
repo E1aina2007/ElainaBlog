@@ -25,14 +25,24 @@ type UserProvider interface {
 	GetUsernameByID(ctx context.Context, id int64) (string, error)
 }
 
+// CommentStore 评论数据的窄接口（消费者侧定义，参照 article 包模式），
+// 便于 service 层单元测试时以假实现替换；*Repository 天然满足此接口
+type CommentStore interface {
+	GetCommentByID(ctx context.Context, id int64) (*Comment, error)
+	GetCommentListByArticleID(ctx context.Context, articleID int64) ([]*CommentVO, error)
+	GetAllCommentList(ctx context.Context) ([]*CommentVO, error)
+	CreateComment(ctx context.Context, comment *Comment) (int64, error)
+	DeleteComment(ctx context.Context, id int64) error
+}
+
 type Service struct {
-	repo         *Repository
+	repo         CommentStore
 	articleInfo  ArticleInfoProvider
 	notifCreator NotificationCreator
 	userProvider UserProvider
 }
 
-func NewService(repo *Repository, articleInfo ArticleInfoProvider, notifCreator NotificationCreator, userProvider UserProvider) *Service {
+func NewService(repo CommentStore, articleInfo ArticleInfoProvider, notifCreator NotificationCreator, userProvider UserProvider) *Service {
 	return &Service{repo: repo, articleInfo: articleInfo, notifCreator: notifCreator, userProvider: userProvider}
 }
 
@@ -40,6 +50,7 @@ var (
 	ErrDBNotInitialized = errors.New("数据库未初始化")
 	ErrInvalidParams    = errors.New("无效的参数")
 	ErrCommentNotFound  = errors.New("评论不存在")
+	ErrNoPermission     = errors.New("没有权限删除此评论")
 )
 
 func (s *Service) GetCommentByID(ctx context.Context, id int64) (*Comment, error) {
@@ -133,7 +144,7 @@ func (s *Service) CreateComment(ctx context.Context, params *CreateCommentParams
 	return commentID, nil
 }
 
-func (s *Service) DeleteComment(ctx context.Context, params *DeleteCommentParams) error {
+func (s *Service) DeleteComment(ctx context.Context, params *DeleteCommentParams, userID int64, isAdmin bool) error {
 	if s == nil || s.repo == nil {
 		return ErrDBNotInitialized
 	}
@@ -142,12 +153,17 @@ func (s *Service) DeleteComment(ctx context.Context, params *DeleteCommentParams
 	}
 
 	// 检查评论是否存在
-	_, err := s.repo.GetCommentByID(ctx, params.ID)
+	comment, err := s.repo.GetCommentByID(ctx, params.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrCommentNotFound
 		}
 		return err
+	}
+
+	// 非作者仅管理员可删除（照 article 模式，权限判定收敛在 service 层）
+	if comment.UserID != userID && !isAdmin {
+		return ErrNoPermission
 	}
 
 	return s.repo.DeleteComment(ctx, params.ID)
